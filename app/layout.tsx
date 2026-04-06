@@ -8,6 +8,7 @@ const bodoniModa = Bodoni_Moda({
   variable: "--font-heading",
   display: "swap",
   weight: ["400", "500", "600", "700"],
+  adjustFontFallback: false,
 });
 
 const jost = Jost({
