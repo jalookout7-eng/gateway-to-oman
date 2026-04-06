@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { useEffect, useState } from "react";
@@ -55,7 +56,20 @@ export function Hero() {
       id="hero"
       className="relative min-h-screen flex items-center justify-center overflow-hidden"
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-navy via-navy-light to-navy" />
+      {/* Background photo — aerial Muscat */}
+      <div className="absolute inset-0">
+        <Image
+          src="https://images.pexels.com/photos/18331886/pexels-photo-18331886.jpeg?auto=compress&cs=tinysrgb&w=1920&q=80"
+          alt="Aerial view of Muscat, Oman"
+          fill
+          className="object-cover object-center"
+          priority
+        />
+      </div>
+
+      {/* Dark navy overlay so text stays legible */}
+      <div className="absolute inset-0 bg-gradient-to-br from-navy/92 via-navy/82 to-navy/92" />
+
       <GoldParticles />
 
       <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">

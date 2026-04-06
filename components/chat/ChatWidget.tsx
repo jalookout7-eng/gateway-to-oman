@@ -148,7 +148,6 @@ export function ChatWidget() {
   }, []);
 
   const handleBookingClick = useCallback(() => {
-    // For now, open mailto. Future: calendar integration
     window.open("mailto:azizi@alazizigroup.com?subject=Priority%20Session%20Request", "_blank");
   }, []);
 
@@ -158,23 +157,27 @@ export function ChatWidget() {
       <AnimatePresence>
         {!isOpen && (
           <motion.button
-            className="fixed bottom-6 right-6 w-14 h-14 rounded-full gold-gradient shadow-lg shadow-gold/30 flex items-center justify-center text-white z-50 hover:shadow-xl hover:scale-105 transition-all"
+            className="fixed bottom-6 right-6 h-14 px-5 rounded-full gold-gradient shadow-lg shadow-gold/30 flex items-center gap-2.5 text-white z-50 hover:shadow-xl transition-all"
             onClick={handleOpen}
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            exit={{ scale: 0 }}
-            whileHover={{ scale: 1.1 }}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            whileHover={{ scale: 1.05 }}
           >
             <svg
-              width="24"
-              height="24"
+              width="20"
+              height="20"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
+              className="flex-shrink-0"
             >
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
+            <span className="text-sm font-semibold tracking-wide whitespace-nowrap">
+              AI Assistant
+            </span>
           </motion.button>
         )}
       </AnimatePresence>
