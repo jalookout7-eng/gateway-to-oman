@@ -4,7 +4,19 @@
 
 @layer base {
   body {
-    @apply bg-warm-white text-gray-800 font-sans;
+    @apply bg-warm-white text-gray-800 font-body;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
+
+  a {
+    @apply cursor-pointer;
+  }
+
+  button {
+    @apply cursor-pointer;
   }
 }
 

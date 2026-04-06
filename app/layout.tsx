@@ -1,9 +1,21 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Bodoni_Moda, Jost } from "next/font/google";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const bodoniModa = Bodoni_Moda({
+  subsets: ["latin"],
+  variable: "--font-heading",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
+
+const jost = Jost({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+  weight: ["300", "400", "500", "600", "700"],
+});
 
 export const metadata: Metadata = {
   title: "Gateway to Oman — Your Strategic Bridge to Opportunity",
@@ -24,7 +36,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={`${bodoniModa.variable} ${jost.variable} font-body antialiased`}>
         {children}
         <ChatWidget />
       </body>

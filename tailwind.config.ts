@@ -27,7 +27,9 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        body: ["var(--font-body)", "Jost", "system-ui", "sans-serif"],
+        heading: ["var(--font-heading)", "Bodoni Moda", "Georgia", "serif"],
+        sans: ["var(--font-body)", "Jost", "system-ui", "sans-serif"],
       },
     },
   },

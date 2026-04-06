@@ -13,13 +13,13 @@ export function Button({
   ...props
 }: ButtonProps) {
   const base =
-    "font-semibold rounded-lg transition-all duration-200 inline-flex items-center justify-center";
+    "font-semibold rounded-lg transition-all duration-200 inline-flex items-center justify-center cursor-pointer font-body focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60";
 
   const variants = {
-    gold: "gold-gradient text-white hover:shadow-lg hover:shadow-gold/30 hover:-translate-y-0.5",
-    outline: "border-2 border-gold text-gold hover:bg-gold hover:text-white",
-    ghost: "text-gold hover:bg-gold/10",
-    navy: "bg-navy text-white hover:bg-navy-light",
+    gold: "gold-gradient text-white shadow-md shadow-gold/20 hover:shadow-lg hover:shadow-gold/30 hover:-translate-y-0.5 active:translate-y-0",
+    outline: "border-2 border-gold text-gold hover:bg-gold hover:text-white active:scale-95",
+    ghost: "text-gold hover:bg-gold/10 active:bg-gold/20",
+    navy: "bg-navy text-white hover:bg-navy-light active:scale-95",
   };
 
   const sizes = {

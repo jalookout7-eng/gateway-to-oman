@@ -1,28 +1,30 @@
 "use client";
 
-import { Card } from "@/components/ui/Card";
+import { motion } from "framer-motion";
+import { Target, Handshake, BadgeCheck, Star } from "lucide-react";
 import { ScrollAnimationWrapper } from "./ScrollAnimationWrapper";
+import type { LucideIcon } from "lucide-react";
 
-const reasons = [
+const reasons: { title: string; desc: string; Icon: LucideIcon }[] = [
   {
     title: "Local Expertise, Global Mindset",
     desc: "Founded by Ahmed Al-Azizi with 26 years of experience in Oman's telecom and legal sectors.",
-    icon: "🎯",
+    Icon: Target,
   },
   {
     title: "End-to-End Support",
     desc: "From your first exploratory visit to full business setup and beyond. We're with you at every step.",
-    icon: "🤝",
+    Icon: Handshake,
   },
   {
     title: "Verified Network",
     desc: "Pre-vetted partners, angel investors, and family offices. No gatekeepers — direct introductions.",
-    icon: "✅",
+    Icon: BadgeCheck,
   },
   {
     title: "Values-Aligned",
     desc: "We operate at the intersection of Islamic values and international business standards.",
-    icon: "⭐",
+    Icon: Star,
   },
 ];
 
@@ -43,13 +45,24 @@ export function WhyWorkWithUs() {
               animation="fadeUp"
               delay={i * 0.1}
             >
-              <Card className="h-full text-center">
-                <div className="text-4xl mb-4">{r.icon}</div>
-                <h3 className="text-lg font-bold text-navy mb-2">{r.title}</h3>
-                <p className="text-sm text-gray-600 leading-relaxed">
+              <motion.div
+                className="h-full bg-white rounded-xl border-t-4 border-gold shadow-md p-6 text-center flex flex-col items-center"
+                whileHover={{
+                  y: -6,
+                  boxShadow: "0 20px 40px rgba(201, 155, 60, 0.15)",
+                }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              >
+                <div className="w-14 h-14 rounded-full gold-gradient flex items-center justify-center mb-4 shadow-md shadow-gold/20">
+                  <r.Icon className="w-6 h-6 text-white" strokeWidth={1.5} />
+                </div>
+                <h3 className="text-lg font-bold text-navy mb-2 font-heading">
+                  {r.title}
+                </h3>
+                <p className="text-sm text-gray-600 leading-relaxed font-body">
                   {r.desc}
                 </p>
-              </Card>
+              </motion.div>
             </ScrollAnimationWrapper>
           ))}
         </div>
