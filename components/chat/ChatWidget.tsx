@@ -201,10 +201,10 @@ export function ChatWidget() {
             <div className="gold-gradient px-4 py-3 flex items-center justify-between">
               <div>
                 <p className="text-white font-semibold text-sm">
-                  Gateway to Oman
+                  AI Assistant
                 </p>
                 <p className="text-white/80 text-xs">
-                  Your guide to opportunity
+                  Gateway to Oman
                 </p>
               </div>
               <button
