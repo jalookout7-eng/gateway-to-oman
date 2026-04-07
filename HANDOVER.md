@@ -2,7 +2,7 @@
 
 **Prepared by:** JA (Developer)
 **Prepared for:** Ahmed Al-Azizi — Al Azizi Group
-**Last Updated:** April 6, 2026
+**Last Updated:** April 7, 2026
 **Live URL:** https://gateway-to-oman.vercel.app
 **Admin URL:** https://gateway-to-oman.vercel.app/admin
 **Repository:** https://github.com/jalookout7-eng/gateway-to-oman (private)
@@ -15,10 +15,13 @@ Gateway to Oman is a lead-generation website with an AI-powered chatbot, built t
 
 ### What It Does
 - **Landing page** showcasing Oman opportunities, services, and Ahmed's credentials — with real photography from Muscat, Oman's wadis, and key landmarks
-- **AI chatbot (Omar)** that auto-opens after 7 seconds, qualifies visitors through natural conversation, and captures leads
-- **Lead capture** with name, email, and phone — triggered intelligently by AI signals or after 5 exchanges max
-- **Admin dashboard** with interactive charts, lead management, conversation transcripts, and settings
-- **Email system** configurable via admin panel (SMTP, Resend, or SendGrid)
+- **Context-aware AI chatbot** that auto-opens after 7 seconds, OR opens in a centered modal when any CTA or opportunity card is clicked — pre-seeded with the relevant context
+- **Lead capture** with name, email, and phone — triggered intelligently by AI signals or after 5 exchanges max; chat closes fully after submission
+- **Consultation booking flow** — AI asks for preferred day and time, creates a booking record, generates a draft confirmation email for Ahmed to review and send
+- **Admin dashboard** with charts, lead management, AI lead summaries, conversation transcripts, booking calendar, and settings
+- **Push notifications** to Ahmed's browser (and phone when installed as PWA) — new leads, new bookings, upcoming meeting reminders
+- **Email approval workflow** — all outbound emails to leads are drafted and held until Ahmed clicks Send
+- **PWA-installable** — can be added to home screen on iOS and Android; push notifications work on both
 - **All conversations recorded** in the database, even if the visitor doesn't submit a form
 
 ---
@@ -36,6 +39,8 @@ Gateway to Oman is a lead-generation website with an AI-powered chatbot, built t
 | Charts | Recharts | Dashboard visualizations |
 | Icons | Lucide React | SVG icon library (stroke-based, consistent) |
 | Email | Nodemailer / Resend / SendGrid | Multi-provider email sending |
+| Calendar | ical-generator | .ics calendar file generation for booking emails |
+| Push | web-push + Web Push API | Browser push notifications (VAPID) |
 | Photos | Pexels CDN | Free commercial-use Oman photography |
 
 ---
@@ -45,7 +50,7 @@ Gateway to Oman is a lead-generation website with an AI-powered chatbot, built t
 ### Admin Dashboard
 - **URL:** https://gateway-to-oman.vercel.app/admin
 - **Token:** `gto-admin-2026`
-- Log in with this token to access leads, conversations, charts, and settings
+- Log in with this token to access leads, conversations, calendar, charts, and settings
 
 ### Vercel (Hosting)
 - **Account:** jalookout7-eng (GitHub-linked)
@@ -81,6 +86,11 @@ Configured in Vercel → Project Settings → Environment Variables:
 | `AI_PROVIDER` | AI provider (`groq`) | Yes |
 | `GROQ_API_KEY` | Groq API key for chat | Yes |
 | `ADMIN_TOKEN` | Token for admin dashboard login | Yes |
+| `VAPID_PUBLIC_KEY` | Web Push public key (generate once with web-push CLI) | Yes (Phase 5) |
+| `VAPID_PRIVATE_KEY` | Web Push private key | Yes (Phase 5) |
+| `VAPID_EMAIL` | Contact email for push service (e.g. `mailto:you@gmail.com`) | Yes (Phase 5) |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Same as VAPID_PUBLIC_KEY — exposed to browser for subscription | Yes (Phase 5) |
+| `CRON_SECRET` | Secret token to authenticate Vercel Cron calls | Yes (Phase 5) |
 | `EMAIL_PROVIDER` | `smtp`, `resend`, or `sendgrid` | For email |
 | `SMTP_HOST` | SMTP server hostname | If SMTP |
 | `SMTP_PORT` | SMTP port (usually 587) | If SMTP |
@@ -92,6 +102,12 @@ Configured in Vercel → Project Settings → Environment Variables:
 | `EMAIL_FROM_ADDRESS` | Sender email address | For email |
 | `EMAIL_REPLY_TO` | Reply-to address | For email |
 
+**Generate VAPID keys once:**
+```bash
+npx web-push generate-vapid-keys
+```
+Copy the output into Vercel env vars. Never regenerate unless you want to reset all push subscriptions.
+
 ---
 
 ## 5. Project Structure
@@ -99,48 +115,78 @@ Configured in Vercel → Project Settings → Environment Variables:
 ```
 gateway-to-oman/
 ├── app/
-│   ├── page.tsx                  # Landing page (assembles all sections)
-│   ├── layout.tsx                # Root layout — Bodoni Moda + Jost fonts, ChatWidget
-│   ├── globals.css               # Tailwind base, font-heading on h1-h6, gold-gradient
+│   ├── page.tsx                    # Landing page (assembles all sections)
+│   ├── layout.tsx                  # Root layout — fonts, ChatWidget, ChatModal, ChatModalProvider, PWA manifest link
+│   ├── globals.css                 # Tailwind base, font-heading on h1-h6, gold-gradient
 │   ├── admin/
-│   │   ├── layout.tsx            # Admin shell (sidebar, auth gate)
-│   │   ├── page.tsx              # Dashboard with charts
-│   │   ├── leads/page.tsx        # Leads table with filters
-│   │   ├── conversations/page.tsx # Conversation viewer
-│   │   └── settings/page.tsx     # Email + chatbot config
+│   │   ├── layout.tsx              # Admin shell — sidebar (desktop), bottom nav (mobile), push subscription registration
+│   │   ├── page.tsx                # Dashboard with charts
+│   │   ├── leads/page.tsx          # Leads table — expandable AI summary, email draft approval, Call/Email actions
+│   │   ├── calendar/page.tsx       # Booking calendar — week view, block/unblock days and slots
+│   │   ├── conversations/page.tsx  # Conversation viewer with AI summary header
+│   │   └── settings/page.tsx       # Email config, consultation time slots, chatbot settings
 │   └── api/
-│       ├── auth/route.ts         # Token validation
-│       ├── chat/route.ts         # AI chat endpoint + signal parsing
-│       ├── leads/                # Lead CRUD + CSV upload
-│       ├── conversations/        # Conversation list + detail
-│       ├── email/                # Send, test, config
-│       └── admin/stats/route.ts  # Dashboard analytics
+│       ├── auth/route.ts           # Token validation
+│       ├── chat/route.ts           # AI chat — context injection, availability injection, booking signal handling
+│       ├── availability/route.ts   # Returns available days/slots for next 7 days (Oman time)
+│       ├── bookings/route.ts       # Booking records CRUD
+│       ├── leads/                  # Lead CRUD — triggers AI summary + push notification on creation
+│       ├── conversations/          # Conversation list + detail
+│       ├── email/                  # Send, test, config
+│       ├── cron/reminders/route.ts # Vercel Cron — finds upcoming meetings, drafts reminder emails, sends push
+│       └── admin/
+│           ├── stats/route.ts      # Dashboard analytics
+│           ├── blocked-slots/      # Block/unblock availability slots
+│           ├── emails/[id]/send/   # Ahmed approves and sends a draft email
+│           ├── leads/[id]/summarize/ # Regenerate AI summary for a lead
+│           └── push/subscribe/     # Save browser push subscription
 ├── components/
-│   ├── landing/                  # 10 landing page sections (all with Pexels photos + Lucide icons)
-│   ├── chat/                     # ChatWidget, Messages, Input, LeadCapture, Booking
-│   ├── admin/                    # Scorecard, charts (6 components)
-│   └── ui/                       # Button, Card, Badge, Input, Modal
+│   ├── landing/                    # 10 landing page sections — Pexels photos, Lucide icons, opportunity cards as buttons
+│   ├── chat/
+│   │   ├── ChatWidget.tsx          # Floating chat — hidden on admin, closes fully after capture
+│   │   ├── ChatModal.tsx           # Centered modal — context-aware, fresh conversation per open
+│   │   ├── ChatMessages.tsx        # Shared message list component
+│   │   ├── ChatInput.tsx           # Input with font-size:16px (prevents iOS zoom), WhatsApp layout
+│   │   ├── LeadCaptureForm.tsx     # Lead form (shared by Widget and Modal)
+│   │   └── BookingButton.tsx       # High-intent booking prompt
+│   ├── admin/                      # Scorecard, charts (6 components)
+│   └── ui/                         # Button, Card, Badge, Input, Modal
 ├── lib/
 │   ├── ai/
-│   │   ├── prompts.ts            # System prompt (Omar persona) + contextual greetings
-│   │   ├── provider.ts           # Groq API integration
-│   │   └── signals.ts            # Signal parsing and extraction
-│   ├── auth/                     # Token validation middleware
-│   ├── db/                       # Turso client + schema.sql
-│   └── email/                    # Multi-provider sender + templates
+│   │   ├── prompts.ts              # System prompt — 3-layer personality, hard 3-5 exchange cap, anti-sales guardrail
+│   │   ├── provider.ts             # Groq API integration
+│   │   └── signals.ts              # Signal parsing — includes BOOKING_DAY and BOOKING_TIME
+│   ├── context/
+│   │   └── ChatModalContext.tsx    # Global context — openModal(intent, topic), closeModal
+│   ├── email/
+│   │   ├── sender.ts               # Multi-provider email sender (SMTP/Resend/SendGrid)
+│   │   └── booking.ts              # Booking confirmation email + .ics calendar attachment generator
+│   ├── push/
+│   │   └── notify.ts               # sendPushNotification() — sends to all stored subscriptions
+│   ├── auth/                       # Token validation middleware
+│   └── db/                         # Turso client + schema.sql
+├── public/
+│   ├── sw.js                       # Service worker — handles push events, notification clicks
+│   ├── manifest.json               # PWA manifest — enables "Add to Home Screen"
+│   ├── icon-192.png                # PWA icon
+│   └── icon-512.png                # PWA icon
 ├── scripts/
-│   └── migrate.ts                # Database migration script
-├── tests/                        # Vitest test suites (22 tests)
-├── next.config.js                # images.pexels.com remote patterns
-├── tailwind.config.ts            # Color tokens + font families (body/heading)
-└── .env.example                  # Template for environment variables
+│   └── migrate.ts                  # Database migration script
+├── docs/
+│   └── superpowers/
+│       ├── specs/2026-04-07-gateway-phase5-design.md   # Phase 5 design decisions
+│       └── plans/2026-04-07-gateway-phase5.md          # Phase 5 implementation plan (19 tasks)
+├── vercel.json                     # Vercel Cron config — reminders every 30 min
+├── next.config.js                  # images.pexels.com remote patterns
+├── tailwind.config.ts              # Color tokens + font families
+└── .env.example                    # Template for environment variables
 ```
 
 ---
 
 ## 6. What Has Been Built
 
-### Phase 1 — Core Application (completed April 1, 2026)
+### Phase 1 — Core Application (April 1, 2026)
 - Full Next.js 14 project scaffold with Tailwind brand config (navy/gold/teal)
 - All API routes: chat, leads, conversations, email, admin stats, auth
 - Database layer with Turso (5 tables: conversations, messages, leads, emails, settings)
@@ -151,81 +197,86 @@ gateway-to-oman/
 - 22 Vitest tests
 
 ### Phase 2 — Photography & Visual Polish (April 6, 2026)
-- Added **real Oman photography** from Pexels (free commercial license) across all landing sections:
-  - Hero: full-screen aerial Muscat background (Pexels #18331886) with navy overlay
-  - Who We Help: 4 contextual photos (coastal road, aerial city, minaret, Snake Canyon)
-  - Why Oman: 4 contextual photos matching each reason
-  - Opportunities: photo header on each of the 6 opportunity cards
-- Chat button changed from circular icon to **pill-shaped "AI Assistant" label**
-- Added `images.pexels.com` to `next.config.js` remote patterns for `next/image`
+- Real Oman photography from Pexels across all landing sections
+- Chat button changed to pill-shaped "AI Assistant" label
+- Added `images.pexels.com` to `next.config.js` remote patterns
 
 ### Phase 3 — UI/UX Pro Max Redesign (April 6, 2026)
-- **Typography:** Replaced Inter with **Bodoni Moda** (headings, luxury serif) + **Jost** (body, clean modern) via `next/font/google`
-- **Icons:** Replaced all emoji icons with **Lucide React SVG icons** throughout:
-  - Who We Help: Rocket, TrendingUp, Briefcase, Users
-  - Why Oman: Globe, BarChart3, Building2, Sunrise
-  - Why Work With Us: Target, Handshake, BadgeCheck, Star (in gold circle badges)
-  - Track Record: Users, Building2, CircleDollarSign, Globe
-  - Sectors: Landmark, HeartPulse, Truck, Leaf, BrainCircuit, Hotel (inline in pills)
-  - Core Services: Map, Package, LineChart, Home (inline with service title)
-  - Hero trust badges: ShieldCheck, Users, Star
-  - Contact CTA buttons: Mail, CalendarDays
-  - Founder quote: decorative Quote icon
-- **Hero enhancements:**
-  - Gold eyebrow label ("Strategic Advisory for Oman Opportunities")
-  - 3 trust badges below hero CTA (150+ Families, Verified Opportunities, 26 Years Expertise)
-  - Second CTA button (Book Free Consultation)
-- **UX compliance:**
-  - `cursor-pointer` on all interactive elements (Button, links, anchors via globals.css)
-  - `focus-visible:ring` on Button for keyboard navigation (WCAG)
-  - Card hover: `hover:-translate-y-0.5` with 200ms spring transition
-  - `tabular-nums` on animated counters (number-tabular rule)
+- **Typography:** Bodoni Moda (headings) + Jost (body) via `next/font/google`
+- **Icons:** All emoji replaced with Lucide React SVG icons throughout
+- **Hero:** Eyebrow badge, 3 trust badges, second CTA button
+- **UX:** `cursor-pointer` globally, focus rings, card hover animations, `tabular-nums` on counters
 
-### Phase 4 — AI Personality Rebuild (April 6, 2026)
-The chatbot persona was rebuilt using a 3-layer system:
+### Phase 4 — AI Personality Rebuild (April 6–7, 2026)
+- 3-layer system: Voice (banned words, rhythm), Emotional Intelligence (7 state protocols), Character (signature moves)
+- Hard 3–5 exchange cap — exchange 5 is a hard stop, `[CAPTURE_READY]` mandatory
+- Anti-sales guardrail — Omar qualifies, does not pitch; willing to say Oman isn't the right fit
+- Always ends responses with a qualifying follow-up question
+- Self-identifies as "AI Assistant" to visitors (Omar is the internal persona name only)
 
-**Layer 1 — Voice:** Full banned-words list (delve, robust, leverage, etc.), short paragraph rules, sentence burstiness, lead-with-conclusion structure. No headers/bullets/bold in conversational output. No filler openers.
+### Phase 5 — Booking System, Push Notifications, PWA, AI Summaries (April 7, 2026 — In Progress)
 
-**Layer 2 — Emotional Intelligence:** 7 calibrated state protocols:
-- Frustration → skip acknowledgment, go straight to the answer
-- Excitement → match briefly, channel forward
-- Confusion → fewer words, different angle
-- Vulnerability → direct warmth, concrete examples, no therapy
-- Adversarial → hold ground with specific evidence
-- Urgency → fastest answer first, label shortcuts
-- Low engagement → match energy, don't over-explain
+**Design complete. Implementation plan written (19 tasks). Pending execution.**
 
-**Layer 3 — Character:** Named persona **Omar** — senior Oman country advisor, 10 years experience, opinionated but adaptive. Signature moves: direct verdicts, "the question is really...", "be straight with you:", "the move is...". 12 hard "never do" rules. Greetings rewritten without emoji.
+What Phase 5 adds:
+- **Context-aware chat modal** — any CTA or opportunity card opens a centered chat modal pre-seeded with the relevant context (e.g., "Businesses for Sale"). Email buttons remain as mailto. Each modal is a fresh conversation.
+- **Consultation booking flow** — within the modal, AI asks for a preferred day (from available days) and time slot. Creates a booking record in the database.
+- **Availability system** — `GET /api/availability` returns open days/slots for the next 7 days (Oman time GMT+4), filtered against blocked slots and existing bookings. If all 7 days are full, returns days 8–14.
+- **Admin booking calendar** — week view showing bookings and blocked slots. Ahmed can block full days or individual time slots to control when the chatbot offers availability.
+- **Email approval workflow** — no email goes to a lead without Ahmed's approval. Booking confirmation emails and meeting reminder emails are generated as drafts; Ahmed reviews and clicks Send in the admin leads page.
+- **Booking confirmation email with .ics** — includes a calendar invite attachment compatible with Google Calendar, Outlook, and Apple Calendar.
+- **Web Push notifications** — Ahmed receives OS-level push notifications for: new lead captured, new booking confirmed, meeting in ~1 hour. Clicking a notification opens the relevant admin page.
+- **PWA support** — `manifest.json` + service worker enable "Add to Home Screen" on iOS and Android. Push notifications work on Android Chrome and iOS Safari 16.4+.
+- **Vercel Cron** — `/api/cron/reminders` runs every 30 minutes. Finds meetings in the next 60–90 minutes, generates reminder email drafts, sends push to Ahmed.
+- **AI lead summary** — auto-generated when a lead is created. Groq summarizes the conversation into 5 sections: WHO, WANTS, SIGNALS, BOTTLENECKS, NEXT STEP. Shown in an expandable row in the admin leads table. Ahmed can regenerate any summary.
+- **Mobile responsiveness** — admin dashboard gets a bottom tab nav on mobile, stacked charts, scrollable leads table. Landing page audited for horizontal overflow.
+- **Quick fixes** — hero overlay darkened for text legibility, ChatWidget hidden on admin routes, chat closes fully after lead capture, duplicate Pexels images replaced, "no sales pitch" text removed, iOS input zoom prevented.
 
 ---
 
 ## 7. Key Features & How They Work
 
-### AI Chatbot (Omar)
-- Auto-opens 7 seconds after page load
-- Named persona: Omar, a senior country advisor with strong opinions on Oman fit
-- Uses a detailed system prompt (`lib/ai/prompts.ts`) with 3-layer personality, Oman knowledge, conversation flow, and signal rules
-- AI embeds hidden signals in responses: `[SEGMENT:entrepreneur]`, `[INTEREST:business setup]`, `[CAPTURE_READY]`, `[HIGH_INTENT]`, `[CLOSE_CHAT]`
-- Server strips signals before sending to user — visitor never sees them
-- Hard ceiling: lead capture form appears after 5 exchanges if AI hasn't triggered it
+### AI Chatbot (Floating Widget)
+- Auto-opens 7 seconds after page load on landing page only (hidden on `/admin/*`)
+- Self-identifies as "AI Assistant" — Omar is the internal persona name
+- Uses `lib/ai/prompts.ts` — 3-layer personality, hard 3–5 exchange cap, anti-sales guardrail
+- Always ends every response with a qualifying follow-up question
+- Hidden signals stripped server-side: `[SEGMENT:X]`, `[INTEREST:X]`, `[CAPTURE_READY]`, `[HIGH_INTENT]`, `[CLOSE_CHAT]`, `[BOOKING_DAY:X]`, `[BOOKING_TIME:X]`
+- Chat closes fully (collapses to nothing) after lead form is submitted
 
-### Lead Capture
-- Triggered by `[CAPTURE_READY]` signal or after 5 exchanges
-- Collects: name, email, phone (with country code)
-- Chat stays open after capture for continued conversation
-- Off-topic users get redirected up to 3 times; `[CLOSE_CHAT]` auto-minimizes
+### Context-Aware Chat Modal
+- Triggered by clicking any opportunity card or CTA button (except email mailto links)
+- Opens as a centered overlay on desktop/tablet, full-screen bottom sheet on mobile
+- Each open starts a fresh conversation with a new sessionId
+- Context passed to AI via silent `[CONTEXT: ...]` injection in system prompt
+- For consultation intent: AI also receives `[AVAILABLE_DAYS: ...]` and `[AVAILABLE_SLOTS_FOR_X: ...]` from the availability API
+- Closes automatically after lead capture
 
-### Admin Dashboard
-- **Scorecard:** Total leads, Hot/Warm/Cold, Meetings booked, Conversion rate
-- **Charts:** Lead volume (bar), Segment breakdown (donut), Chat interactions (line), Meetings (bar), Conversion funnel
-- **Leads page:** Filter by segment/qualification/status, CSV export/import, manual entry
-- **Conversations page:** Full transcript viewer with outcome badges
-- **Settings page:** Tabbed email config, test email, chatbot settings
+### Consultation Booking Flow
+- Only active when modal is opened with `intent: 'consultation'`
+- AI qualifies (2–3 exchanges), then asks for day from available days, then time from available slots
+- `[BOOKING_DAY:YYYY-MM-DD]` and `[BOOKING_TIME:HH:MM]` signals create a booking record
+- Booking triggers: lead linked to booking, draft confirmation email generated, push notification to Ahmed
 
-### Email System
-- Configurable via admin Settings (no code changes needed)
-- Supports SMTP (Gmail, Outlook, etc.), Resend, and SendGrid
-- Send test email to verify configuration
+### Admin Push Notifications
+- Ahmed enables push on first admin login (browser prompt)
+- Subscription stored in `push_subscriptions` table
+- Three trigger points: new lead, new booking, meeting in ~90 min (via Cron)
+- All notifications deep-link to the relevant admin page
+- Works on desktop and mobile (PWA installed or browser tab)
+
+### Email Approval Workflow
+- All emails to leads are stored as `status = 'draft'` in the `emails` table
+- Admin leads page shows "Email Pending" badge per lead
+- Ahmed expands the lead row, reads the draft, clicks Send → `POST /api/admin/emails/:id/send`
+- Email is dispatched via configured provider (SMTP/Resend/SendGrid), status updated to `sent`
+- Call button opens `tel:` link; email button opens draft compose
+
+### AI Lead Summary
+- Generated automatically after lead creation (async, does not slow down the visitor's experience)
+- Groq summarizes the full conversation in 5 sections: WHO, WANTS, SIGNALS, BOTTLENECKS, NEXT STEP
+- Stored in `leads.ai_summary`
+- Shown as expandable card in admin leads table with a Regenerate button
 
 ---
 
@@ -247,15 +298,18 @@ The chatbot persona was rebuilt using a 3-layer system:
 
 ## 9. Database Schema
 
-5 tables in Turso:
+8 tables in Turso (5 original + 3 added in Phase 5):
 
 | Table | Purpose |
 |-------|---------|
 | `conversations` | Every chat session (id, session_id, outcome, segment, timestamps) |
 | `messages` | Every message in every conversation (role, content, raw_content with signals) |
-| `leads` | Captured leads (name, email, phone, segment, qualification, status) |
-| `emails` | Email log (subject, body, status, sent_at) |
-| `settings` | Key-value config store (email settings, chatbot settings) |
+| `leads` | Captured leads — name, email, phone, segment, qualification, status, `ai_summary`, `booking_id` |
+| `emails` | Email log — subject, body, status (draft/sent/failed), `to_address`, `booking_id`, `approved_at` |
+| `settings` | Key-value config store (email settings, chatbot settings, `consultation_slots`) |
+| `bookings` | Consultation bookings — lead_id, conversation_id, preferred_date, preferred_time, status |
+| `blocked_slots` | Days or time slots Ahmed has blocked — date, time_slot (null = full day), reason |
+| `push_subscriptions` | Browser push subscriptions — endpoint, p256dh, auth keys |
 
 Run migrations on a fresh database: `npm run migrate`
 
@@ -275,6 +329,9 @@ git config user.email "jalookout7-eng@users.noreply.github.com"
 git config user.name "jalookout7-eng"
 ```
 Do NOT use `Co-Authored-By` trailers — Vercel treats them as collaboration and blocks the deploy.
+
+### Vercel Cron
+`vercel.json` configures a cron job at `/api/cron/reminders` running every 30 minutes. Protected by `CRON_SECRET` environment variable. Vercel Hobby supports up to 2 cron jobs.
 
 ### How to add a custom domain
 1. Vercel Dashboard → Project → Settings → Domains
@@ -297,22 +354,35 @@ npm run dev             # http://localhost:3000
 
 | Issue | Status | Notes |
 |-------|--------|-------|
-| AI signal leaking | Partially fixed | Occasionally malformed tags reach the user. New system prompt structure reduces this. A regex improvement pass is still pending. |
-| Admin dashboard UI | Pending redesign | Functional but basic styling. Full UI/UX Pro redesign planned. |
-| Meeting booking | Placeholder | Currently opens a mailto link. Calendar integration (Calendly or similar) planned. |
+| AI signal leaking | Partially fixed | Occasionally malformed tags reach the user. Regex in `lib/ai/signals.ts` handles pipe-separated variants. A full pass is still pending. |
+| Phase 5 implementation | Pending | Design and plan complete. 19-task implementation plan at `docs/superpowers/plans/2026-04-07-gateway-phase5.md`. Not yet coded. |
+| Push notifications iOS | Partial | Works on iOS 16.4+ when app is installed to home screen. Older iOS devices and non-installed Safari do not support Web Push. |
 
 ---
 
-## 12. Planned Improvements
+## 12. Planned / In Progress
 
-- [ ] Redesign admin dashboard with polished UI (UI/UX Pro Max)
-- [ ] Fix AI signal leaking — improve regex in `lib/ai/signals.ts`
-- [ ] Calendar integration for meeting booking (replace mailto link)
+### Phase 5 — In Progress (implementation plan ready)
+- [ ] Context-aware chat modal for all CTAs and opportunity cards
+- [ ] Consultation booking flow (day + time selection via AI)
+- [ ] Admin booking calendar with block/unblock
+- [ ] Push notifications (new lead, booking, meeting reminder)
+- [ ] PWA manifest + service worker (installable on mobile)
+- [ ] Email approval workflow with .ics calendar attachment
+- [ ] Vercel Cron for meeting reminders
+- [ ] AI lead summary (auto-generated per lead, expandable in admin)
+- [ ] Admin dashboard mobile responsiveness
+- [ ] Landing page mobile responsiveness
+- [ ] All quick fixes (hero overlay, image duplicates, iOS zoom, etc.)
+
+See full implementation plan: `docs/superpowers/plans/2026-04-07-gateway-phase5.md`
+
+### Backlog (not yet scoped)
 - [ ] Email template editor in admin settings
 - [ ] Lead scoring automation
 - [ ] WhatsApp integration
 - [ ] Analytics tracking (Google Analytics or Vercel Analytics)
-- [ ] PWA support for mobile
+- [ ] AI signal leaking — full regex improvement pass
 
 ---
 
@@ -329,7 +399,8 @@ npm run dev             # http://localhost:3000
 2. **GitHub:** Transfer repo (Settings → Transfer)
 3. **Turso:** Export data, client creates Turso account, import, update env vars
 4. **Groq:** Client creates Groq account and API key, update env var
-5. Update all Vercel env vars with client credentials
+5. Regenerate VAPID keys on new deployment, update env vars
+6. Update all Vercel env vars with client credentials
 
 ### WordPress Coexistence
 - This is a standalone Next.js app — no WordPress dependency
@@ -340,16 +411,20 @@ npm run dev             # http://localhost:3000
 ## 14. Support & Maintenance
 
 ### Routine Tasks
-- **Monitor leads:** Check admin dashboard regularly
-- **Configure email:** Set up via Settings page before expecting welcome emails
+- **Monitor leads:** Check admin dashboard → Leads page regularly
+- **Approve emails:** Check for "Email Pending" badges in leads — review and send draft emails to leads
+- **Check calendar:** Admin → Calendar to see upcoming bookings and block dates as needed
+- **Configure email:** Set up via Settings page before expecting any outbound emails
+- **Enable push notifications:** First login to admin from each device — accept the browser prompt
 - **Update admin token:** Change `ADMIN_TOKEN` in Vercel env vars periodically
 - **Database backups:** Turso provides automatic backups; manual export via Turso CLI
 
 ### If Something Breaks
 1. Check Vercel deployment logs (Vercel Dashboard → Deployments → latest → Logs)
 2. Check Vercel Functions logs for API errors
-3. Verify env vars are set correctly in Vercel
+3. Verify env vars are set correctly in Vercel (especially VAPID keys, CRON_SECRET)
 4. Redeploy if needed (Deployments → Redeploy)
+5. If push notifications stop working: re-enable in admin (browser will re-subscribe)
 
 ### Cost Breakdown (Current)
 | Service | Plan | Cost |
@@ -365,5 +440,5 @@ Free tiers have limits. If traffic grows significantly, Vercel Pro ($20/mo) and 
 
 ---
 
-**Document Version:** 2.0
-**Last Updated:** April 6, 2026
+**Document Version:** 3.0
+**Last Updated:** April 7, 2026
