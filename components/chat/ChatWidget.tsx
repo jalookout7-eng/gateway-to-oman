@@ -11,7 +11,6 @@ import { getContextualGreeting } from "@/lib/ai/prompts";
 
 export function ChatWidget() {
   const pathname = usePathname();
-  if (pathname?.startsWith("/admin")) return null;
 
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -155,6 +154,8 @@ export function ChatWidget() {
   const handleBookingClick = useCallback(() => {
     window.open("mailto:azizi@alazizigroup.com?subject=Priority%20Session%20Request", "_blank");
   }, []);
+
+  if (pathname?.startsWith("/admin")) return null;
 
   return (
     <>
