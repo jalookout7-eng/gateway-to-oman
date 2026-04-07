@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db/client";
 import { requireAuth } from "@/lib/auth/token";
 import Groq from "groq-sdk";
+import { sendPushNotification } from "@/lib/push/notify";
 
 async function generateLeadSummary(leadId: string, conversationId: string | null, db: ReturnType<typeof getDb>) {
   if (!conversationId) return;
@@ -91,6 +92,13 @@ export async function POST(request: NextRequest) {
 
     // Fire-and-forget: generate AI summary without blocking response
     generateLeadSummary(leadId, conversationId ?? null, db).catch(console.error);
+
+    // Fire-and-forget: notify admin of new lead
+    sendPushNotification({
+      title: "New Lead",
+      body: `${name} — ${segment ?? "unknown segment"}`,
+      url: "/admin/leads",
+    }).catch(console.error);
 
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error) {

@@ -28,6 +28,42 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, []);
 
+  useEffect(() => {
+    if (!authenticated) return;
+
+    async function registerPush() {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+
+      try {
+        const reg = await navigator.serviceWorker.register("/sw.js");
+        const permission = await Notification.requestPermission();
+        if (permission !== "granted") return;
+
+        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!vapidKey) return;
+        const existing = await reg.pushManager.getSubscription();
+        const sub = existing ?? await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: vapidKey,
+        });
+
+        const savedToken = localStorage.getItem("admin_token") ?? "";
+        await fetch("/api/admin/push/subscribe", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${savedToken}`,
+          },
+          body: JSON.stringify(sub.toJSON()),
+        });
+      } catch (err) {
+        console.warn("Push registration failed:", err);
+      }
+    }
+
+    registerPush();
+  }, [authenticated]);
+
   async function verifyToken(t: string) {
     try {
       const res = await fetch("/api/auth", {
