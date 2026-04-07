@@ -119,7 +119,7 @@ export function Hero() {
 
         {/* Trust badges */}
         <motion.div
-          className="flex flex-wrap items-center justify-center gap-6"
+          className="flex flex-wrap items-center justify-center gap-4 gap-y-3"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 1.1 }}

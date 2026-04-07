@@ -1,3 +1,4 @@
+import { Navbar } from "@/components/landing/Navbar";
 import { Hero } from "@/components/landing/Hero";
 import { WhyOman } from "@/components/landing/WhyOman";
 import { Sectors } from "@/components/landing/Sectors";
@@ -12,6 +13,7 @@ import { ContactCTA } from "@/components/landing/ContactCTA";
 export default function Home() {
   return (
     <main>
+      <Navbar />
       <Hero />
       <WhyOman />
       <Sectors />
