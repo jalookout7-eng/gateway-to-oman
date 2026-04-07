@@ -55,3 +55,41 @@ CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
 CREATE INDEX IF NOT EXISTS idx_leads_qualification ON leads(qualification);
 CREATE INDEX IF NOT EXISTS idx_leads_segment ON leads(segment);
 CREATE INDEX IF NOT EXISTS idx_conversations_outcome ON conversations(outcome);
+
+-- Phase 5 additions
+
+ALTER TABLE leads ADD COLUMN ai_summary TEXT;
+ALTER TABLE leads ADD COLUMN booking_id TEXT;
+
+ALTER TABLE emails ADD COLUMN to_address TEXT;
+ALTER TABLE emails ADD COLUMN booking_id TEXT;
+ALTER TABLE emails ADD COLUMN approved_at TEXT;
+
+CREATE TABLE IF NOT EXISTS blocked_slots (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  date TEXT NOT NULL,
+  time_slot TEXT,
+  reason TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS bookings (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  lead_id TEXT REFERENCES leads(id),
+  conversation_id TEXT REFERENCES conversations(id),
+  preferred_date TEXT NOT NULL,
+  preferred_time TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'cancelled')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_bookings_date ON bookings(preferred_date);
+CREATE INDEX IF NOT EXISTS idx_blocked_slots_date ON blocked_slots(date);

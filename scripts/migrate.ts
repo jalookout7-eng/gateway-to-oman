@@ -47,6 +47,12 @@ async function migrate() {
       await client.execute(statement);
       console.log(`  ✓ ${statement.slice(0, 60)}...`);
     } catch (error) {
+      const msg = String(error);
+      // Ignore "duplicate column name" errors from ALTER TABLE on already-applied migrations
+      if (msg.includes("duplicate column name") || msg.includes("duplicate column")) {
+        console.log(`  ~ Skipped (column exists): ${statement.slice(0, 60)}...`);
+        continue;
+      }
       console.error(`  ✗ Failed: ${statement.slice(0, 60)}...`);
       console.error(`    ${error}`);
       process.exit(1);
