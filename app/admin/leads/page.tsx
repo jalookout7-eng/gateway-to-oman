@@ -19,6 +19,7 @@ interface Lead {
   conversation_id: string | null;
   created_at: string;
   ai_summary?: string | null;
+  pendingEmail?: { id: string; subject: string } | null;
 }
 
 function authHeaders() {
@@ -44,8 +45,20 @@ export default function LeadsPage() {
     if (filterQualification) params.set("qualification", filterQualification);
     if (filterStatus) params.set("status", filterStatus);
 
-    const res = await fetch(`/api/leads?${params}`, { headers: authHeaders() });
-    if (res.ok) setLeads(await res.json());
+    const [leadsRes, emailsRes] = await Promise.all([
+      fetch(`/api/leads?${params}`, { headers: authHeaders() }),
+      fetch(`/api/admin/emails?status=draft`, { headers: authHeaders() }),
+    ]);
+
+    if (leadsRes.ok) {
+      const leadsData: Lead[] = await leadsRes.json();
+      const emailsData: { id: string; lead_id: string; subject: string }[] = emailsRes.ok
+        ? await emailsRes.json()
+        : [];
+
+      const emailsByLead = new Map(emailsData.map((e) => [e.lead_id, { id: e.id, subject: e.subject }]));
+      setLeads(leadsData.map((l) => ({ ...l, pendingEmail: emailsByLead.get(l.id) ?? null })));
+    }
     setLoading(false);
   }, [filterSegment, filterQualification, filterStatus]);
 
@@ -64,6 +77,21 @@ export default function LeadsPage() {
     } else {
       setConversation(null);
     }
+  }
+
+  async function sendDraftEmail(emailId: string, leadId: string) {
+    const token = localStorage.getItem("admin_token") ?? "";
+    const res = await fetch(`/api/admin/emails/${emailId}/send`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      alert("Failed to send email. Please try again.");
+      return;
+    }
+    setLeads((prev) =>
+      prev.map((l) => (l.id === leadId ? { ...l, pendingEmail: null } : l))
+    );
   }
 
   async function regenerateSummary(leadId: string) {
@@ -246,6 +274,20 @@ export default function LeadsPage() {
                             <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{lead.ai_summary}</p>
                           ) : (
                             <p className="text-sm text-gray-400 italic">No summary yet.</p>
+                          )}
+                          {lead.pendingEmail && (
+                            <div className="mt-4 border-t border-gray-100 pt-4">
+                              <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">Email Pending Approval</p>
+                              <p className="text-sm text-gray-700 mb-3">{lead.pendingEmail.subject}</p>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); sendDraftEmail(lead.pendingEmail!.id, lead.id); }}
+                                  className="px-4 py-2 gold-gradient text-white text-xs rounded-lg font-semibold hover:shadow-md transition-shadow"
+                                >
+                                  Send to {lead.email}
+                                </button>
+                              </div>
+                            </div>
                           )}
                         </div>
                       </td>

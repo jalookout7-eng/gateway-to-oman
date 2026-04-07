@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db/client";
 import { requireAuth } from "@/lib/auth/token";
-import { getEmailConfig, sendEmail } from "@/lib/email/sender";
+import { getEmailConfig, sendEmailLegacy } from "@/lib/email/sender";
 
 export async function POST(request: NextRequest) {
   const authError = requireAuth(request);
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   }
 
   const email = emailRow.rows[0];
-  const sent = await sendEmail(
+  const sent = await sendEmailLegacy(
     lead.rows[0].email as string,
     email.subject as string,
     email.body as string,

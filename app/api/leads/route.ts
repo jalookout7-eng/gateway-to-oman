@@ -63,6 +63,12 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json(
+        { error: "Invalid email address" },
+        { status: 400 }
+      );
+    }
 
     const db = getDb();
 
@@ -99,6 +105,51 @@ export async function POST(request: NextRequest) {
       body: `${name} — ${segment ?? "unknown segment"}`,
       url: "/admin/leads",
     }).catch(console.error);
+
+    // Check if there's a booking for this conversation, link it and generate draft email
+    try {
+      if (conversationId) {
+        const bookingRow = await db.execute({
+          sql: "SELECT id, preferred_date, preferred_time FROM bookings WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1",
+          args: [conversationId],
+        });
+
+        if (bookingRow.rows[0]) {
+          const booking = bookingRow.rows[0];
+          await db.execute({
+            sql: "UPDATE bookings SET lead_id = ?, status = 'confirmed' WHERE id = ?",
+            args: [leadId, String(booking.id)],
+          });
+          await db.execute({
+            sql: "UPDATE leads SET booking_id = ? WHERE id = ?",
+            args: [String(booking.id), leadId],
+          });
+
+          const { generateBookingConfirmationEmail } = await import("@/lib/email/booking");
+          const ahmedEmail = process.env.EMAIL_FROM_ADDRESS ?? "contact@gatewaytooman.com";
+          const { subject, html, icsAttachment } = generateBookingConfirmationEmail({
+            leadName: name,
+            leadEmail: email,
+            date: String(booking.preferred_date),
+            time: String(booking.preferred_time),
+            ahmedEmail,
+          });
+
+          await db.execute({
+            sql: "INSERT INTO emails (lead_id, booking_id, to_address, subject, body, status) VALUES (?, ?, ?, ?, ?, 'draft')",
+            args: [leadId, String(booking.id), email, subject, JSON.stringify({ html, icsAttachment })],
+          });
+
+          sendPushNotification({
+            title: "New Booking",
+            body: `${name} booked for ${booking.preferred_date} at ${booking.preferred_time}`,
+            url: `/admin/leads`,
+          }).catch(console.error);
+        }
+      }
+    } catch (bookingErr) {
+      console.error("Booking linkage failed (lead was still created):", bookingErr);
+    }
 
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error) {

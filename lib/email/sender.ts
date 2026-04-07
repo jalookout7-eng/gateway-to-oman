@@ -1,5 +1,46 @@
 import nodemailer from "nodemailer";
 
+// ── New interface used by the booking confirmation flow ──────────────────────
+
+interface Attachment {
+  filename: string;
+  content: string;
+  contentType: string;
+}
+
+interface SendEmailOptions {
+  to: string;
+  subject: string;
+  html: string;
+  attachments?: Attachment[];
+}
+
+export async function sendEmail(options: SendEmailOptions): Promise<void> {
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST,
+    port: Number(process.env.EMAIL_PORT ?? 587),
+    secure: process.env.EMAIL_SECURE === "true",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM_ADDRESS ?? process.env.EMAIL_USER,
+    to: options.to,
+    subject: options.subject,
+    html: options.html,
+    attachments: options.attachments?.map((a) => ({
+      filename: a.filename,
+      content: a.content,
+      contentType: a.contentType,
+    })),
+  });
+}
+
+// ── Legacy interface used by /api/email/send and /api/email/test ─────────────
+
 interface EmailConfig {
   provider: string;
   smtp?: { host: string; port: number; user: string; pass: string };
@@ -33,7 +74,7 @@ export async function getEmailConfig(): Promise<EmailConfig | null> {
   };
 }
 
-export async function sendEmail(
+export async function sendEmailLegacy(
   to: string,
   subject: string,
   body: string,

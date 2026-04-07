@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/token";
-import { getEmailConfig, sendEmail } from "@/lib/email/sender";
+import { getEmailConfig, sendEmailLegacy } from "@/lib/email/sender";
 
 export async function POST(request: NextRequest) {
   const authError = requireAuth(request);
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await sendEmail(
+    await sendEmailLegacy(
       to,
       "Gateway to Oman — Test Email",
       "This is a test email from your Gateway to Oman admin dashboard. If you received this, your email configuration is working correctly!",
