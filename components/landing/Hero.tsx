@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { ShieldCheck, Users, Star } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useChatModal } from "@/lib/context/ChatModalContext";
 
 function GoldParticles() {
   const [particles, setParticles] = useState<
@@ -45,6 +46,7 @@ const trustBadges = [
 ];
 
 export function Hero() {
+  const { openModal } = useChatModal();
   return (
     <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background photo — aerial Muscat */}
@@ -110,7 +112,7 @@ export function Hero() {
           <Button size="lg" variant="gold">
             Explore Your Opportunity
           </Button>
-          <Button size="lg" variant="outline">
+          <Button size="lg" variant="outline" onClick={() => openModal({ intent: "consultation" })}>
             Book Free Consultation
           </Button>
         </motion.div>

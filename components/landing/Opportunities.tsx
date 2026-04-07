@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { ScrollAnimationWrapper } from "./ScrollAnimationWrapper";
+import { useChatModal } from "@/lib/context/ChatModalContext";
 
 const opportunities = [
   {
@@ -56,6 +57,7 @@ const opportunities = [
 ];
 
 export function Opportunities() {
+  const { openModal } = useChatModal();
   return (
     <section id="opportunities" className="py-24 px-6 bg-white">
       <div className="max-w-6xl mx-auto">
@@ -75,8 +77,9 @@ export function Opportunities() {
               animation="fadeUp"
               delay={i * 0.08}
             >
-              <motion.div
-                className="bg-warm-white rounded-xl overflow-hidden border border-gold/10 hover:border-gold/30 transition-all flex flex-col"
+              <motion.button
+                className="w-full text-left cursor-pointer bg-warm-white rounded-xl overflow-hidden border border-gold/10 hover:border-gold/30 transition-all flex flex-col"
+                onClick={() => openModal({ intent: "opportunity", topic: o.title })}
                 whileHover={{ y: -8, boxShadow: "0 20px 40px rgba(201,155,60,0.12)" }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
               >
@@ -101,7 +104,7 @@ export function Opportunities() {
                   <p className="text-sm text-gray-500 mb-4">{o.location}</p>
                   <p className="text-2xl font-bold text-gold">{o.price}</p>
                 </div>
-              </motion.div>
+              </motion.button>
             </ScrollAnimationWrapper>
           ))}
         </div>
