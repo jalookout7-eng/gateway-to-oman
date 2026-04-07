@@ -42,16 +42,16 @@ const opportunities = [
     location: "CBO Licensed",
     price: "OMR 10M–30M",
     tag: "Fintech",
-    photo: "https://images.pexels.com/photos/18331886/pexels-photo-18331886.jpeg?auto=compress&cs=tinysrgb&w=800&q=80",
-    photoAlt: "Muscat city skyline, Oman",
+    photo: "https://images.pexels.com/photos/6801648/pexels-photo-6801648.jpeg?auto=compress&cs=tinysrgb&w=800&q=80",
+    photoAlt: "Digital banking and fintech technology",
   },
   {
     title: "Career Platform",
     location: "Register & Upload CV",
     price: "Free",
     tag: "Careers",
-    photo: "https://images.pexels.com/photos/19786029/pexels-photo-19786029.jpeg?auto=compress&cs=tinysrgb&w=800&q=80",
-    photoAlt: "Fort Bahla historic landmark in Oman",
+    photo: "https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&w=800&q=80",
+    photoAlt: "Professional office environment",
   },
 ];
 

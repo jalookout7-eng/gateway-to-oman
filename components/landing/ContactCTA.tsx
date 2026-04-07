@@ -30,10 +30,6 @@ export function ContactCTA() {
               Book Free Consultation
             </button>
           </div>
-
-          <p className="text-sm text-gray-400 italic font-body">
-            No sales pitch. Just truth.
-          </p>
         </ScrollAnimationWrapper>
       </div>
     </section>
