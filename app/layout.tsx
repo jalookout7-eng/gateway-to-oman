@@ -37,6 +37,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body className={`${bodoniModa.variable} ${jost.variable} font-body antialiased`}>
         {children}
         <ChatWidget />

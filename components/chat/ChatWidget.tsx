@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChatMessages, type Message } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
@@ -9,6 +10,9 @@ import { BookingButton } from "./BookingButton";
 import { getContextualGreeting } from "@/lib/ai/prompts";
 
 export function ChatWidget() {
+  const pathname = usePathname();
+  if (pathname?.startsWith("/admin")) return null;
+
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
