@@ -141,12 +141,13 @@ export function ChatWidget() {
   const handleLeadSubmit = useCallback(() => {
     setLeadCaptured(true);
     setShowCaptureForm(false);
+    setIsClosed(true);
+    setTimeout(() => setIsOpen(false), 2000);
     setMessages((prev) => [
       ...prev,
       {
         role: "assistant",
-        content:
-          "Thanks! Ahmed will be in touch shortly. In the meantime, feel free to ask me anything about Oman or our services.",
+        content: "Details received — Ahmed will be in touch with you shortly.",
       },
     ]);
   }, []);

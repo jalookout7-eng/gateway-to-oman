@@ -101,8 +101,8 @@ export function LeadCaptureForm({
         type="submit"
         variant="gold"
         size="sm"
-        className="w-full"
-        disabled={submitting}
+        className="w-full disabled:opacity-50"
+        disabled={submitting || !name.trim() || !email.trim() || !phone.trim()}
       >
         {submitting ? "Connecting..." : "Connect with Ahmed"}
       </Button>
