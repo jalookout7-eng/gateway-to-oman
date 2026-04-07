@@ -59,7 +59,8 @@ export function Hero() {
       </div>
 
       {/* Dark navy overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-navy/93 via-navy/83 to-navy/93" />
+      <div className="absolute inset-0 bg-navy/80" />
+      <div className="absolute inset-0 backdrop-blur-[1px]" />
 
       <GoldParticles />
 
