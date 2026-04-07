@@ -1,6 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db/client";
 import { requireAuth } from "@/lib/auth/token";
+import Groq from "groq-sdk";
+
+async function generateLeadSummary(leadId: string, conversationId: string | null, db: ReturnType<typeof getDb>) {
+  if (!conversationId) return;
+
+  try {
+    const msgs = await db.execute({
+      sql: "SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at ASC",
+      args: [conversationId],
+    });
+
+    if (msgs.rows.length < 2) {
+      await db.execute({
+        sql: "UPDATE leads SET ai_summary = ? WHERE id = ?",
+        args: ["Lead submitted with minimal conversation. Review lead details directly.", leadId],
+      });
+      return;
+    }
+
+    const transcript = msgs.rows
+      .map((m) => `${String(m.role).toUpperCase()}: ${String(m.content)}`)
+      .join("\n");
+
+    const client = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    const response = await client.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      temperature: 0.3,
+      max_tokens: 300,
+      messages: [
+        {
+          role: "system",
+          content: `You are summarizing a sales qualification conversation for Ahmed Al-Azizi at Gateway to Oman. Write a concise summary with exactly these five labeled sections, each 1-2 sentences, plain prose, no bullet points within sections:\n\nWHO: Who this person is — background, country, situation.\nWANTS: What they are specifically looking for in Oman.\nSIGNALS: Key qualifying indicators and hot/warm/cold assessment.\nBOTTLENECKS: Concerns, hesitations, or obstacles they raised. If none, write "None identified."\nNEXT STEP: Recommended action for Ahmed.`,
+        },
+        {
+          role: "user",
+          content: `Conversation:\n\n${transcript}`,
+        },
+      ],
+    });
+
+    const summary = response.choices[0]?.message?.content ?? "";
+    await db.execute({
+      sql: "UPDATE leads SET ai_summary = ? WHERE id = ?",
+      args: [summary, leadId],
+    });
+  } catch (err) {
+    console.error("Summary generation failed:", err);
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,6 +86,11 @@ export async function POST(request: NextRequest) {
         args: [conversationId],
       });
     }
+
+    const leadId = result.rows[0].id as string;
+
+    // Fire-and-forget: generate AI summary without blocking response
+    generateLeadSummary(leadId, conversationId ?? null, db).catch(console.error);
 
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error) {

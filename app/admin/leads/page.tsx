@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 
 interface Lead {
-  id: number;
+  id: string;
   name: string;
   email: string;
   phone: string | null;
@@ -18,6 +18,7 @@ interface Lead {
   status: string | null;
   conversation_id: string | null;
   created_at: string;
+  ai_summary?: string | null;
 }
 
 function authHeaders() {
@@ -32,8 +33,10 @@ export default function LeadsPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [conversation, setConversation] = useState<{ messages: { role: string; content: string }[] } | null>(null);
+  const [expandedLead, setExpandedLead] = useState<string | null>(null);
+  const [regenerating, setRegenerating] = useState<string | null>(null);
 
   const fetchLeads = useCallback(async () => {
     const params = new URLSearchParams();
@@ -60,6 +63,23 @@ export default function LeadsPage() {
       if (res.ok) setConversation(await res.json());
     } else {
       setConversation(null);
+    }
+  }
+
+  async function regenerateSummary(leadId: string) {
+    setRegenerating(leadId);
+    try {
+      const token = localStorage.getItem("admin_token") ?? "";
+      const res = await fetch(`/api/admin/leads/${leadId}/summarize`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setLeads((prev) =>
+        prev.map((l: Lead) => (l.id === leadId ? { ...l, ai_summary: data.summary } : l))
+      );
+    } finally {
+      setRegenerating(null);
     }
   }
 
@@ -152,6 +172,7 @@ export default function LeadsPage() {
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Qual.</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Date</th>
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
@@ -192,10 +213,47 @@ export default function LeadsPage() {
                     <td className="px-4 py-3 text-gray-500">
                       {new Date(lead.created_at).toLocaleDateString()}
                     </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => setExpandedLead(expandedLead === lead.id ? null : lead.id)}
+                        className="p-1 text-gray-400 hover:text-navy transition-colors"
+                        aria-label="Toggle AI summary"
+                      >
+                        <svg className={`w-4 h-4 transition-transform ${expandedLead === lead.id ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    </td>
                   </tr>
+                  {expandedLead === lead.id && (
+                    <tr key={`${lead.id}-summary`}>
+                      <td colSpan={9} className="px-4 pb-4 bg-gray-50/50">
+                        <div className="bg-white rounded-xl p-4 border-l-4 border-gold mt-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">AI Summary</p>
+                            <button
+                              onClick={() => regenerateSummary(lead.id)}
+                              disabled={regenerating === lead.id}
+                              className="text-xs text-gray-400 hover:text-gold flex items-center gap-1 disabled:opacity-50"
+                            >
+                              <svg className={`w-3 h-3 ${regenerating === lead.id ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0115 0M20 15a9 9 0 01-15 0" />
+                              </svg>
+                              Regenerate
+                            </button>
+                          </div>
+                          {lead.ai_summary ? (
+                            <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{lead.ai_summary}</p>
+                          ) : (
+                            <p className="text-sm text-gray-400 italic">No summary yet.</p>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                   {expandedId === lead.id && (
                     <tr key={`${lead.id}-expand`}>
-                      <td colSpan={8} className="px-4 py-4 bg-gray-50">
+                      <td colSpan={9} className="px-4 py-4 bg-gray-50">
                         {conversation?.messages ? (
                           <div className="space-y-2 max-h-60 overflow-y-auto">
                             <p className="text-xs font-semibold text-gray-500 mb-2">Conversation Transcript</p>
