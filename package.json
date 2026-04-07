@@ -15,12 +15,14 @@
     "@libsql/client": "^0.17.2",
     "framer-motion": "^12.38.0",
     "groq-sdk": "^1.1.2",
+    "ical-generator": "^10.1.0",
     "lucide-react": "^0.460.0",
     "next": "14.2.35",
     "nodemailer": "^8.0.4",
     "react": "^18",
     "react-dom": "^18",
-    "recharts": "^3.8.1"
+    "recharts": "^3.8.1",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
@@ -29,6 +31,7 @@
     "@types/nodemailer": "^7.0.11",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/web-push": "^3.6.4",
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
     "jsdom": "^29.0.1",
