@@ -1,5 +1,4 @@
 import Groq from "groq-sdk";
-import { SYSTEM_PROMPT } from "./prompts";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -18,18 +17,13 @@ function getGroqClient(): Groq {
 export async function chat(messages: ChatMessage[]): Promise<string> {
   const provider = process.env.AI_PROVIDER ?? "groq";
 
-  const fullMessages: ChatMessage[] = [
-    { role: "system", content: SYSTEM_PROMPT },
-    ...messages,
-  ];
-
   if (provider === "groq") {
     const client = getGroqClient();
     const response = await client.chat.completions.create({
       model: "llama-3.1-8b-instant",
-      messages: fullMessages,
+      messages,
       temperature: 0.7,
-      max_tokens: 256,
+      max_tokens: 300,
     });
     return response.choices[0]?.message?.content ?? "";
   }

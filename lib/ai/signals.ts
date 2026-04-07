@@ -4,6 +4,8 @@ export interface Signals {
   interest: string | null;
   highIntent: boolean;
   closeChat: boolean;
+  bookingDay: string | null;
+  bookingTime: string | null;
 }
 
 const VALID_SEGMENTS = ["entrepreneur", "investor", "professional", "retiree"];
@@ -24,6 +26,8 @@ export function parseSignals(text: string): Signals {
     interest: text.match(/\[INTEREST:([^\]]+)\]/)?.[1]?.trim() ?? null,
     highIntent: /\[HIGH_INTENT\]/.test(text),
     closeChat: /\[CLOSE_CHAT\]/.test(text),
+    bookingDay: text.match(/\[BOOKING_DAY:([^\]]+)\]/)?.[1]?.trim() ?? null,
+    bookingTime: text.match(/\[BOOKING_TIME:([^\]]+)\]/)?.[1]?.trim() ?? null,
   };
 }
 
@@ -34,6 +38,8 @@ export function stripSignals(text: string): string {
     .replace(/\[INTEREST:[^\]]*\]/g, "")
     .replace(/\[HIGH_INTENT\]/g, "")
     .replace(/\[CLOSE_CHAT\]/g, "")
+    .replace(/\[BOOKING_DAY:[^\]]*\]/g, "")
+    .replace(/\[BOOKING_TIME:[^\]]*\]/g, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 }
