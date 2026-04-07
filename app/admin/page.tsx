@@ -76,7 +76,7 @@ export default function AdminDashboard() {
 
       <Scorecard cards={stats.cards} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <LeadVolumeChart data={stats.recentLeads} />
         <SegmentDonut data={stats.segmentBreakdown} />
         <InteractionsLine data={stats.interactions} />

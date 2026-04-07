@@ -133,9 +133,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50">
       {/* Sidebar */}
-      <aside className="w-60 bg-navy text-white flex flex-col fixed h-full">
+      <aside className="hidden md:flex w-60 bg-navy text-white flex-col fixed h-full">
         <div className="px-5 py-6 border-b border-white/10">
           <h2 className="font-bold text-lg">Gateway to Oman</h2>
           <p className="text-xs text-white/60 mt-1">Admin Dashboard</p>
@@ -175,7 +175,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 ml-60 p-8">{children}</main>
+      <main className="md:ml-60 pb-20 md:pb-0 min-h-screen"><div className="p-4 md:p-8">{children}</div></main>
+
+      {/* Mobile bottom nav */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-navy border-t border-white/10 flex md:hidden z-40">
+        {NAV_ITEMS.map((item) => {
+          const active = pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs transition-colors ${
+                active ? "text-gold" : "text-white/60"
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
+              </svg>
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }

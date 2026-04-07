@@ -189,14 +189,15 @@ export default function LeadsPage() {
         ) : leads.length === 0 ? (
           <div className="p-8 text-center text-gray-400">No leads found</div>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Name</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Phone</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Segment</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Interest</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 hidden md:table-cell">Segment</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 hidden md:table-cell">Interest</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Qual.</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Date</th>
@@ -216,14 +217,14 @@ export default function LeadsPage() {
                     <td className="px-4 py-3 text-gray-600">
                       {lead.country_code && lead.phone ? `${lead.country_code} ${lead.phone}` : lead.phone ?? "—"}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 hidden md:table-cell">
                       {lead.segment ? (
                         <Badge variant={lead.segment as "entrepreneur" | "investor" | "professional" | "retiree"}>
                           {lead.segment}
                         </Badge>
                       ) : "—"}
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{lead.interests ?? "—"}</td>
+                    <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{lead.interests ?? "—"}</td>
                     <td className="px-4 py-3">
                       {lead.qualification ? (
                         <Badge variant={lead.qualification as "hot" | "warm" | "cold"}>
@@ -316,6 +317,7 @@ export default function LeadsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
