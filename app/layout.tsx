@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Bodoni_Moda, Jost } from "next/font/google";
 import { ChatWidget } from "@/components/chat/ChatWidget";
+import { ChatModal } from "@/components/chat/ChatModal";
+import { ChatModalProvider } from "@/lib/context/ChatModalContext";
 import "./globals.css";
 
 const bodoniModa = Bodoni_Moda({
@@ -41,8 +43,11 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className={`${bodoniModa.variable} ${jost.variable} font-body antialiased`}>
-        {children}
-        <ChatWidget />
+        <ChatModalProvider>
+          {children}
+          <ChatWidget />
+          <ChatModal />
+        </ChatModalProvider>
       </body>
     </html>
   );
