@@ -2,7 +2,7 @@
 
 **Prepared by:** JA (Developer)
 **Prepared for:** Ahmed Al-Azizi — Al Azizi Group
-**Last Updated:** April 7, 2026
+**Last Updated:** April 8, 2026
 **Live URL:** https://gateway-to-oman.vercel.app
 **Admin URL:** https://gateway-to-oman.vercel.app/admin
 **Repository:** https://github.com/jalookout7-eng/gateway-to-oman (private)
@@ -41,7 +41,7 @@ Gateway to Oman is a lead-generation website with an AI-powered chatbot, built t
 | Email | Nodemailer / Resend / SendGrid | Multi-provider email sending |
 | Calendar | ical-generator | .ics calendar file generation for booking emails |
 | Push | web-push + Web Push API | Browser push notifications (VAPID) |
-| Photos | Pexels CDN | Free commercial-use Oman photography |
+| Photos | Local + Pexels CDN | Hero: Sultan Qaboos Mosque (local PNG). Section photos: Pexels CDN |
 
 ---
 
@@ -86,27 +86,20 @@ Configured in Vercel → Project Settings → Environment Variables:
 | `AI_PROVIDER` | AI provider (`groq`) | Yes |
 | `GROQ_API_KEY` | Groq API key for chat | Yes |
 | `ADMIN_TOKEN` | Token for admin dashboard login | Yes |
-| `VAPID_PUBLIC_KEY` | Web Push public key (generate once with web-push CLI) | Yes (Phase 5) |
-| `VAPID_PRIVATE_KEY` | Web Push private key | Yes (Phase 5) |
-| `VAPID_EMAIL` | Contact email for push service (e.g. `mailto:you@gmail.com`) | Yes (Phase 5) |
-| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Same as VAPID_PUBLIC_KEY — exposed to browser for subscription | Yes (Phase 5) |
-| `CRON_SECRET` | Secret token to authenticate Vercel Cron calls | Yes (Phase 5) |
-| `EMAIL_PROVIDER` | `smtp`, `resend`, or `sendgrid` | For email |
-| `SMTP_HOST` | SMTP server hostname | If SMTP |
-| `SMTP_PORT` | SMTP port (usually 587) | If SMTP |
-| `SMTP_USER` | SMTP username | If SMTP |
-| `SMTP_PASS` | SMTP password/app password | If SMTP |
-| `RESEND_API_KEY` | Resend API key | If Resend |
-| `SENDGRID_API_KEY` | SendGrid API key | If SendGrid |
-| `EMAIL_FROM_NAME` | Sender display name | For email |
-| `EMAIL_FROM_ADDRESS` | Sender email address | For email |
-| `EMAIL_REPLY_TO` | Reply-to address | For email |
+| `VAPID_PUBLIC_KEY` | Web Push public key (generated, see env-vars-private.md) | Yes |
+| `VAPID_PRIVATE_KEY` | Web Push private key | Yes |
+| `VAPID_EMAIL` | Contact email for push service (`mailto:you@gmail.com`) | Yes |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Same as VAPID_PUBLIC_KEY — exposed to browser | Yes |
+| `CRON_SECRET` | Secret token to authenticate Vercel Cron calls | Yes |
+| `EMAIL_HOST` | SMTP server hostname (e.g. `smtp.gmail.com`) | Yes (for email) |
+| `EMAIL_PORT` | SMTP port (usually `587`) | Yes (for email) |
+| `EMAIL_SECURE` | `true` for port 465, omit/`false` for 587 | Optional |
+| `EMAIL_USER` | SMTP username / email address | Yes (for email) |
+| `EMAIL_PASS` | SMTP password or app password | Yes (for email) |
+| `EMAIL_FROM_ADDRESS` | From address for outbound emails to leads | Yes (for email) |
 
-**Generate VAPID keys once:**
-```bash
-npx web-push generate-vapid-keys
-```
-Copy the output into Vercel env vars. Never regenerate unless you want to reset all push subscriptions.
+> **Actual key values** are stored in `env-vars-private.md` in the project folder (not committed to git).
+> Never regenerate VAPID keys unless you want to reset all push subscriptions on all devices.
 
 ---
 
@@ -141,9 +134,9 @@ gateway-to-oman/
 │           ├── leads/[id]/summarize/ # Regenerate AI summary for a lead
 │           └── push/subscribe/     # Save browser push subscription
 ├── components/
-│   ├── landing/                    # 10 landing page sections — Pexels photos, Lucide icons, opportunity cards as buttons
+│   ├── landing/                    # 10+ landing page sections — Navbar (hamburger mobile), opportunity cards as modal buttons
 │   ├── chat/
-│   │   ├── ChatWidget.tsx          # Floating chat — hidden on admin, closes fully after capture
+│   │   ├── ChatWidget.tsx          # Floating chat — centered on desktop, hidden on admin, closes after capture
 │   │   ├── ChatModal.tsx           # Centered modal — context-aware, fresh conversation per open
 │   │   ├── ChatMessages.tsx        # Shared message list component
 │   │   ├── ChatInput.tsx           # Input with font-size:16px (prevents iOS zoom), WhatsApp layout
@@ -169,7 +162,8 @@ gateway-to-oman/
 │   ├── sw.js                       # Service worker — handles push events, notification clicks
 │   ├── manifest.json               # PWA manifest — enables "Add to Home Screen"
 │   ├── icon-192.png                # PWA icon
-│   └── icon-512.png                # PWA icon
+│   ├── icon-512.png                # PWA icon
+│   └── hero-muscat.png             # Hero background — Sultan Qaboos Grand Mosque photo
 ├── scripts/
 │   └── migrate.ts                  # Database migration script
 ├── docs/
@@ -214,11 +208,9 @@ gateway-to-oman/
 - Always ends responses with a qualifying follow-up question
 - Self-identifies as "AI Assistant" to visitors (Omar is the internal persona name only)
 
-### Phase 5 — Booking System, Push Notifications, PWA, AI Summaries (April 7, 2026 — In Progress)
+### Phase 5 — Booking System, Push Notifications, PWA, AI Summaries (April 7–8, 2026 — COMPLETE)
 
-**Design complete. Implementation plan written (19 tasks). Pending execution.**
-
-What Phase 5 adds:
+What Phase 5 added:
 - **Context-aware chat modal** — any CTA or opportunity card opens a centered chat modal pre-seeded with the relevant context (e.g., "Businesses for Sale"). Email buttons remain as mailto. Each modal is a fresh conversation.
 - **Consultation booking flow** — within the modal, AI asks for a preferred day (from available days) and time slot. Creates a booking record in the database.
 - **Availability system** — `GET /api/availability` returns open days/slots for the next 7 days (Oman time GMT+4), filtered against blocked slots and existing bookings. If all 7 days are full, returns days 8–14.
@@ -355,27 +347,31 @@ npm run dev             # http://localhost:3000
 | Issue | Status | Notes |
 |-------|--------|-------|
 | AI signal leaking | Partially fixed | Occasionally malformed tags reach the user. Regex in `lib/ai/signals.ts` handles pipe-separated variants. A full pass is still pending. |
-| Phase 5 implementation | Pending | Design and plan complete. 19-task implementation plan at `docs/superpowers/plans/2026-04-07-gateway-phase5.md`. Not yet coded. |
 | Push notifications iOS | Partial | Works on iOS 16.4+ when app is installed to home screen. Older iOS devices and non-installed Safari do not support Web Push. |
+| Email not active until configured | Pending setup | Email env vars (EMAIL_HOST, EMAIL_USER, etc.) must be set in Vercel. Until then, draft emails are created but the Send button will fail. |
+| VAPID + CRON_SECRET not yet added | Pending setup | Push notifications and Cron reminders will not work until these are added in Vercel dashboard. Values are in `env-vars-private.md`. |
 
 ---
 
 ## 12. Planned / In Progress
 
-### Phase 5 — In Progress (implementation plan ready)
-- [ ] Context-aware chat modal for all CTAs and opportunity cards
-- [ ] Consultation booking flow (day + time selection via AI)
-- [ ] Admin booking calendar with block/unblock
-- [ ] Push notifications (new lead, booking, meeting reminder)
-- [ ] PWA manifest + service worker (installable on mobile)
-- [ ] Email approval workflow with .ics calendar attachment
-- [ ] Vercel Cron for meeting reminders
-- [ ] AI lead summary (auto-generated per lead, expandable in admin)
-- [ ] Admin dashboard mobile responsiveness
-- [ ] Landing page mobile responsiveness
-- [ ] All quick fixes (hero overlay, image duplicates, iOS zoom, etc.)
+### Phase 5 — COMPLETE (April 7–8, 2026)
+- [x] Context-aware chat modal for all CTAs and opportunity cards
+- [x] Consultation booking flow (day + time selection via AI)
+- [x] Admin booking calendar with block/unblock
+- [x] Push notifications (new lead, booking, meeting reminder)
+- [x] PWA manifest + service worker (installable on mobile)
+- [x] Email approval workflow with .ics calendar attachment
+- [x] Vercel Cron for meeting reminders (every 30 min)
+- [x] AI lead summary (auto-generated per lead, expandable in admin)
+- [x] Admin dashboard mobile responsiveness (bottom nav, stacked charts, scrollable table)
+- [x] Landing page mobile responsiveness (hamburger nav, grid audit)
+- [x] Quick fixes: hero uses Sultan Qaboos Mosque photo, chat widget centered on desktop, iOS zoom prevented, duplicate images replaced, admin route hiding
 
-See full implementation plan: `docs/superpowers/plans/2026-04-07-gateway-phase5.md`
+### Post-Phase-5 Fixes (April 8, 2026)
+- [x] Hero image replaced — using local `public/hero-muscat.png` (Sultan Qaboos Grand Mosque), overlay reduced to 25% opacity so mosque is clearly visible
+- [x] Chat widget (floating AI Assistant) now opens centered on desktop (same pattern as ChatModal) with dark backdrop
+- [x] Admin mobile layout — sidebar hidden on mobile, bottom tab navigation shown
 
 ### Backlog (not yet scoped)
 - [ ] Email template editor in admin settings
@@ -440,5 +436,5 @@ Free tiers have limits. If traffic grows significantly, Vercel Pro ($20/mo) and 
 
 ---
 
-**Document Version:** 3.0
-**Last Updated:** April 7, 2026
+**Document Version:** 4.0
+**Last Updated:** April 8, 2026
