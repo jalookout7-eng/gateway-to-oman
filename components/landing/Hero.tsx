@@ -49,20 +49,19 @@ export function Hero() {
   const { openModal } = useChatModal();
   return (
     <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background photo — aerial Muscat */}
+      {/* Background photo — Sultan Qaboos Grand Mosque */}
       <div className="absolute inset-0">
         <Image
-          src="https://images.pexels.com/photos/18331886/pexels-photo-18331886.jpeg?auto=compress&cs=tinysrgb&w=1920&q=80"
-          alt="Aerial view of Muscat, Oman"
+          src="/hero-muscat.png"
+          alt="Sultan Qaboos Grand Mosque, Muscat, Oman"
           fill
           className="object-cover object-center"
           priority
         />
       </div>
 
-      {/* Dark navy overlay */}
-      <div className="absolute inset-0 bg-navy/80" />
-      <div className="absolute inset-0 backdrop-blur-[1px]" />
+      {/* Overlay — 25% opacity lets 75% of the image show through */}
+      <div className="absolute inset-0 bg-navy/25" />
 
       <GoldParticles />
 
@@ -79,7 +78,7 @@ export function Hero() {
         </motion.div>
 
         <motion.h1
-          className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight font-heading"
+          className="text-5xl md:text-7xl font-bold text-white drop-shadow-lg mb-6 leading-tight font-heading"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}

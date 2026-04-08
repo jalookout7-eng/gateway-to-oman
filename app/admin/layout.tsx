@@ -134,8 +134,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <aside className="hidden md:flex w-60 bg-navy text-white flex-col fixed h-full">
+      {/* Sidebar — hidden on mobile, flex column on desktop */}
+      <aside className="hidden md:flex w-60 bg-navy text-white flex-col fixed h-full z-40">
         <div className="px-5 py-6 border-b border-white/10">
           <h2 className="font-bold text-lg">Gateway to Oman</h2>
           <p className="text-xs text-white/60 mt-1">Admin Dashboard</p>

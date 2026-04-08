@@ -191,8 +191,20 @@ export function ChatWidget() {
       {/* Chat window */}
       <AnimatePresence>
         {isOpen && (
+          <>
+            {/* Backdrop (desktop only) */}
+            <motion.div
+              className="hidden sm:block fixed inset-0 bg-black/40 z-40 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsOpen(false)}
+            />
           <motion.div
-            className="fixed bottom-0 right-0 sm:bottom-6 sm:right-6 w-full sm:w-[380px] h-[100dvh] sm:h-[560px] bg-white sm:rounded-2xl shadow-2xl overflow-hidden z-50 flex flex-col border-0 sm:border border-gray-100"
+            className="fixed z-50 bg-white flex flex-col overflow-hidden shadow-2xl
+              bottom-0 left-0 right-0 h-[90dvh] rounded-t-2xl
+              sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2
+              sm:w-[400px] sm:h-[560px] sm:rounded-2xl sm:border sm:border-gray-100"
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -245,6 +257,7 @@ export function ChatWidget() {
             {/* Input */}
             {!isClosed && <ChatInput onSend={sendMessage} disabled={isTyping} />}
           </motion.div>
+          </>
         )}
       </AnimatePresence>
     </>
