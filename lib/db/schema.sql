@@ -93,3 +93,242 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
 
 CREATE INDEX IF NOT EXISTS idx_bookings_date ON bookings(preferred_date);
 CREATE INDEX IF NOT EXISTS idx_blocked_slots_date ON blocked_slots(date);
+
+-- ============================================================================
+-- Phase 1 Marketplace + Layer 3 + Admin (Stage 04 Section C)
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- 1. `source` column on conversations, leads, bookings
+-- Attributes each record to a vertical (main, businesses, future verticals).
+-- Default 'main' so existing rows backfill cleanly.
+-- ----------------------------------------------------------------------------
+
+ALTER TABLE conversations ADD COLUMN source TEXT NOT NULL DEFAULT 'main';
+ALTER TABLE leads ADD COLUMN source TEXT NOT NULL DEFAULT 'main';
+ALTER TABLE bookings ADD COLUMN source TEXT NOT NULL DEFAULT 'main';
+
+CREATE INDEX IF NOT EXISTS idx_conversations_source ON conversations(source);
+CREATE INDEX IF NOT EXISTS idx_leads_source ON leads(source);
+CREATE INDEX IF NOT EXISTS idx_bookings_source ON bookings(source);
+
+-- ----------------------------------------------------------------------------
+-- 2. Layer 3 fields on leads
+-- Per meeting notes Layer 3-first directive: every intelligence field present
+-- in the lead table from day one. Phase 1 admin surfaces 5 of these. The rest
+-- collect silently for intelligence-stage analysis.
+-- ----------------------------------------------------------------------------
+
+ALTER TABLE leads ADD COLUMN lead_score INTEGER;
+ALTER TABLE leads ADD COLUMN referrer_name TEXT;
+ALTER TABLE leads ADD COLUMN referrer_url TEXT;
+ALTER TABLE leads ADD COLUMN qualification_path TEXT;
+ALTER TABLE leads ADD COLUMN chatbot_responses TEXT;
+ALTER TABLE leads ADD COLUMN special_filter_triggered INTEGER NOT NULL DEFAULT 0 CHECK (special_filter_triggered IN (0, 1));
+ALTER TABLE leads ADD COLUMN score_breakdown TEXT;
+ALTER TABLE leads ADD COLUMN outcome TEXT NOT NULL DEFAULT 'pending' CHECK (outcome IN ('pending', 'contacted', 'converted', 'nurture', 'rejected'));
+ALTER TABLE leads ADD COLUMN outcome_updated_at TEXT;
+ALTER TABLE leads ADD COLUMN admin_notes TEXT;
+ALTER TABLE leads ADD COLUMN session_duration_seconds INTEGER;
+ALTER TABLE leads ADD COLUMN device_type TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_leads_outcome ON leads(outcome);
+CREATE INDEX IF NOT EXISTS idx_leads_lead_score ON leads(lead_score);
+
+-- ----------------------------------------------------------------------------
+-- 3. categories table + seed (8 categories)
+-- Admin-editable. Listings reference category by ID. Marketplace filter UI
+-- reads from this table.
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS categories (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  slug TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  icon TEXT,
+  active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_categories_active ON categories(active);
+CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug);
+
+INSERT OR IGNORE INTO categories (slug, name, sort_order) VALUES ('cafe-restaurant', 'Café / Restaurant', 10);
+INSERT OR IGNORE INTO categories (slug, name, sort_order) VALUES ('gym', 'Gym', 20);
+INSERT OR IGNORE INTO categories (slug, name, sort_order) VALUES ('car-service', 'Car Service', 30);
+INSERT OR IGNORE INTO categories (slug, name, sort_order) VALUES ('grocery-store', 'Grocery Store', 40);
+INSERT OR IGNORE INTO categories (slug, name, sort_order) VALUES ('car-accessories', 'Car Accessories', 50);
+INSERT OR IGNORE INTO categories (slug, name, sort_order) VALUES ('laundry', 'Laundry', 60);
+INSERT OR IGNORE INTO categories (slug, name, sort_order) VALUES ('travel-agency', 'Travel Agency', 70);
+INSERT OR IGNORE INTO categories (slug, name, sort_order) VALUES ('industrial-commercial', 'Industrial / Commercial', 80);
+
+-- ----------------------------------------------------------------------------
+-- 4. sellers table
+-- Admin-managed in Phase 1. Optional FK to leads — when a website visitor
+-- expresses intent to sell, they are created as a lead first, then linked
+-- here when admin promotes them. No auth in Phase 1 (no password_hash).
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS sellers (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  lead_id TEXT REFERENCES leads(id),
+  name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT,
+  country_code TEXT,
+  notes TEXT,
+  active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_sellers_lead ON sellers(lead_id);
+CREATE INDEX IF NOT EXISTS idx_sellers_active ON sellers(active);
+
+-- ----------------------------------------------------------------------------
+-- 5. listings table
+-- Plan v3 fields + sample-listing-driven additions (for_rent, processing_fee,
+-- commercial_registration_included, stock_value_omr).
+-- Status: available / reserved / sold.
+-- Pricing: for_sale + for_rent bools — a listing can be either or both
+-- (e.g. Project 3 Industrial Factory).
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS listings (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  seller_id TEXT REFERENCES sellers(id),
+  category_id TEXT NOT NULL REFERENCES categories(id),
+
+  -- Identity
+  title TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+
+  -- Location
+  area TEXT,
+  location_city TEXT,
+
+  -- Pricing
+  for_sale INTEGER NOT NULL DEFAULT 1 CHECK (for_sale IN (0, 1)),
+  for_rent INTEGER NOT NULL DEFAULT 0 CHECK (for_rent IN (0, 1)),
+  selling_price_omr INTEGER,
+  rental_price_omr INTEGER,
+  processing_fee_omr INTEGER NOT NULL DEFAULT 500,
+  stock_value_omr INTEGER,
+  commercial_registration_included INTEGER NOT NULL DEFAULT 1 CHECK (commercial_registration_included IN (0, 1)),
+
+  -- Business detail
+  age_years REAL,
+  employee_count INTEGER,
+  financials_text TEXT,
+  pros_text TEXT,
+  cons_text TEXT,
+  full_detail_text TEXT,
+
+  -- Media (Cloudflare URLs)
+  cover_image_url TEXT,
+  gallery_json TEXT,
+  video_url TEXT,
+
+  -- State
+  status TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'reserved', 'sold')),
+  published INTEGER NOT NULL DEFAULT 1 CHECK (published IN (0, 1)),
+
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_listings_category ON listings(category_id);
+CREATE INDEX IF NOT EXISTS idx_listings_seller ON listings(seller_id);
+CREATE INDEX IF NOT EXISTS idx_listings_status ON listings(status);
+CREATE INDEX IF NOT EXISTS idx_listings_published ON listings(published);
+CREATE INDEX IF NOT EXISTS idx_listings_for_sale ON listings(for_sale);
+CREATE INDEX IF NOT EXISTS idx_listings_for_rent ON listings(for_rent);
+
+-- ----------------------------------------------------------------------------
+-- 6. inquiries table
+-- Buyer-side inquiry on a listing. Links lead to listing. Carries source
+-- (typically 'businesses' but inherited at write time, not enforced).
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS inquiries (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  lead_id TEXT NOT NULL REFERENCES leads(id),
+  listing_id TEXT NOT NULL REFERENCES listings(id),
+  message TEXT,
+  status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'contacted', 'closed')),
+  source TEXT NOT NULL DEFAULT 'businesses',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_inquiries_lead ON inquiries(lead_id);
+CREATE INDEX IF NOT EXISTS idx_inquiries_listing ON inquiries(listing_id);
+CREATE INDEX IF NOT EXISTS idx_inquiries_status ON inquiries(status);
+
+-- ----------------------------------------------------------------------------
+-- 7. admin_users table
+-- Replaces single shared ADMIN_TOKEN auth. Multi-user admin support.
+-- bcrypt password hash (computed in app code, not SQL).
+-- Roles: 'owner' (Ahmed), 'admin' (delegated staff), 'viewer' (read-only).
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS admin_users (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  full_name TEXT,
+  role TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('owner', 'admin', 'viewer')),
+  active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+  last_login_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users(email);
+CREATE INDEX IF NOT EXISTS idx_admin_users_active ON admin_users(active);
+
+-- ----------------------------------------------------------------------------
+-- 8. admin_sessions table
+-- Opaque-token sessions. App stores session token in HttpOnly cookie.
+-- expires_at supports automatic cleanup via cron.
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS admin_sessions (
+  id TEXT PRIMARY KEY,
+  admin_user_id TEXT NOT NULL REFERENCES admin_users(id),
+  ip TEXT,
+  user_agent TEXT,
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_sessions_user ON admin_sessions(admin_user_id);
+CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires ON admin_sessions(expires_at);
+
+-- ----------------------------------------------------------------------------
+-- 9. activity_log table
+-- Append-only audit trail. Tracks bot activities (lead capture, scoring,
+-- escalation) and admin actions (login, listing CRUD, status changes).
+-- actor_type: 'bot' | 'admin' | 'system'. actor_id: nullable for bot/system.
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS activity_log (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  actor_type TEXT NOT NULL CHECK (actor_type IN ('bot', 'admin', 'system', 'visitor')),
+  actor_id TEXT,
+  action TEXT NOT NULL,
+  target_type TEXT,
+  target_id TEXT,
+  source TEXT NOT NULL DEFAULT 'main',
+  metadata_json TEXT,
+  ip TEXT,
+  user_agent TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_log_actor ON activity_log(actor_type, actor_id);
+CREATE INDEX IF NOT EXISTS idx_activity_log_target ON activity_log(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
+CREATE INDEX IF NOT EXISTS idx_activity_log_source ON activity_log(source);
+CREATE INDEX IF NOT EXISTS idx_activity_log_created ON activity_log(created_at);
