@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 const navLinks = [
   { href: "#why-oman", label: "Why Oman" },
@@ -16,10 +17,17 @@ export function Navbar() {
 
   return (
     <header className="relative z-50 w-full bg-navy/95 backdrop-blur-sm border-b border-white/10">
-      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="text-white font-bold text-lg font-heading tracking-wide">
-          Gateway to <span className="text-gold">Oman</span>
+        <Link href="/" className="flex items-center" aria-label="Gateway to Oman home">
+          <Image
+            src="/gto-logo.png"
+            alt="Gateway to Oman"
+            width={180}
+            height={56}
+            priority
+            className="h-12 w-auto"
+          />
         </Link>
 
         {/* Desktop nav */}

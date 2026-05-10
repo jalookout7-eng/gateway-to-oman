@@ -1,18 +1,24 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ChevronLeft } from "lucide-react";
 
 export function BusinessesHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/85 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-4 sm:px-6 lg:px-8 py-4">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-4 sm:px-6 lg:px-8 py-3">
         <Link href="/businesses" className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg gold-gradient text-white font-heading text-base font-bold">
-            G
-          </div>
-          <div className="leading-tight">
-            <p className="font-heading text-base font-semibold text-navy">Gateway to Oman</p>
-            <p className="text-xs text-gold font-medium">Businesses for Sale</p>
-          </div>
+          <Image
+            src="/gto-logo.png"
+            alt="Gateway to Oman"
+            width={160}
+            height={48}
+            priority
+            className="h-10 w-auto"
+          />
+          <span className="hidden sm:inline-block h-6 w-px bg-gray-300" aria-hidden="true" />
+          <span className="hidden sm:inline-block text-xs font-semibold uppercase tracking-wider text-gold">
+            Businesses for Sale
+          </span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-gray-700">

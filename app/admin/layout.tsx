@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 
 const NAV_ITEMS = [
@@ -112,6 +113,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <form onSubmit={handleLogin} className="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm space-y-4">
+          <div className="flex justify-center pb-2">
+            <Image
+              src="/gto-logo.png"
+              alt="Gateway to Oman"
+              width={200}
+              height={64}
+              priority
+              className="h-14 w-auto"
+            />
+          </div>
           <h1 className="text-xl font-bold text-navy text-center">Admin Access</h1>
           <p className="text-sm text-gray-500 text-center">Enter your admin token to continue</p>
           <input
@@ -138,7 +149,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Sidebar — hidden on mobile, flex column on desktop */}
       <aside className="hidden md:flex w-60 bg-navy text-white flex-col fixed h-full z-40">
         <div className="px-5 py-6 border-b border-white/10">
-          <h2 className="font-bold text-lg">Gateway to Oman</h2>
+          <Image
+            src="/gto-logo.png"
+            alt="Gateway to Oman"
+            width={180}
+            height={56}
+            priority
+            className="h-10 w-auto mb-2"
+          />
           <p className="text-xs text-white/60 mt-1">Admin Dashboard</p>
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1">
