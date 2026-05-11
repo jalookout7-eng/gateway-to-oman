@@ -2,27 +2,32 @@
 
 **Prepared by:** JA (Developer)
 **Prepared for:** Ahmed Al-Azizi — Al Azizi Group
-**Last Updated:** April 8, 2026
+**Last Updated:** May 12, 2026
 **Live URL:** https://gateway-to-oman.vercel.app
+**Marketplace URL:** https://gateway-to-oman.vercel.app/businesses
 **Admin URL:** https://gateway-to-oman.vercel.app/admin
 **Repository:** https://github.com/jalookout7-eng/gateway-to-oman (private)
+**Active Branch:** `section-b-marketplace` (master has diverged — see Section 10)
 
 ---
 
 ## 1. Project Overview
 
-Gateway to Oman is a lead-generation website with an AI-powered chatbot, built to attract and qualify entrepreneurs, investors, professionals, and retirees interested in opportunities in Oman. It replaces/complements the existing WordPress site at gatewaytooman.com.
+Gateway to Oman is a lead-generation platform with an AI-powered chatbot ("Omar"), built to attract and qualify entrepreneurs, investors, professionals, and retirees interested in opportunities in Oman. It also hosts a vetted Businesses-for-Sale marketplace as a separate vertical at `/businesses` (production destination: `businesses.gatewaytooman.com` once DNS is configured).
 
 ### What It Does
-- **Landing page** showcasing Oman opportunities, services, and Ahmed's credentials — with real photography from Muscat, Oman's wadis, and key landmarks
+- **Landing page** showcasing Oman opportunities, services, and Ahmed's credentials — with real photography from Muscat, Oman's wadis, and key landmarks. "Businesses for Sale" opportunity card links live to `/businesses`; other 5 verticals show a "Coming Soon" badge.
+- **Businesses-for-Sale marketplace** at `/businesses` — vetted listings with category, location, price, age, employees, financials. Filter sidebar (category, city, listing type, status, price range), search bar, "Editor's picks" featured row. Clicking any card sends visitors to a paid-access request flow.
+- **Marketplace access flow** at `/businesses/access` — visitors submit name, email, mobile, and a brief message. Ahmed receives the request in `/admin/inquiries`, invoices and grants access manually. Access fee (default OMR 100) is admin-configurable.
 - **Context-aware AI chatbot** that auto-opens after 7 seconds, OR opens in a centered modal when any CTA or opportunity card is clicked — pre-seeded with the relevant context
 - **Lead capture** with name, email, and phone — triggered intelligently by AI signals or after 5 exchanges max; chat closes fully after submission
 - **Consultation booking flow** — AI asks for preferred day and time, creates a booking record, generates a draft confirmation email for Ahmed to review and send
-- **Admin dashboard** with charts, lead management, AI lead summaries, conversation transcripts, booking calendar, and settings
+- **Admin dashboard** with email/password login, charts, lead management, marketplace inquiries, listings management with featured curation, AI lead summaries, conversation transcripts, booking calendar, and settings
 - **Push notifications** to Ahmed's browser (and phone when installed as PWA) — new leads, new bookings, upcoming meeting reminders
 - **Email approval workflow** — all outbound emails to leads are drafted and held until Ahmed clicks Send
 - **PWA-installable** — can be added to home screen on iOS and Android; push notifications work on both
 - **All conversations recorded** in the database, even if the visitor doesn't submit a form
+- **Layer 3-first lead intelligence schema** — every lead carries silent scoring fields (qualification_path, chatbot_responses, score_breakdown, outcome, session metrics) for monthly intelligence review
 
 ---
 
@@ -31,9 +36,10 @@ Gateway to Oman is a lead-generation website with an AI-powered chatbot, built t
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
 | Framework | Next.js 14 (App Router) | Full-stack React framework |
-| Hosting | Vercel (Free / Hobby tier) | Deployment and CDN |
-| Database | Turso (hosted SQLite) | Privacy-first, serverless database |
-| AI | Groq + Llama 3.1 8B | Fast AI chat responses |
+| Hosting | Vercel (Hobby tier) | Deployment and CDN |
+| Database | Turso (hosted SQLite, libSQL) | Privacy-first, serverless database — now in Ahmed's Turso account |
+| AI | Groq + Llama 3.1 8B | Fast AI chat responses (LiteLLM migration planned for Section E) |
+| Authentication | bcryptjs + opaque session tokens | Admin email/password login, HttpOnly cookie sessions, 7-day TTL |
 | Styling | Tailwind CSS | Utility-first CSS |
 | Animations | Framer Motion | Scroll and interaction animations |
 | Charts | Recharts | Dashboard visualizations |
@@ -41,36 +47,47 @@ Gateway to Oman is a lead-generation website with an AI-powered chatbot, built t
 | Email | Nodemailer / Resend / SendGrid | Multi-provider email sending |
 | Calendar | ical-generator | .ics calendar file generation for booking emails |
 | Push | web-push + Web Push API | Browser push notifications (VAPID) |
-| Photos | Local + Pexels CDN | Hero: Sultan Qaboos Mosque (local PNG). Section photos: Pexels CDN |
+| Photos | Local + Pexels CDN | Hero: Sultan Qaboos Mosque (main). Marketplace hero: Muscat dusk skyline (local JPG). Section photos: Pexels CDN |
+| Branding | GTO logo (local PNG) | Every header surface — main Navbar, marketplace header, admin sidebar + login |
 
 ---
 
 ## 3. Access Credentials
 
-### Admin Dashboard
+### Admin Dashboard (Primary — email/password)
 - **URL:** https://gateway-to-oman.vercel.app/admin
+- **Email:** `gatewaytooman@gmail.com`
+- **Password:** `Gatewaytooman@2026` (stored in `env-vars-private.md`)
+- **Owner role** — full access to leads, marketplace inquiries, listings (with featured curation + access-fee editing), conversations, calendar, settings
+- Seeded via `scripts/seed-admin.ts` (bcryptjs cost-12 hash, idempotent)
+
+### Admin Dashboard (Legacy — shared token)
 - **Token:** `gto-admin-2026`
-- Log in with this token to access leads, conversations, calendar, charts, and settings
+- Still works as a fallback for backward compatibility. Will be deprecated once all admin pages move to session-based fetches. Use email/password instead.
 
 ### Vercel (Hosting)
 - **Account:** jalookout7-eng (GitHub-linked)
 - **Project:** gateway-to-oman
 - **Dashboard:** https://vercel.com/jalookout7-1526s-projects/gateway-to-oman
+- **Auto-deploys:** disabled on this project. All production deploys go through CLI (`vercel deploy --prod`).
 
-### Turso (Database)
-- **Database name:** gateway-to-oman
-- **URL:** `libsql://gateway-to-oman-jalookout7.aws-ap-northeast-1.turso.io`
+### Turso (Database — under Ahmed's account, 2026-05-10)
+- **Database name:** `gateway-to-oman-database`
+- **URL:** `libsql://gateway-to-oman-database-gatewaytooman.aws-ap-northeast-1.turso.io`
 - **Region:** AWS AP Northeast 1 (Tokyo)
-- **Auth Token:** Stored in Vercel environment variables
+- **Owner email:** `gatewaytooman@gmail.com` (Ahmed's account)
+- **Auth Token:** stored in Vercel environment variables + `env-vars-private.md`
+- **Schema state:** 15 tables, Layer 3 fields on `leads`, 8 categories seeded, 5 sample listings seeded as featured (ranks 1–5), 1 admin user seeded.
 
 ### Groq (AI)
 - **Provider:** Groq Cloud
 - **Model:** Llama 3.1 8B (fast, free tier available)
 - **API Key:** Stored in Vercel environment variables
+- **Future:** Section E migrates to Flask + LiteLLM (Groq primary + fallbacks). Payment method pending Ahmed.
 
 ### GitHub (Code)
 - **Repo:** https://github.com/jalookout7-eng/gateway-to-oman
-- **Branch:** master
+- **Active branch:** `section-b-marketplace` (production runs from this branch; master has diverged)
 - **Visibility:** Private
 
 ---
@@ -108,72 +125,117 @@ Configured in Vercel → Project Settings → Environment Variables:
 ```
 gateway-to-oman/
 ├── app/
-│   ├── page.tsx                    # Landing page (assembles all sections)
-│   ├── layout.tsx                  # Root layout — fonts, ChatWidget, ChatModal, ChatModalProvider, PWA manifest link
-│   ├── globals.css                 # Tailwind base, font-heading on h1-h6, gold-gradient
+│   ├── page.tsx                              # Landing page (assembles all sections)
+│   ├── layout.tsx                            # Root layout — fonts, ChatWidget, ChatModal, ChatModalProvider, PWA manifest link
+│   ├── globals.css                           # Tailwind base, font-heading on h1-h6, gold-gradient
+│   ├── businesses/                           # ★ Phase 6: Marketplace subdomain (lives at /businesses)
+│   │   ├── layout.tsx                        # Marketplace shell — BusinessesHeader (with GTO logo + nav), footer
+│   │   ├── page.tsx                          # Marketplace home — hero image, "Editor's picks" featured row, filterable grid
+│   │   ├── access/page.tsx                   # Paid-access request page — welcome, fee badge, name+email+mobile+message form
+│   │   ├── list-your-business/page.tsx       # Coming Soon page (WhatsApp + email CTAs until seller portal ships)
+│   │   └── listing/[slug]/page.tsx           # Listing detail — 12 fields, inquire block; reachable by URL (proper gating in next phase)
 │   ├── admin/
-│   │   ├── layout.tsx              # Admin shell — sidebar (desktop), bottom nav (mobile), push subscription registration
-│   │   ├── page.tsx                # Dashboard with charts
-│   │   ├── leads/page.tsx          # Leads table — expandable AI summary, email draft approval, Call/Email actions
-│   │   ├── calendar/page.tsx       # Booking calendar — week view, block/unblock days and slots
-│   │   ├── conversations/page.tsx  # Conversation viewer with AI summary header
-│   │   └── settings/page.tsx       # Email config, consultation time slots, chatbot settings
+│   │   ├── layout.tsx                        # Admin shell — session-based auth (cookie) primary + legacy token fallback, eye toggle on passwords
+│   │   ├── page.tsx                          # Dashboard with charts
+│   │   ├── leads/page.tsx                    # Leads table — expandable AI summary, email draft approval, Call/Email actions
+│   │   ├── listings/page.tsx                 # ★ Marketplace listings table — featured star toggle, status filter, search, access fee inline editor
+│   │   ├── inquiries/page.tsx                # ★ Marketplace access requests — one-click outcome changes, WhatsApp/email deeplinks
+│   │   ├── calendar/page.tsx                 # Booking calendar — week view, block/unblock days and slots
+│   │   ├── conversations/page.tsx            # Conversation viewer with AI summary header
+│   │   └── settings/page.tsx                 # Email config, consultation time slots, chatbot settings
 │   └── api/
-│       ├── auth/route.ts           # Token validation
-│       ├── chat/route.ts           # AI chat — context injection, availability injection, booking signal handling
-│       ├── availability/route.ts   # Returns available days/slots for next 7 days (Oman time)
-│       ├── bookings/route.ts       # Booking records CRUD
-│       ├── leads/                  # Lead CRUD — triggers AI summary + push notification on creation
-│       ├── conversations/          # Conversation list + detail
-│       ├── email/                  # Send, test, config
-│       ├── cron/reminders/route.ts # Vercel Cron — finds upcoming meetings, drafts reminder emails, sends push
+│       ├── auth/
+│       │   ├── route.ts                      # Legacy POST — token validation (kept for backward compat)
+│       │   ├── login/route.ts                # ★ POST email+password → cookie session
+│       │   ├── logout/route.ts               # ★ POST — destroys session, clears cookie
+│       │   └── me/route.ts                   # ★ GET — returns current session user
+│       ├── businesses/
+│       │   └── access-request/route.ts       # ★ POST — creates lead (source=businesses), inquiry (if listing referred), activity_log entry
+│       ├── chat/route.ts                     # AI chat — context injection, availability injection, booking signal handling
+│       ├── availability/route.ts             # Returns available days/slots for next 7 days (Oman time)
+│       ├── bookings/route.ts                 # Booking records CRUD
+│       ├── leads/                            # Lead CRUD — triggers AI summary + push notification on creation
+│       ├── conversations/                    # Conversation list + detail
+│       ├── email/                            # Send, test, config
+│       ├── cron/reminders/route.ts           # Vercel Cron — finds upcoming meetings, drafts reminder emails, sends push
 │       └── admin/
-│           ├── stats/route.ts      # Dashboard analytics
-│           ├── blocked-slots/      # Block/unblock availability slots
-│           ├── emails/[id]/send/   # Ahmed approves and sends a draft email
-│           ├── leads/[id]/summarize/ # Regenerate AI summary for a lead
-│           └── push/subscribe/     # Save browser push subscription
+│           ├── stats/route.ts                # Dashboard analytics
+│           ├── listings/route.ts             # ★ GET marketplace listings (with featured + inquiry counts)
+│           ├── listings/[id]/featured/route.ts # ★ PATCH — toggle featured + auto-assign featured_rank
+│           ├── inquiries/route.ts            # ★ GET marketplace access requests (leads + linked listings)
+│           ├── inquiries/[leadId]/outcome/route.ts # ★ PATCH — update lead outcome (pending/contacted/converted/nurture/rejected)
+│           ├── settings/marketplace/route.ts # ★ GET/PUT — marketplace_access_fee_omr setting
+│           ├── blocked-slots/                # Block/unblock availability slots
+│           ├── emails/[id]/send/             # Ahmed approves and sends a draft email
+│           ├── leads/[id]/summarize/         # Regenerate AI summary for a lead
+│           └── push/subscribe/               # Save browser push subscription
 ├── components/
-│   ├── landing/                    # 10+ landing page sections — Navbar (hamburger mobile), opportunity cards as modal buttons
+│   ├── landing/                              # 10+ landing page sections — Navbar uses GTO logo
+│   │   └── Opportunities.tsx                 # ★ Routing model { kind: "subdomain" | "modal" | "comingSoon" } per card
+│   ├── businesses/                           # ★ Marketplace components
+│   │   ├── BusinessesHeader.tsx              # Sticky subdomain header with GTO logo
+│   │   ├── MarketplaceHero.tsx               # Full-bleed Muscat dusk hero with navy gradient overlay
+│   │   ├── ListingCard.tsx                   # BizBuySell-style card — image, status badge, price, age, employees
+│   │   ├── StatusBadge.tsx                   # Available / Reserved / Sold pills
+│   │   ├── FilterSidebar.tsx                 # URL-driven filters: category, city, type, status, price range
+│   │   ├── SearchBar.tsx                     # Text search across title, detail, city
+│   │   ├── SortControl.tsx                   # Newest / price asc / price desc
+│   │   ├── AccessRequestForm.tsx             # Paid-access signup form (client component)
+│   │   └── InquireBlock.tsx                  # WhatsApp deeplink + form (on listing detail pages)
 │   ├── chat/
-│   │   ├── ChatWidget.tsx          # Floating chat — centered on desktop, hidden on admin, closes after capture
-│   │   ├── ChatModal.tsx           # Centered modal — context-aware, fresh conversation per open
-│   │   ├── ChatMessages.tsx        # Shared message list component
-│   │   ├── ChatInput.tsx           # Input with font-size:16px (prevents iOS zoom), WhatsApp layout
-│   │   ├── LeadCaptureForm.tsx     # Lead form (shared by Widget and Modal)
-│   │   └── BookingButton.tsx       # High-intent booking prompt
-│   ├── admin/                      # Scorecard, charts (6 components)
-│   └── ui/                         # Button, Card, Badge, Input, Modal
+│   │   ├── ChatWidget.tsx                    # Floating chat — centered on desktop, hidden on admin, closes after capture
+│   │   ├── ChatModal.tsx                     # Centered modal — context-aware, fresh conversation per open
+│   │   ├── ChatMessages.tsx                  # Shared message list component
+│   │   ├── ChatInput.tsx                     # Input with font-size:16px (prevents iOS zoom), WhatsApp layout
+│   │   ├── LeadCaptureForm.tsx               # Lead form (shared by Widget and Modal)
+│   │   └── BookingButton.tsx                 # High-intent booking prompt
+│   ├── admin/                                # Scorecard, charts (6 components)
+│   │   └── AccessFeeCard.tsx                 # ★ Inline editor for marketplace_access_fee_omr on /admin/listings
+│   └── ui/                                   # Button, Card, Badge, Input, Modal
 ├── lib/
 │   ├── ai/
-│   │   ├── prompts.ts              # System prompt — 3-layer personality, hard 3-5 exchange cap, anti-sales guardrail
-│   │   ├── provider.ts             # Groq API integration
-│   │   └── signals.ts              # Signal parsing — includes BOOKING_DAY and BOOKING_TIME
+│   │   ├── prompts.ts                        # System prompt — Omar, 3-layer personality, hard 3-5 exchange cap, anti-sales guardrail
+│   │   ├── provider.ts                       # Groq API integration
+│   │   └── signals.ts                        # Signal parsing — includes BOOKING_DAY and BOOKING_TIME
+│   ├── auth/
+│   │   ├── token.ts                          # requireAuth (async) — accepts cookie session OR legacy bearer ADMIN_TOKEN
+│   │   ├── password.ts                       # ★ bcryptjs cost-12 hash + verify
+│   │   └── sessions.ts                       # ★ Session create/get/destroy backed by admin_sessions table
+│   ├── businesses/                           # ★ Marketplace domain layer
+│   │   ├── types.ts                          # Listing, Category, ListingFilters
+│   │   ├── queries.ts                        # listListings (with featured + limit), getListingBySlug, listCategories, listCities
+│   │   ├── format.ts                         # OMR currency, sale-or-rent price range, age label
+│   │   └── settings.ts                       # get/set marketplace_access_fee_omr via settings table
 │   ├── context/
-│   │   └── ChatModalContext.tsx    # Global context — openModal(intent, topic), closeModal
+│   │   └── ChatModalContext.tsx              # Global context — openModal(intent, topic), closeModal
 │   ├── email/
-│   │   ├── sender.ts               # Multi-provider email sender (SMTP/Resend/SendGrid)
-│   │   └── booking.ts              # Booking confirmation email + .ics calendar attachment generator
+│   │   ├── sender.ts                         # Multi-provider email sender (SMTP/Resend/SendGrid)
+│   │   └── booking.ts                        # Booking confirmation email + .ics calendar attachment generator
 │   ├── push/
-│   │   └── notify.ts               # sendPushNotification() — sends to all stored subscriptions
-│   ├── auth/                       # Token validation middleware
-│   └── db/                         # Turso client + schema.sql
+│   │   └── notify.ts                         # sendPushNotification() — sends to all stored subscriptions
+│   └── db/                                   # Turso client + schema.sql (15 tables, Layer 3 fields)
 ├── public/
-│   ├── sw.js                       # Service worker — handles push events, notification clicks
-│   ├── manifest.json               # PWA manifest — enables "Add to Home Screen"
-│   ├── icon-192.png                # PWA icon
-│   ├── icon-512.png                # PWA icon
-│   └── hero-muscat.png             # Hero background — Sultan Qaboos Grand Mosque photo
+│   ├── gto-logo.png                          # ★ Ahmed's official Gateway to Oman logo
+│   ├── businesses/hero.jpg                   # ★ Muscat dusk skyline (mosque + palms) — marketplace hero
+│   ├── sw.js                                 # Service worker — handles push events, notification clicks
+│   ├── manifest.json                         # PWA manifest — enables "Add to Home Screen"
+│   ├── icon-192.png                          # PWA icon
+│   ├── icon-512.png                          # PWA icon
+│   └── hero-muscat.png                       # Main-site hero — Sultan Qaboos Grand Mosque
 ├── scripts/
-│   └── migrate.ts                  # Database migration script
-├── docs/
-│   └── superpowers/
-│       ├── specs/2026-04-07-gateway-phase5-design.md   # Phase 5 design decisions
-│       └── plans/2026-04-07-gateway-phase5.md          # Phase 5 implementation plan (19 tasks)
-├── vercel.json                     # Vercel Cron config — reminders every 30 min
-├── next.config.js                  # images.pexels.com remote patterns
-├── tailwind.config.ts              # Color tokens + font families
-└── .env.example                    # Template for environment variables
+│   ├── migrate.ts                            # Database migration script (skips comment-only chunks)
+│   ├── seed-admin.ts                         # ★ Reusable, idempotent admin seeder (ADMIN_SEED_* env vars)
+│   ├── seed-listings.ts                      # ★ Seed 5 sample listings from Ahmed's project descriptions
+│   ├── seed-featured.ts                      # ★ Mark 5 listings as featured with ranks 1–5
+│   ├── verify-schema.ts                      # ★ Inspect tables, columns, indexes, seed data on live DB
+│   ├── verify-admin.ts                       # ★ Inspect admin users + recent activity_log entries
+│   └── verify-featured.ts                    # ★ Confirm featured columns are live on Turso
+├── tests/
+│   └── db/schema-section-c.test.ts           # ★ 35 tests covering existence, defaults, enums, FK, uniqueness, hybrid pricing
+├── vercel.json                               # Vercel Cron config — reminders daily 09:00 UTC (Hobby plan limit)
+├── next.config.js                            # images.pexels.com remote patterns
+├── tailwind.config.ts                        # Color tokens + font families
+└── .env.example                              # Template for environment variables
 ```
 
 ---
@@ -290,40 +352,72 @@ What Phase 5 added:
 
 ## 9. Database Schema
 
-8 tables in Turso (5 original + 3 added in Phase 5):
+15 tables in Turso (8 from Phase 1–5 + 7 added in Phase 6):
 
 | Table | Purpose |
 |-------|---------|
-| `conversations` | Every chat session (id, session_id, outcome, segment, timestamps) |
+| `conversations` | Every chat session (id, session_id, outcome, segment, timestamps, **source**) |
 | `messages` | Every message in every conversation (role, content, raw_content with signals) |
-| `leads` | Captured leads — name, email, phone, segment, qualification, status, `ai_summary`, `booking_id` |
+| `leads` | Captured leads — name, email, phone, segment, qualification, status, `ai_summary`, `booking_id`, **source**, **Layer 3 intelligence fields** (lead_score, referrer_name/url, qualification_path, chatbot_responses, special_filter_triggered, score_breakdown, outcome, outcome_updated_at, admin_notes, session_duration_seconds, device_type) |
 | `emails` | Email log — subject, body, status (draft/sent/failed), `to_address`, `booking_id`, `approved_at` |
-| `settings` | Key-value config store (email settings, chatbot settings, `consultation_slots`) |
-| `bookings` | Consultation bookings — lead_id, conversation_id, preferred_date, preferred_time, status |
+| `settings` | Key-value config store (email settings, chatbot settings, `consultation_slots`, `marketplace_access_fee_omr`) |
+| `bookings` | Consultation bookings — lead_id, conversation_id, preferred_date, preferred_time, status, **source** |
 | `blocked_slots` | Days or time slots Ahmed has blocked — date, time_slot (null = full day), reason |
 | `push_subscriptions` | Browser push subscriptions — endpoint, p256dh, auth keys |
+| **`categories`** | Marketplace categories (8 seeded: café-restaurant, gym, car-service, grocery-store, car-accessories, laundry, travel-agency, industrial-commercial) — admin-editable |
+| **`sellers`** | Business sellers, optional `lead_id` FK so visitors-who-want-to-list become sellers when admin promotes them |
+| **`listings`** | Marketplace listings — Plan v3 fields + `for_sale`/`for_rent` bools (Project 3 hybrid), `processing_fee_omr` (default 500), `commercial_registration_included`, `stock_value_omr`, **`featured`** + **`featured_rank`** for curated teaser |
+| **`inquiries`** | Buyer inquiries on listings — `lead_id`, `listing_id`, message, status, source default `'businesses'` |
+| **`admin_users`** | Admin accounts (email, bcrypt password_hash, full_name, role: owner/admin/viewer, active, last_login_at) |
+| **`admin_sessions`** | Active admin sessions (opaque token id, admin_user_id, ip, user_agent, expires_at) |
+| **`activity_log`** | Append-only audit trail (actor_type: bot/admin/system/visitor, action, target_type, target_id, source, metadata_json, ip, user_agent) |
 
 Run migrations on a fresh database: `npm run migrate`
+Inspect live schema: `npx tsx scripts/verify-schema.ts` (lists tables, columns, indexes, seed data).
 
 ---
 
 ## 10. Deployment & Updates
 
-### How to deploy changes
-1. Make code changes locally
-2. Commit and push to `master` branch on GitHub
-3. Vercel auto-deploys on every push — no manual action needed
+### Branching & Production State (as of 2026-05-12)
 
-### Critical: Vercel Hobby Plan Committer Rule
-Vercel Hobby blocks deploys if the git committer can't be associated with the repo owner's GitHub account. Always commit with:
+- **Active branch:** `section-b-marketplace` — production runs from this branch's HEAD
+- **`master`:** has diverged. Phase 6 work has not been merged back yet. Plan: merge once Ahmed approves the marketplace direction.
+- **Vercel auto-deploys are disabled** on this project. All production deploys happen via CLI.
+
+### How to deploy changes
+
 ```bash
-git config user.email "jalookout7-eng@users.noreply.github.com"
-git config user.name "jalookout7-eng"
+# 1. Make changes locally
+# 2. Commit and push to section-b-marketplace (or a fresh feature branch off it)
+git add -A
+git commit -m "..."
+git push
+
+# 3. Preview deploy (requires Vercel login to view)
+vercel deploy --yes
+
+# 4. Production deploy (only when JA approves)
+vercel deploy --prod --yes
 ```
-Do NOT use `Co-Authored-By` trailers — Vercel treats them as collaboration and blocks the deploy.
+
+### Production deploy freeze (2026-05-11 → present)
+
+JA paused production deploys so Ahmed sees a stable site while we iterate. Commits to `section-b-marketplace` continue but `vercel deploy --prod` is held off until JA explicitly approves the next batch.
+
+To check the current production deployment:
+```bash
+vercel ls | head -5
+# or visit https://vercel.com/jalookout7-1526s-projects/gateway-to-oman/deployments
+```
 
 ### Vercel Cron
-`vercel.json` configures a cron job at `/api/cron/reminders` running every 30 minutes. Protected by `CRON_SECRET` environment variable. Vercel Hobby supports up to 2 cron jobs.
+
+`vercel.json` configures a cron job at `/api/cron/reminders` running **daily at 09:00 UTC** (was `*/30 * * * *` before 2026-05-11). Vercel Hobby now enforces once-per-day cron schedules — preview deploys are rejected if the cron is more frequent.
+
+Options to restore the every-30-minute cadence:
+- Upgrade to Vercel Pro (~$20/mo) — lifts the cron limit
+- Move the reminder cron to an external scheduler (GitHub Actions cron / cron-job.org) hitting the endpoint with `CRON_SECRET`
 
 ### How to add a custom domain
 1. Vercel Dashboard → Project → Settings → Domains
@@ -373,12 +467,69 @@ npm run dev             # http://localhost:3000
 - [x] Chat widget (floating AI Assistant) now opens centered on desktop (same pattern as ChatModal) with dark backdrop
 - [x] Admin mobile layout — sidebar hidden on mobile, bottom tab navigation shown
 
+### Phase 6 — Marketplace, Layer 3 Schema, Admin Auth (May 10–12, 2026 — IN PROGRESS)
+
+**Section A — Opportunities Routing**
+- [x] `components/landing/Opportunities.tsx` carries `{ kind: "subdomain" | "modal" | "comingSoon" }` per card
+- [x] "Businesses for Sale" card links live to `/businesses` with a green "Live" badge
+- [x] Other 5 cards (Rehab Center, Franchises, Real Estate, Digital Banking, Career Platform) show a "Coming Soon" badge and keep the existing modal behaviour
+
+**Section B — Marketplace Subdomain**
+- [x] `/businesses` — BizBuySell-style marketplace (Amazon-adjacent UX) with full-bleed Muscat dusk hero
+- [x] "Editor's picks — Highly rated businesses" row showing up to 5 admin-curated featured cards (hidden when filters are active)
+- [x] Filter sidebar: category, city, listing type (sale/rent), status, price range — all URL-driven so filters are shareable
+- [x] Search bar + sort control (newest / price asc / price desc)
+- [x] Listing detail page at `/businesses/listing/[slug]` — 12 fields, inquire block
+- [x] 5 sample listings seeded from Ahmed's project descriptions (laundry, travel agency, industrial factory, café, car paint)
+- [x] **Paywall access flow** — clicking any card routes to `/businesses/access?listing=[slug]` instead of detail page. Form captures name + email + mobile + message. Submission creates a lead (source=businesses), an inquiry (if listing referred), and an activity_log entry.
+- [x] `/businesses/list-your-business` — Coming Soon page with WhatsApp + email CTAs (no more 404)
+- [x] Marketplace access fee — default OMR 100, admin-configurable via `/admin/listings` page
+
+**Section C — Database Schema**
+- [x] New Turso database under Ahmed's account (see Section 3)
+- [x] 7 new tables: `categories`, `sellers`, `listings`, `inquiries`, `admin_users`, `admin_sessions`, `activity_log`
+- [x] `source` column added to `conversations`, `leads`, `bookings` (per-vertical attribution)
+- [x] **Layer 3 fields on leads** (per meeting-notes directive — present from day one, surfaced gradually):
+  `lead_score`, `referrer_name`, `referrer_url`, `qualification_path` (JSON), `chatbot_responses` (JSON), `special_filter_triggered`, `score_breakdown` (JSON), `outcome` (pending/contacted/converted/nurture/rejected), `outcome_updated_at`, `admin_notes`, `session_duration_seconds`, `device_type`
+- [x] `featured` + `featured_rank` on listings — admin curates the "highly rated" teaser row
+- [x] 8 categories seeded: Café/Restaurant, Gym, Car Service, Grocery Store, Car Accessories, Laundry, Travel Agency, Industrial/Commercial
+- [x] 35 schema tests verifying tables, columns, defaults, enums, FK, uniqueness, the for_sale+for_rent hybrid (Project 3 industrial factory pattern). Full suite: 57/57.
+
+**Section D — Admin Authentication (replacement for shared ADMIN_TOKEN)**
+- [x] Email + password login backed by `admin_users` (bcryptjs cost-12 hashes)
+- [x] Opaque session tokens stored in `admin_sessions`, HttpOnly Secure SameSite=Lax cookie, 7-day TTL
+- [x] `requireAuth` accepts both new cookie sessions AND legacy bearer ADMIN_TOKEN (graceful migration — existing pages still work)
+- [x] New `/api/auth/login`, `/api/auth/logout`, `/api/auth/me` endpoints
+- [x] Show/hide eye toggle on password and admin token fields
+- [x] Sidebar footer shows signed-in user (name, email, role)
+- [x] First admin seeded: `gatewaytooman@gmail.com` (Ahmed Al Azizi, owner role)
+- [x] Login verified end-to-end on production 2026-05-11 (returns user + sets cookie correctly)
+
+**New admin pages**
+- [x] `/admin/listings` — marketplace listings table with star toggle (featured), status filter, stats row, inline access-fee editor
+- [x] `/admin/inquiries` — marketplace access requests with one-click outcome changes (pending → contacted → converted | nurture | rejected), lead contact info, listing context, WhatsApp + email deeplinks
+
+**Branding**
+- [x] GTO logo (`public/gto-logo.png`) on every header — main Navbar, marketplace header, admin sidebar, admin login form
+- [x] Muscat dusk skyline (`public/businesses/hero.jpg`) — full-bleed marketplace hero with navy gradient overlay
+
 ### Backlog (not yet scoped)
 - [ ] Email template editor in admin settings
-- [ ] Lead scoring automation
-- [ ] WhatsApp integration
+- [ ] Lead scoring automation (Stage 03 scoring v1 model — encoded in chatbot, see `delivery/shared/gto-lead-scoring-v1.md`)
 - [ ] Analytics tracking (Google Analytics or Vercel Analytics)
 - [ ] AI signal leaking — full regex improvement pass
+
+### Section A/B/C/D follow-ups (Phase 6, deferred)
+- [ ] Section E — Flask + LiteLLM AI backend migration (waiting on payment method from Ahmed)
+- [ ] Section F — multi-channel escalation dispatcher (Slack webhook from JA's own workspace, then email + push fan-out)
+- [ ] Section G — Omar context-awareness + KB reference layer (waits on Ahmed's 4 marketplace qualifying questions + 15 KB content stubs)
+- [ ] Section D — sellers admin page, activity-log admin page, source filtering on existing leads/conversations/bookings views, shadcn-admin polish across the board
+- [ ] Listing media on Cloudflare (cover image, gallery, video) — waits on Ahmed's Cloudflare account
+- [ ] Real WhatsApp number `+968 9510 8257` wired into inquire deeplinks (currently generic `wa.me/?text=...`)
+- [ ] Calendly two-way sync with `/admin/calendar` (waits on Ahmed's Calendly API access)
+- [ ] DNS — GoDaddy CNAME for `businesses.gatewaytooman.com` (waits on GoDaddy access)
+- [ ] Subdomain middleware host-rewrite once DNS is live
+- [ ] Section I (last task) — VPS migration to GoDaddy Ubuntu 24.04 with Nginx + Flask + systemd
 
 ---
 
@@ -423,18 +574,24 @@ npm run dev             # http://localhost:3000
 5. If push notifications stop working: re-enable in admin (browser will re-subscribe)
 
 ### Cost Breakdown (Current)
-| Service | Plan | Cost |
-|---------|------|------|
-| Vercel | Hobby (Free) | $0/mo |
-| Turso | Starter (Free) | $0/mo |
-| Groq | Free tier | $0/mo |
-| GitHub | Free (private repo) | $0/mo |
-| Pexels photos | Free commercial license | $0 |
-| **Total** | | **$0/mo** |
+| Service | Plan | Cost | Notes |
+|---------|------|------|-------|
+| Vercel | Hobby (Free) | $0/mo | Daily-cron limit on Hobby restricts reminder cadence to 1×/day |
+| Turso | Starter (Free) | $0/mo | Now under Ahmed's account |
+| Groq | Free tier | $0/mo | LiteLLM migration (Section E) expected ~$20–30/mo when live |
+| GitHub | Free (private repo) | $0/mo | |
+| Pexels photos | Free commercial license | $0 | |
+| **Total today** | | **$0/mo** | |
 
-Free tiers have limits. If traffic grows significantly, Vercel Pro ($20/mo) and Turso Scaler ($29/mo) are the likely first upgrades needed.
+### Pending paid services (Phase 6 follow-ups)
+| Service | Estimated cost | Pending |
+|---------|---------------|---------|
+| Cloudflare (listing media) | ~$5/mo | Ahmed credit card |
+| LiteLLM provider (Section E) | ~$20–30/mo | Ahmed payment method decision |
+| Vercel Pro (optional) | $20/mo | JA decision — restores every-30-min cron + lifts other Hobby limits |
+| Calendly (booking sync) | Existing | Ahmed API access |
 
 ---
 
-**Document Version:** 4.0
-**Last Updated:** April 8, 2026
+**Document Version:** 5.0
+**Last Updated:** May 12, 2026
