@@ -3,14 +3,14 @@ import { requireAuth } from "@/lib/auth/token";
 import { getMarketplaceAccessFee, setMarketplaceAccessFee } from "@/lib/businesses/settings";
 
 export async function GET(request: NextRequest) {
-  const authError = requireAuth(request);
+  const authError = await requireAuth(request);
   if (authError) return authError;
   const fee = await getMarketplaceAccessFee();
   return NextResponse.json({ marketplace_access_fee_omr: fee });
 }
 
 export async function PUT(request: NextRequest) {
-  const authError = requireAuth(request);
+  const authError = await requireAuth(request);
   if (authError) return authError;
   let body: { marketplace_access_fee_omr?: number };
   try {

@@ -14,21 +14,50 @@ const NAV_ITEMS = [
   { href: "/admin/settings", label: "Settings", icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" },
 ];
 
+type SessionUser = {
+  id: string;
+  email: string;
+  full_name: string | null;
+  role: "owner" | "admin" | "viewer";
+};
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [authenticated, setAuthenticated] = useState(false);
+  const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
   const [token, setToken] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(true);
+  const [signingIn, setSigningIn] = useState(false);
+  const [mode, setMode] = useState<"email" | "token">("email");
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
-    const saved = localStorage.getItem("admin_token");
-    if (saved) {
-      verifyToken(saved);
-    } else {
-      setChecking(false);
-    }
+    // Prefer session cookie via /api/auth/me; fall back to localStorage admin_token.
+    (async () => {
+      try {
+        const meRes = await fetch("/api/auth/me", { credentials: "include" });
+        if (meRes.ok) {
+          const data = await meRes.json();
+          if (data.user) {
+            setSessionUser(data.user);
+            setAuthenticated(true);
+            setChecking(false);
+            return;
+          }
+        }
+      } catch {
+        // fall through to token check
+      }
+      const saved = localStorage.getItem("admin_token");
+      if (saved) {
+        verifyToken(saved);
+      } else {
+        setChecking(false);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -88,16 +117,54 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleTokenLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setSigningIn(true);
     await verifyToken(token);
+    setSigningIn(false);
   }
 
-  function handleLogout() {
+  async function handleEmailLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setSigningIn(true);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? "Sign-in failed");
+        return;
+      }
+      const data = await res.json();
+      setSessionUser(data.user);
+      setAuthenticated(true);
+    } catch {
+      setError("Connection error");
+    } finally {
+      setSigningIn(false);
+    }
+  }
+
+  async function handleLogout() {
+    if (sessionUser) {
+      try {
+        await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      } catch {
+        // ignore
+      }
+    }
     localStorage.removeItem("admin_token");
+    setSessionUser(null);
     setAuthenticated(false);
     setToken("");
+    setEmail("");
+    setPassword("");
     router.push("/admin");
   }
 
@@ -111,8 +178,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!authenticated) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <form onSubmit={handleLogin} className="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm space-y-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm">
           <div className="flex justify-center pb-2">
             <Image
               src="/gto-logo.png"
@@ -123,23 +190,77 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               className="h-14 w-auto"
             />
           </div>
-          <h1 className="text-xl font-bold text-navy text-center">Admin Access</h1>
-          <p className="text-sm text-gray-500 text-center">Enter your admin token to continue</p>
-          <input
-            type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="Admin token"
-            className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
-          />
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          <h1 className="text-xl font-bold text-navy text-center mt-2">Admin Sign-in</h1>
+          <p className="text-sm text-gray-500 text-center mt-1">
+            {mode === "email" ? "Sign in with your admin account." : "Use the legacy admin token."}
+          </p>
+
+          {mode === "email" ? (
+            <form onSubmit={handleEmailLogin} className="mt-6 space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="username"
+                  placeholder="you@example.com"
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Password</label>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
+                />
+              </div>
+              {error && <p className="text-red-500 text-sm">{error}</p>}
+              <button
+                type="submit"
+                disabled={signingIn}
+                className="w-full py-3 rounded-lg gold-gradient text-white font-semibold text-sm hover:shadow-lg transition-shadow disabled:opacity-60"
+              >
+                {signingIn ? "Signing in…" : "Sign In"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleTokenLogin} className="mt-6 space-y-3">
+              <input
+                type="password"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                placeholder="Admin token"
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
+              />
+              {error && <p className="text-red-500 text-sm">{error}</p>}
+              <button
+                type="submit"
+                disabled={signingIn}
+                className="w-full py-3 rounded-lg gold-gradient text-white font-semibold text-sm hover:shadow-lg transition-shadow disabled:opacity-60"
+              >
+                {signingIn ? "Verifying…" : "Sign In with Token"}
+              </button>
+            </form>
+          )}
+
           <button
-            type="submit"
-            className="w-full py-3 rounded-lg gold-gradient text-white font-semibold text-sm hover:shadow-lg transition-shadow"
+            type="button"
+            onClick={() => {
+              setError("");
+              setMode((m) => (m === "email" ? "token" : "email"));
+            }}
+            className="block mx-auto mt-5 text-xs text-gray-500 hover:text-gold transition-colors"
           >
-            Sign In
+            {mode === "email" ? "Use legacy admin token instead" : "Sign in with email and password"}
           </button>
-        </form>
+        </div>
       </div>
     );
   }
@@ -181,6 +302,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
         <div className="px-3 py-4 border-t border-white/10">
+          {sessionUser && (
+            <div className="px-3 pb-3 text-xs">
+              <p className="text-white/90 font-medium truncate">
+                {sessionUser.full_name ?? sessionUser.email}
+              </p>
+              <p className="text-white/40 truncate">
+                {sessionUser.email} · {sessionUser.role}
+              </p>
+            </div>
+          )}
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white w-full transition-colors"

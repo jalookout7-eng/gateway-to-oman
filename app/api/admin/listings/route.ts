@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/auth/token";
 import { getDb } from "@/lib/db/client";
 
 export async function GET(request: NextRequest) {
-  const authError = requireAuth(request);
+  const authError = await requireAuth(request);
   if (authError) return authError;
 
   const db = getDb();

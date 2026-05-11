@@ -3,7 +3,7 @@ import { getDb } from "@/lib/db/client";
 import { requireAuth } from "@/lib/auth/token";
 
 export async function GET(request: NextRequest) {
-  const authError = requireAuth(request);
+  const authError = await requireAuth(request);
   if (authError) return authError;
   const db = getDb();
   const result = await db.execute({ sql: "SELECT * FROM blocked_slots ORDER BY date ASC", args: [] });
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authError = requireAuth(request);
+  const authError = await requireAuth(request);
   if (authError) return authError;
   const body = await request.json();
   const { date, timeSlot, reason } = body;
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const authError = requireAuth(request);
+  const authError = await requireAuth(request);
   if (authError) return authError;
   const body = await request.json();
   const { id } = body;

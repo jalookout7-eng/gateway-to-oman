@@ -4,7 +4,7 @@ import { requireAuth } from "@/lib/auth/token";
 import { getEmailConfig, sendEmailLegacy } from "@/lib/email/sender";
 
 export async function POST(request: NextRequest) {
-  const authError = requireAuth(request);
+  const authError = await requireAuth(request);
   if (authError) return authError;
 
   const { leadId, emailId } = await request.json();

@@ -3,7 +3,7 @@ import { getDb } from "@/lib/db/client";
 import { requireAuth } from "@/lib/auth/token";
 
 export async function POST(request: NextRequest) {
-  const authError = requireAuth(request);
+  const authError = await requireAuth(request);
   if (authError) return authError;
 
   const { endpoint, keys } = await request.json();
