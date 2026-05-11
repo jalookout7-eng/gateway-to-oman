@@ -42,6 +42,13 @@ export default async function BusinessesPage({ searchParams }: { searchParams: S
       <MarketplaceHero listingCount={listings.length} />
 
       <section id="listings" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 scroll-mt-20">
+        <div className="mb-6 rounded-xl bg-gold/5 ring-1 ring-gold/20 px-5 py-4 text-sm text-navy">
+          <strong className="font-semibold text-gold-dark">Preview marketplace.</strong>{" "}
+          The five listings below are a snapshot of currently available businesses. Click any
+          card to request subscriber access — Ahmed will reach out personally with the invoice
+          and full listing details.
+        </div>
+
         <div className="mb-8">
           <SearchBar initialQuery={params.q ?? ""} />
         </div>

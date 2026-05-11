@@ -12,6 +12,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { formatOMR, formatPriceRange } from "@/lib/businesses/format";
+import { AccessFeeCard } from "@/components/admin/AccessFeeCard";
 
 type AdminListing = {
   id: string;
@@ -104,6 +105,8 @@ export default function AdminListingsPage() {
           New listing
         </button>
       </div>
+
+      <AccessFeeCard />
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <StatCard label="Total listings" value={stats.total} accent="navy" />

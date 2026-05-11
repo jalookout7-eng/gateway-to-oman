@@ -26,7 +26,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
 
   return (
     <Link
-      href={`/businesses/listing/${listing.slug}`}
+      href={`/businesses/access?listing=${listing.slug}`}
       className="group block overflow-hidden rounded-xl bg-white ring-1 ring-gray-200 transition-all hover:ring-gold hover:shadow-lg"
     >
       <div className={`relative aspect-[16/10] bg-gradient-to-br ${gradient} flex items-center justify-center`}>
@@ -76,7 +76,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
             {listing.employee_count !== null ? `${listing.employee_count} staff` : "—"}
           </span>
           <span className="ml-auto inline-flex items-center gap-1 text-gold opacity-0 transition-opacity group-hover:opacity-100">
-            View <ArrowRight className="h-3.5 w-3.5" />
+            Request access <ArrowRight className="h-3.5 w-3.5" />
           </span>
         </div>
       </div>
