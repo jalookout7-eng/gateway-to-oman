@@ -332,3 +332,15 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_target ON activity_log(target_type, 
 CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
 CREATE INDEX IF NOT EXISTS idx_activity_log_source ON activity_log(source);
 CREATE INDEX IF NOT EXISTS idx_activity_log_created ON activity_log(created_at);
+
+-- ----------------------------------------------------------------------------
+-- 10. Featured listings (highly-rated teaser picks)
+-- Admin marks up to 5 listings as "featured" with a rank for ordering.
+-- Marketplace home shows featured listings first. Falls back to created_at
+-- order for non-featured.
+-- ----------------------------------------------------------------------------
+
+ALTER TABLE listings ADD COLUMN featured INTEGER NOT NULL DEFAULT 0 CHECK (featured IN (0, 1));
+ALTER TABLE listings ADD COLUMN featured_rank INTEGER;
+
+CREATE INDEX IF NOT EXISTS idx_listings_featured ON listings(featured, featured_rank);

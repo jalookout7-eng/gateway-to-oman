@@ -28,6 +28,8 @@ export type Listing = {
   video_url: string | null;
   status: ListingStatus;
   published: boolean;
+  featured: boolean;
+  featured_rank: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -50,4 +52,6 @@ export type ListingFilters = {
   forRent?: boolean;
   search?: string;
   sort?: "newest" | "price-asc" | "price-desc";
+  featuredOnly?: boolean;
+  limit?: number;
 };

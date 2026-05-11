@@ -10,6 +10,7 @@ import {
   Filter,
   MoreHorizontal,
   ExternalLink,
+  Star,
 } from "lucide-react";
 import { formatOMR, formatPriceRange } from "@/lib/businesses/format";
 import { AccessFeeCard } from "@/components/admin/AccessFeeCard";
@@ -26,6 +27,8 @@ type AdminListing = {
   rental_price_omr: number | null;
   status: "available" | "reserved" | "sold";
   published: boolean;
+  featured: boolean;
+  featured_rank: number | null;
   age_years: number | null;
   employee_count: number | null;
   created_at: string;
@@ -86,6 +89,32 @@ export default function AdminListingsPage() {
     sold: listings.filter((l) => l.status === "sold").length,
     inquiries: listings.reduce((sum, l) => sum + l.inquiry_count, 0),
   };
+
+  async function toggleFeatured(id: string, nextFeatured: boolean) {
+    setListings((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, featured: nextFeatured } : l)),
+    );
+    try {
+      const res = await fetch(`/api/admin/listings/${id}/featured`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({ featured: nextFeatured }),
+      });
+      if (!res.ok) throw new Error("Failed to update featured state");
+      const data = await res.json();
+      setListings((prev) =>
+        prev.map((l) =>
+          l.id === id
+            ? { ...l, featured: data.featured, featured_rank: data.featured_rank }
+            : l,
+        ),
+      );
+    } catch {
+      setListings((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, featured: !nextFeatured } : l)),
+      );
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -160,6 +189,11 @@ export default function AdminListingsPage() {
             <table className="min-w-full divide-y divide-gray-100 text-sm">
               <thead className="bg-gray-50/50">
                 <tr>
+                  <Th className="w-12 text-center">
+                    <span className="inline-flex items-center gap-1 justify-center" title="Featured on /businesses">
+                      <Star className="h-3.5 w-3.5" />
+                    </span>
+                  </Th>
                   <Th>Listing</Th>
                   <Th>Category</Th>
                   <Th>Location</Th>
@@ -172,8 +206,31 @@ export default function AdminListingsPage() {
               <tbody className="divide-y divide-gray-100">
                 {filtered.map((listing) => (
                   <tr key={listing.id} className="hover:bg-gray-50/60 transition-colors">
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        type="button"
+                        onClick={() => toggleFeatured(listing.id, !listing.featured)}
+                        title={listing.featured ? "Unfeature" : "Feature on /businesses"}
+                        className="rounded-md p-1.5 transition-colors hover:bg-gray-100"
+                      >
+                        <Star
+                          className={`h-4 w-4 transition-all ${
+                            listing.featured
+                              ? "fill-gold text-gold"
+                              : "text-gray-300 hover:text-gold"
+                          }`}
+                        />
+                      </button>
+                    </td>
                     <td className="px-4 py-3">
-                      <div className="font-semibold text-navy">{listing.title}</div>
+                      <div className="font-semibold text-navy flex items-center gap-2">
+                        {listing.title}
+                        {listing.featured && listing.featured_rank !== null && (
+                          <span className="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider text-gold bg-gold/10 px-1.5 py-0.5 rounded">
+                            #{listing.featured_rank}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-gray-500 mt-0.5">
                         {listing.age_years !== null ? `${listing.age_years} yrs` : "—"}
                         {" · "}

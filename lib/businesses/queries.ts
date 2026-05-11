@@ -30,6 +30,8 @@ function rowToListing(row: Record<string, unknown>): Listing {
     video_url: (row.video_url as string | null) ?? null,
     status: row.status as Listing["status"],
     published: Number(row.published) === 1,
+    featured: Number(row.featured ?? 0) === 1,
+    featured_rank: (row.featured_rank as number | null) ?? null,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   };
@@ -87,10 +89,15 @@ export async function listListings(filters: ListingFilters = {}): Promise<Listin
     const pattern = `%${filters.search}%`;
     args.push(pattern, pattern, pattern);
   }
+  if (filters.featuredOnly) {
+    where.push("l.featured = 1");
+  }
 
-  let orderBy = "l.created_at DESC";
+  let orderBy = "l.featured DESC, l.featured_rank ASC NULLS LAST, l.created_at DESC";
   if (filters.sort === "price-asc") orderBy = "l.selling_price_omr ASC NULLS LAST, l.created_at DESC";
   else if (filters.sort === "price-desc") orderBy = "l.selling_price_omr DESC NULLS LAST, l.created_at DESC";
+
+  const limitClause = filters.limit ? `LIMIT ${Math.max(1, Math.floor(filters.limit))}` : "";
 
   const sql = `
     SELECT l.*, c.slug AS category_slug, c.name AS category_name
@@ -98,6 +105,7 @@ export async function listListings(filters: ListingFilters = {}): Promise<Listin
     JOIN categories c ON c.id = l.category_id
     WHERE ${where.join(" AND ")}
     ORDER BY ${orderBy}
+    ${limitClause}
   `;
   const result = await db.execute({ sql, args });
   return result.rows.map((row) => rowToListing(row as Record<string, unknown>));

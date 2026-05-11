@@ -38,7 +38,9 @@ async function migrate() {
   const statements = schema
     .split(";")
     .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+    .filter((s) => s.length > 0)
+    // Skip chunks that are only SQL comments (-- prefix on every non-empty line)
+    .filter((s) => s.split("\n").some((line) => line.trim() && !line.trim().startsWith("--")));
 
   console.log(`Running ${statements.length} migration statements...`);
 
