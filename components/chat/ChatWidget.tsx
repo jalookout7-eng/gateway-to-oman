@@ -13,6 +13,8 @@ export function ChatWidget() {
   const pathname = usePathname();
 
   const [isOpen, setIsOpen] = useState(false);
+  const [showTeaser, setShowTeaser] = useState(false);
+  const [teaserDismissed, setTeaserDismissed] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [showCaptureForm, setShowCaptureForm] = useState(false);
@@ -25,21 +27,28 @@ export function ChatWidget() {
   const [detectedInterest, setDetectedInterest] = useState<string | null>(null);
   const [leadCaptured, setLeadCaptured] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const hasAutoOpened = useRef(false);
+  const hasTriggeredTeaser = useRef(false);
 
-  // Auto-open after 7 seconds
+  // Scroll trigger — show the teaser bubble at 30% scroll depth
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!hasAutoOpened.current) {
-        hasAutoOpened.current = true;
-        setIsOpen(true);
-        // Add initial greeting
-        const greeting = getContextualGreeting();
-        setMessages([{ role: "assistant", content: greeting }]);
+    function onScroll() {
+      if (hasTriggeredTeaser.current) return;
+      const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+      if (scrollable <= 0) return;
+      const depth = window.scrollY / scrollable;
+      if (depth >= 0.3) {
+        hasTriggeredTeaser.current = true;
+        setShowTeaser(true);
       }
-    }, 7000);
-    return () => clearTimeout(timer);
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Hide teaser when full chat opens
+  useEffect(() => {
+    if (isOpen) setShowTeaser(false);
+  }, [isOpen]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -185,6 +194,58 @@ export function ChatWidget() {
               AI Assistant
             </span>
           </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* Scroll-triggered teaser bubble — appears above the floating button at 30% scroll */}
+      <AnimatePresence>
+        {showTeaser && !teaserDismissed && !isOpen && (
+          <motion.div
+            className="fixed bottom-24 right-6 z-50 w-[320px] max-w-[calc(100vw-3rem)]
+              rounded-2xl bg-white shadow-2xl ring-1 ring-gray-200 overflow-hidden"
+            initial={{ opacity: 0, y: 12, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.96 }}
+            transition={{ type: "spring", stiffness: 320, damping: 26 }}
+          >
+            <button
+              onClick={() => setTeaserDismissed(true)}
+              aria-label="Dismiss"
+              className="absolute top-2 right-2 p-1.5 rounded-md text-gray-400 hover:text-navy hover:bg-gray-100 transition-colors z-10"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div className="p-4 pr-9">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full gold-gradient ring-2 ring-gold/20 flex items-center justify-center flex-shrink-0">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                </div>
+                <div className="leading-tight">
+                  <p className="font-semibold text-navy text-sm">Omar</p>
+                  <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Gateway to Oman
+                  </p>
+                </div>
+              </div>
+
+              <p className="mt-3 text-sm text-gray-700 leading-relaxed">
+                Thinking about Oman as an investor, business owner, or planning a move with your family? I can point you in the right direction — takes a minute.
+              </p>
+
+              <button
+                onClick={handleOpen}
+                className="mt-3 w-full gold-gradient text-white text-sm font-semibold py-2.5 rounded-lg shadow-sm hover:shadow-md transition-all"
+              >
+                Chat with Omar
+              </button>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
