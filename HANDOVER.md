@@ -2,9 +2,11 @@
 
 **Prepared by:** JA (Developer)
 **Prepared for:** Ahmed Al-Azizi — Al Azizi Group
-**Last Updated:** May 12, 2026
+**Last Updated:** May 13, 2026
 **Live URL:** https://gateway-to-oman.vercel.app
-**Marketplace URL:** https://gateway-to-oman.vercel.app/businesses
+**Marketplace landing:** https://gateway-to-oman.vercel.app/businesses
+**Marketplace grid:** https://gateway-to-oman.vercel.app/businesses/listings
+**Subscriber sign-in / sign-up:** https://gateway-to-oman.vercel.app/businesses/sign-in
 **Admin URL:** https://gateway-to-oman.vercel.app/admin
 **Repository:** https://github.com/jalookout7-eng/gateway-to-oman (private)
 **Active Branch:** `section-b-marketplace` (master has diverged — see Section 10)
@@ -16,18 +18,20 @@
 Gateway to Oman is a lead-generation platform with an AI-powered chatbot ("Omar"), built to attract and qualify entrepreneurs, investors, professionals, and retirees interested in opportunities in Oman. It also hosts a vetted Businesses-for-Sale marketplace as a separate vertical at `/businesses` (production destination: `businesses.gatewaytooman.com` once DNS is configured).
 
 ### What It Does
-- **Landing page** showcasing Oman opportunities, services, and Ahmed's credentials — with real photography from Muscat, Oman's wadis, and key landmarks. "Businesses for Sale" opportunity card links live to `/businesses`; other 5 verticals show a "Coming Soon" badge.
-- **Businesses-for-Sale marketplace** at `/businesses` — vetted listings with category, location, price, age, employees, financials. Filter sidebar (category, city, listing type, status, price range), search bar, "Editor's picks" featured row. Clicking any card sends visitors to a paid-access request flow.
-- **Marketplace access flow** at `/businesses/access` — visitors submit name, email, mobile, and a brief message. Ahmed receives the request in `/admin/inquiries`, invoices and grants access manually. Access fee (default OMR 100) is admin-configurable.
+- **Landing page** showcasing Oman opportunities, services, and the team's credentials — with real photography from Muscat, Oman's wadis, and key landmarks. "Businesses for Sale" opportunity card links live to `/businesses`; other 5 verticals show a "Coming Soon" badge.
+- **Businesses-for-Sale marketplace** at `/businesses` (landing page) + `/businesses/listings` (grid) — vetted listings with category, location, price, age, employees, financials. Collapsible filter sidebar (category, city, listing type, status, price range), search bar, "Editor's picks" featured row. Landing carries hero, value props, what-you-get panel, 4-step how-it-works, FAQ.
+- **Marketplace authentication** at `/businesses/sign-in` — visitors sign up with full name, email, ISO country-code phone, and a password (strength meter). A 6-digit OTP is emailed for verification. Sign-in also requires the OTP. Google OAuth button parked until credentials provided.
+- **Marketplace access flow** at `/businesses/access` — visitors submit name, email, mobile, and a brief message. The team receives the request in `/admin/inquiries`, invoices and grants access manually. Access fee (default OMR 100) is admin-configurable.
 - **Context-aware AI chatbot** that auto-opens after 7 seconds, OR opens in a centered modal when any CTA or opportunity card is clicked — pre-seeded with the relevant context
 - **Lead capture** with name, email, and phone — triggered intelligently by AI signals or after 5 exchanges max; chat closes fully after submission
 - **Consultation booking flow** — AI asks for preferred day and time, creates a booking record, generates a draft confirmation email for Ahmed to review and send
-- **Admin dashboard** with email/password login, charts, lead management, marketplace inquiries, listings management with featured curation, AI lead summaries, conversation transcripts, booking calendar, and settings
+- **Admin dashboard** with email/password login, charts, lead management, marketplace inquiries, listings management (full CRUD + featured curation), sellers, activity log, marketplace users (approve / revoke access), AI lead summaries, conversation transcripts, booking calendar, and settings (collapsible Email / Chatbot / Admin Users sections)
 - **Push notifications** to Ahmed's browser (and phone when installed as PWA) — new leads, new bookings, upcoming meeting reminders
 - **Email approval workflow** — all outbound emails to leads are drafted and held until Ahmed clicks Send
 - **PWA-installable** — can be added to home screen on iOS and Android; push notifications work on both
 - **All conversations recorded** in the database, even if the visitor doesn't submit a form
 - **Layer 3-first lead intelligence schema** — every lead carries silent scoring fields (qualification_path, chatbot_responses, score_breakdown, outcome, session metrics) for monthly intelligence review
+- **Programmatic lead scoring** — Hot / Warm / Cold tier set on every captured lead per the 100-point model in `gto-lead-scoring-v1.md`. Push notification title carries the tier emoji.
 
 ---
 
@@ -352,7 +356,7 @@ What Phase 5 added:
 
 ## 9. Database Schema
 
-15 tables in Turso (8 from Phase 1–5 + 7 added in Phase 6):
+18 tables in Turso (8 from Phase 1–5 + 7 added in Phase 6 + 3 added in Phase 7):
 
 | Table | Purpose |
 |-------|---------|
@@ -371,6 +375,9 @@ What Phase 5 added:
 | **`admin_users`** | Admin accounts (email, bcrypt password_hash, full_name, role: owner/admin/viewer, active, last_login_at) |
 | **`admin_sessions`** | Active admin sessions (opaque token id, admin_user_id, ip, user_agent, expires_at) |
 | **`activity_log`** | Append-only audit trail (actor_type: bot/admin/system/visitor, action, target_type, target_id, source, metadata_json, ip, user_agent) |
+| **`marketplace_users`** | Visitors who signed up via /businesses/sign-in — email, full_name, password_hash (bcrypt cost-12), phone, country_code, email_verified, access_activated, google_id, lead_id FK, last_login_at |
+| **`marketplace_otps`** | 6-digit verification codes for sign-up / sign-in — purpose, expires_at (10-min TTL), attempts (max 5), consumed |
+| **`marketplace_sessions`** | Active marketplace user sessions — opaque token id (HttpOnly cookie), user_id FK, ip, user_agent, expires_at (7-day TTL) |
 
 Run migrations on a fresh database: `npm run migrate`
 Inspect live schema: `npx tsx scripts/verify-schema.ts` (lists tables, columns, indexes, seed data).
@@ -379,7 +386,7 @@ Inspect live schema: `npx tsx scripts/verify-schema.ts` (lists tables, columns, 
 
 ## 10. Deployment & Updates
 
-### Branching & Production State (as of 2026-05-12)
+### Branching & Production State (as of 2026-05-13)
 
 - **Active branch:** `section-b-marketplace` — production runs from this branch's HEAD
 - **`master`:** has diverged. Phase 6 work has not been merged back yet. Plan: merge once Ahmed approves the marketplace direction.
@@ -401,9 +408,9 @@ vercel deploy --yes
 vercel deploy --prod --yes
 ```
 
-### Production deploy freeze (2026-05-11 → present)
+### Deploy cadence (2026-05-13)
 
-JA paused production deploys so Ahmed sees a stable site while we iterate. Commits to `section-b-marketplace` continue but `vercel deploy --prod` is held off until JA explicitly approves the next batch.
+Production deploys are now per-batch with JA's approval. Two batches shipped on May 12 (Phase D/E unblocked + marketplace polish), one batch on May 13 (marketplace auth + edit listings + collapsible settings). Each commits to `section-b-marketplace`, then a manual `vercel deploy --prod --yes` after build + tests pass.
 
 To check the current production deployment:
 ```bash
@@ -506,8 +513,12 @@ npm run dev             # http://localhost:3000
 - [x] Login verified end-to-end on production 2026-05-11 (returns user + sets cookie correctly)
 
 **New admin pages**
-- [x] `/admin/listings` — marketplace listings table with star toggle (featured), status filter, stats row, inline access-fee editor
-- [x] `/admin/inquiries` — marketplace access requests with one-click outcome changes (pending → contacted → converted | nurture | rejected), lead contact info, listing context, WhatsApp + email deeplinks
+- [x] `/admin/listings` — marketplace listings table with star toggle (featured), status filter, stats row, inline access-fee editor. **+ New listing** modal, **Edit listing** modal, **More actions** menu (change status / publish toggle / delete with inquiry-guard).
+- [x] `/admin/inquiries` — marketplace access requests with one-click outcome changes (pending → contacted → converted | nurture | rejected) **and a one-click "Approve access" CTA** that activates the linked marketplace user, lead contact info, listing context, WhatsApp + email deeplinks
+- [x] `/admin/sellers` — manage marketplace sellers (list, add manual seller with optional lead_id link, activate/deactivate, listing counts)
+- [x] `/admin/activity` — append-only audit log viewer with actor / source / action filters + pagination
+- [x] `/admin/users` — marketplace users (visitors who signed up via /businesses/sign-in) — list, status badges (Activated / Pending / Email verified / Google), Approve / Revoke access actions
+- [x] `/admin/settings` refactored — collapsible sections for **Email**, **Chatbot**, and new **Admin users** management (owners can add admins by email+password+role, enable/disable, delete)
 
 **Branding**
 - [x] GTO logo (`public/gto-logo.png`) on every header — main Navbar, marketplace header, admin sidebar, admin login form
@@ -519,11 +530,45 @@ npm run dev             # http://localhost:3000
 - [ ] Analytics tracking (Google Analytics or Vercel Analytics)
 - [ ] AI signal leaking — full regex improvement pass
 
-### Section A/B/C/D follow-ups (Phase 6, deferred)
-- [ ] Section E — Flask + LiteLLM AI backend migration (waiting on payment method from Ahmed)
-- [ ] Section F — multi-channel escalation dispatcher (Slack webhook from JA's own workspace, then email + push fan-out)
-- [ ] Section G — Omar context-awareness + KB reference layer (waits on Ahmed's 4 marketplace qualifying questions + 15 KB content stubs)
-- [ ] Section D — sellers admin page, activity-log admin page, source filtering on existing leads/conversations/bookings views, shadcn-admin polish across the board
+### Phase 7 — Marketplace polish, marketplace auth, admin UX (May 12–13, 2026 — COMPLETE)
+
+**Visitor-facing marketplace**
+- [x] `/businesses` rebuilt as a content-rich **landing page** (hero, "what makes us different" 4-card grid, "what you get with subscriber access" panel, 4-step how-it-works, testimonial slot, final CTA). The existing listings grid moved to `/businesses/listings`. Both Browse buttons go there.
+- [x] `/businesses/about` — full how-it-works explainer + 6 FAQ entries
+- [x] `/businesses/sign-in` — tabbed **Sign in / Sign up** with email OTP
+- [x] **Sign-up form**: full name, email, ISO country-code dropdown (250+ countries, flag + dial code), phone, password with live strength meter, confirm password
+- [x] **Email OTP** (6-digit, 10-min TTL, 5 attempts) for both sign-up and sign-in via `lib/email/otp.ts`
+- [x] **Google OAuth button** visible on both tabs, parked with "being set up" message until credentials provided
+- [x] **FilterSidebar** collapsible — top-level panel closed on mobile by default, per-group accordion, active-filter count badge
+- [x] **Chat widget hidden** on `/businesses/sign-in` and `/businesses/access` so Omar stays quiet during auth flow
+- [x] **Generalized Ahmed → "our team"** across all visitor-facing copy (main landing, businesses pages, chat widgets, Omar system prompt)
+
+**Admin dashboard**
+- [x] All admin pages from Section D Phase 6 follow-ups completed: `/admin/sellers`, `/admin/activity`, `/admin/users`
+- [x] **/admin/listings** — `+ New listing` and `Edit listing` modals, More-actions menu (change status, publish toggle, delete with inquiry-guard)
+- [x] **/admin/settings** — collapsible Email / Chatbot / Admin users sections via shared `CollapsibleSection` component. Admin users management (add admin with email+password+role, enable/disable, delete — owners only)
+- [x] **Source filters** on `/admin/leads` and `/admin/conversations` (all / main / businesses)
+- [x] **One-click Approve access** on `/admin/inquiries` rows — activates linked marketplace user, sets lead.outcome=converted
+- [x] **Mobile bottom nav** trimmed to 5 essentials; desktop sidebar shows all 9 admin pages
+- [x] **Tier-aware push notifications** — 🔥 Hot Lead / Warm Lead / New Lead (Cold) in title, with score + segment in body
+
+**Section E — AI backend prep**
+- [x] **`AI_BACKEND_MODE`** feature flag in `lib/ai/provider.ts` (`groq-direct | litellm-proxy`). LiteLLM swap is now a config change, not a refactor.
+- [x] **Per-vertical prompt resolver** — `getSystemPrompt(source)` returns main-site or businesses-subdomain variant. Backwards-compatible `SYSTEM_PROMPT` retained.
+- [x] **Programmatic lead scoring** in `lib/ai/scoring.ts` — 100-point Budget+Timeline+DA+Objective+Mindset model per `gto-lead-scoring-v1.md`. Runs on lead capture, writes `lead_score`, `qualification`, `score_breakdown` JSON.
+
+**Section F — Slack deferred, PWA push covers phone**
+- [x] Decision logged: Slack escalation deferred to Phase 2 (team scaling). Mitigation: PWA install on Ahmed's phone gives him direct VAPID push notifications.
+
+**Section I — VPS runbook drafted**
+- [x] `delivery/stages/04-build/references/vps-deploy-runbook.md` — server prep, runtime install, app deploy, nginx reverse proxy (main + businesses subdomain), DNS cutover via GoDaddy, TLS via Let's Encrypt, cron migration, validation, rollback. Cutover is now blocked only on GoDaddy access.
+
+### Open items (waiting on Ahmed / external)
+- [ ] **Google OAuth credentials** — Ahmed to create OAuth client in Google Cloud Console; provide `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`. Once added, the parked Google button switches on.
+- [ ] **Email provider configuration** — until Resend / SendGrid / SMTP is configured in `/admin/settings`, OTP codes log to Vercel function logs instead of emailing. Required before opening marketplace sign-up to real visitors.
+- [ ] **Copy review pass** — JA flagged for review after the 2026-05-13 batch.
+- [ ] Section E — Flask + LiteLLM AI backend migration (deferred; one env var flip when ready)
+- [ ] Section G — Omar context-awareness body wording (waits on Ahmed's 4 marketplace qualifying questions + 15 KB content stubs)
 - [ ] Listing media on Cloudflare (cover image, gallery, video) — waits on Ahmed's Cloudflare account
 - [ ] Real WhatsApp number `+968 9510 8257` wired into inquire deeplinks (currently generic `wa.me/?text=...`)
 - [ ] Calendly two-way sync with `/admin/calendar` (waits on Ahmed's Calendly API access)
@@ -593,5 +638,5 @@ npm run dev             # http://localhost:3000
 
 ---
 
-**Document Version:** 5.0
-**Last Updated:** May 12, 2026
+**Document Version:** 6.0
+**Last Updated:** May 13, 2026
