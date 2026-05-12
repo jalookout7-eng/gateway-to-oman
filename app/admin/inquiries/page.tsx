@@ -11,6 +11,7 @@ import {
   ExternalLink,
   Search,
   Loader2,
+  CheckCircle2,
 } from "lucide-react";
 
 type Inquiry = {
@@ -100,6 +101,30 @@ export default function AdminInquiriesPage() {
     }
   }
 
+  async function approveAccess(leadId: string) {
+    if (!confirm("Approve marketplace access for this visitor? They&apos;ll be able to sign in and see the full marketplace.")) return;
+    try {
+      const res = await fetch(`/api/admin/inquiries/${leadId}/approve`, {
+        method: "POST",
+        headers: authHeaders(),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error ?? "Approve failed");
+        return;
+      }
+      if (data.already_activated) {
+        alert("This visitor already has marketplace access.");
+      } else {
+        alert("Access approved. They can now sign in.");
+      }
+      fetchInquiries();
+    } catch {
+      alert("Connection error");
+    }
+  }
+
   const filtered = inquiries.filter((i) => {
     if (outcomeFilter !== "all" && i.outcome !== outcomeFilter) return false;
     if (!search) return true;
@@ -186,7 +211,12 @@ export default function AdminInquiriesPage() {
         ) : (
           <div className="divide-y divide-gray-100">
             {filtered.map((i) => (
-              <InquiryRow key={i.lead_id} inquiry={i} onUpdateOutcome={updateOutcome} />
+              <InquiryRow
+                key={i.lead_id}
+                inquiry={i}
+                onUpdateOutcome={updateOutcome}
+                onApprove={approveAccess}
+              />
             ))}
           </div>
         )}
@@ -198,9 +228,11 @@ export default function AdminInquiriesPage() {
 function InquiryRow({
   inquiry: i,
   onUpdateOutcome,
+  onApprove,
 }: {
   inquiry: Inquiry;
   onUpdateOutcome: (leadId: string, outcome: Inquiry["outcome"]) => void;
+  onApprove: (leadId: string) => void;
 }) {
   return (
     <div className="p-5 hover:bg-gray-50/50 transition-colors">
@@ -260,7 +292,18 @@ function InquiryRow({
         </div>
 
         <div className="space-y-2 lg:border-l lg:border-gray-100 lg:pl-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Move to</p>
+          {i.outcome !== "converted" && (
+            <button
+              type="button"
+              onClick={() => onApprove(i.lead_id)}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-md gold-gradient text-white text-sm font-semibold py-2 shadow-sm hover:shadow-md transition-shadow"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Approve access
+            </button>
+          )}
+
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 pt-1">Move to</p>
           {(["pending", "contacted", "converted", "nurture", "rejected"] as const).map((o) => (
             <button
               key={o}

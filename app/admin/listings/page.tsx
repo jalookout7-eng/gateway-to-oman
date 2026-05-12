@@ -17,6 +17,7 @@ import {
   EyeOff,
   CheckCircle2,
   Pause,
+  Pencil,
 } from "lucide-react";
 import { formatOMR, formatPriceRange } from "@/lib/businesses/format";
 import { AccessFeeCard } from "@/components/admin/AccessFeeCard";
@@ -37,6 +38,7 @@ type AdminListing = {
   featured_rank: number | null;
   age_years: number | null;
   employee_count: number | null;
+  full_detail_text: string | null;
   created_at: string;
   category_slug: string;
   category_name: string;
@@ -62,6 +64,7 @@ export default function AdminListingsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "available" | "reserved" | "sold">("all");
   const [showNewForm, setShowNewForm] = useState(false);
+  const [editingListing, setEditingListing] = useState<AdminListing | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const fetchListings = useCallback(async () => {
@@ -349,6 +352,10 @@ export default function AdminListingsPage() {
                         {openMenuId === listing.id && (
                           <RowMenu
                             listing={listing}
+                            onEdit={() => {
+                              setOpenMenuId(null);
+                              setEditingListing(listing);
+                            }}
                             onChangeStatus={(status) => {
                               setOpenMenuId(null);
                               updateListing(listing.id, { status });
@@ -385,11 +392,25 @@ export default function AdminListingsPage() {
       </p>
 
       {showNewForm && (
-        <NewListingModal
+        <ListingFormModal
           categories={categories}
+          mode="create"
           onClose={() => setShowNewForm(false)}
-          onCreated={() => {
+          onSaved={() => {
             setShowNewForm(false);
+            fetchListings();
+          }}
+        />
+      )}
+
+      {editingListing && (
+        <ListingFormModal
+          categories={categories}
+          mode="edit"
+          initial={editingListing}
+          onClose={() => setEditingListing(null)}
+          onSaved={() => {
+            setEditingListing(null);
             fetchListings();
           }}
         />
@@ -398,26 +419,30 @@ export default function AdminListingsPage() {
   );
 }
 
-function NewListingModal({
+function ListingFormModal({
   categories,
+  mode,
+  initial,
   onClose,
-  onCreated,
+  onSaved,
 }: {
   categories: CategoryOption[];
+  mode: "create" | "edit";
+  initial?: AdminListing;
   onClose: () => void;
-  onCreated: () => void;
+  onSaved: () => void;
 }) {
-  const [title, setTitle] = useState("");
-  const [categorySlug, setCategorySlug] = useState(categories[0]?.slug ?? "");
-  const [city, setCity] = useState("");
-  const [area, setArea] = useState("");
-  const [forSale, setForSale] = useState(true);
-  const [forRent, setForRent] = useState(false);
-  const [sellingPrice, setSellingPrice] = useState("");
-  const [rentalPrice, setRentalPrice] = useState("");
-  const [ageYears, setAgeYears] = useState("");
-  const [employeeCount, setEmployeeCount] = useState("");
-  const [description, setDescription] = useState("");
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [categorySlug, setCategorySlug] = useState(initial?.category_slug ?? categories[0]?.slug ?? "");
+  const [city, setCity] = useState(initial?.location_city ?? "");
+  const [area, setArea] = useState(initial?.area ?? "");
+  const [forSale, setForSale] = useState(initial?.for_sale ?? true);
+  const [forRent, setForRent] = useState(initial?.for_rent ?? false);
+  const [sellingPrice, setSellingPrice] = useState(initial?.selling_price_omr?.toString() ?? "");
+  const [rentalPrice, setRentalPrice] = useState(initial?.rental_price_omr?.toString() ?? "");
+  const [ageYears, setAgeYears] = useState(initial?.age_years?.toString() ?? "");
+  const [employeeCount, setEmployeeCount] = useState(initial?.employee_count?.toString() ?? "");
+  const [description, setDescription] = useState(initial?.full_detail_text ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const firstFieldRef = useRef<HTMLInputElement>(null);
@@ -440,30 +465,33 @@ function NewListingModal({
     }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/admin/listings", {
-        method: "POST",
+      const payload = {
+        title: title.trim(),
+        category_slug: categorySlug,
+        location_city: city.trim() || null,
+        area: area.trim() || null,
+        for_sale: forSale,
+        for_rent: forRent,
+        selling_price_omr: sellingPrice ? Number(sellingPrice) : null,
+        rental_price_omr: rentalPrice ? Number(rentalPrice) : null,
+        age_years: ageYears ? Number(ageYears) : null,
+        employee_count: employeeCount ? Number(employeeCount) : null,
+        full_detail_text: description.trim() || null,
+      };
+      const url = mode === "create" ? "/api/admin/listings" : `/api/admin/listings/${initial?.id}`;
+      const method = mode === "create" ? "POST" : "PATCH";
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json", ...authHeaders() },
         credentials: "include",
-        body: JSON.stringify({
-          title: title.trim(),
-          category_slug: categorySlug,
-          location_city: city.trim() || null,
-          area: area.trim() || null,
-          for_sale: forSale,
-          for_rent: forRent,
-          selling_price_omr: sellingPrice ? Number(sellingPrice) : null,
-          rental_price_omr: rentalPrice ? Number(rentalPrice) : null,
-          age_years: ageYears ? Number(ageYears) : null,
-          employee_count: employeeCount ? Number(employeeCount) : null,
-          full_detail_text: description.trim() || null,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error ?? "Create failed");
+        setError(data.error ?? `${mode === "create" ? "Create" : "Update"} failed`);
         return;
       }
-      onCreated();
+      onSaved();
     } catch {
       setError("Connection error");
     } finally {
@@ -478,7 +506,9 @@ function NewListingModal({
         className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-          <h2 className="font-heading text-lg font-semibold text-navy">New listing</h2>
+          <h2 className="font-heading text-lg font-semibold text-navy">
+            {mode === "create" ? "New listing" : "Edit listing"}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -621,7 +651,13 @@ function NewListingModal({
             disabled={submitting}
             className="rounded-lg bg-navy text-white px-4 py-2 text-sm font-semibold hover:bg-navy-light transition-colors disabled:opacity-60"
           >
-            {submitting ? "Creating…" : "Create listing"}
+            {submitting
+              ? mode === "create"
+                ? "Creating…"
+                : "Saving…"
+              : mode === "create"
+                ? "Create listing"
+                : "Save changes"}
           </button>
         </div>
 
@@ -656,11 +692,13 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function RowMenu({
   listing,
+  onEdit,
   onChangeStatus,
   onTogglePublish,
   onDelete,
 }: {
   listing: AdminListing;
+  onEdit: () => void;
   onChangeStatus: (status: "available" | "reserved" | "sold") => void;
   onTogglePublish: () => void;
   onDelete: () => void;
@@ -670,6 +708,17 @@ function RowMenu({
       className="absolute right-0 top-full mt-1 z-20 w-52 rounded-lg bg-white shadow-lg ring-1 ring-gray-200 py-1.5"
       role="menu"
     >
+      <button
+        type="button"
+        onClick={onEdit}
+        className="w-full inline-flex items-center gap-2 px-3 py-1.5 text-sm text-left text-gray-700 hover:bg-gray-50"
+      >
+        <Pencil className="h-3.5 w-3.5" />
+        Edit listing
+      </button>
+
+      <div className="border-t border-gray-100 my-1" />
+
       <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
         Change status
       </div>

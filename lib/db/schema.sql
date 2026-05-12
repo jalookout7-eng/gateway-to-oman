@@ -344,3 +344,67 @@ ALTER TABLE listings ADD COLUMN featured INTEGER NOT NULL DEFAULT 0 CHECK (featu
 ALTER TABLE listings ADD COLUMN featured_rank INTEGER;
 
 CREATE INDEX IF NOT EXISTS idx_listings_featured ON listings(featured, featured_rank);
+
+-- ----------------------------------------------------------------------------
+-- 11. Marketplace end-users (buyers who sign up via /businesses/sign-in)
+-- Separate from admin_users — these are the visitors who pay for access.
+-- email_verified flips when OTP is confirmed. access_activated flips when an
+-- admin approves their request from /admin/inquiries or /admin/users.
+-- google_id is for the OAuth flow once Google credentials are provisioned.
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS marketplace_users (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  full_name TEXT NOT NULL,
+  password_hash TEXT,
+  phone TEXT,
+  country_code TEXT,
+  email_verified INTEGER NOT NULL DEFAULT 0 CHECK (email_verified IN (0, 1)),
+  access_activated INTEGER NOT NULL DEFAULT 0 CHECK (access_activated IN (0, 1)),
+  google_id TEXT,
+  lead_id TEXT REFERENCES leads(id),
+  last_login_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_marketplace_users_email ON marketplace_users(email);
+CREATE INDEX IF NOT EXISTS idx_marketplace_users_lead ON marketplace_users(lead_id);
+CREATE INDEX IF NOT EXISTS idx_marketplace_users_activated ON marketplace_users(access_activated);
+
+-- ----------------------------------------------------------------------------
+-- 12. Marketplace OTPs (6-digit codes for sign-up / sign-in verification)
+-- 10-minute TTL. Single-use (consumed=1 after verify).
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS marketplace_otps (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  email TEXT NOT NULL COLLATE NOCASE,
+  code TEXT NOT NULL,
+  purpose TEXT NOT NULL CHECK (purpose IN ('signup', 'signin', 'verify')),
+  expires_at TEXT NOT NULL,
+  consumed INTEGER NOT NULL DEFAULT 0 CHECK (consumed IN (0, 1)),
+  attempts INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_marketplace_otps_email ON marketplace_otps(email, purpose, consumed);
+CREATE INDEX IF NOT EXISTS idx_marketplace_otps_expires ON marketplace_otps(expires_at);
+
+-- ----------------------------------------------------------------------------
+-- 13. Marketplace sessions (post-OTP, post-password sign-in)
+-- HttpOnly cookie holds the session id. 7-day TTL.
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS marketplace_sessions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES marketplace_users(id) ON DELETE CASCADE,
+  ip TEXT,
+  user_agent TEXT,
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_marketplace_sessions_user ON marketplace_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_marketplace_sessions_expires ON marketplace_sessions(expires_at);

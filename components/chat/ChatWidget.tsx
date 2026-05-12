@@ -169,6 +169,9 @@ export function ChatWidget() {
   }, []);
 
   if (pathname?.startsWith("/admin")) return null;
+  // Stay quiet on auth-style pages — visitor is mid-flow, don't distract.
+  const AUTH_PATHS = ["/businesses/sign-in", "/businesses/access"];
+  if (pathname && AUTH_PATHS.some((p) => pathname.startsWith(p))) return null;
 
   return (
     <>

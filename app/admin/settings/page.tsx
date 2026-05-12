@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { Mail, MessageSquare, Users } from "lucide-react";
+import { CollapsibleSection } from "@/components/admin/CollapsibleSection";
+import { AdminUsersSection } from "@/components/admin/AdminUsersSection";
 
 function authHeaders() {
   return {
@@ -131,16 +134,20 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-2xl">
+    <div className="space-y-6 max-w-3xl">
       <div>
-        <h1 className="text-2xl font-bold text-navy">Settings</h1>
-        <p className="text-sm text-gray-500 mt-1">Configure email and chatbot settings</p>
+        <h1 className="font-heading text-2xl font-semibold text-navy">Settings</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Email, chatbot, and admin user configuration.
+        </p>
       </div>
 
-      {/* Email Configuration */}
-      <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
-        <h2 className="text-lg font-semibold text-navy">Email Configuration</h2>
-
+      <CollapsibleSection
+        title="Email configuration"
+        subtitle="Provider, sender identity, and test sending"
+        icon={<Mail className="h-4 w-4" />}
+        defaultOpen={false}
+      >
         {/* Provider tabs */}
         <div className="flex border-b border-gray-200">
           {PROVIDERS.map((p) => (
@@ -225,13 +232,15 @@ export default function SettingsPage() {
             </p>
           )}
         </div>
-      </div>
+      </CollapsibleSection>
 
-      {/* Chatbot Settings */}
-      <div className="bg-white rounded-xl shadow-sm p-6 space-y-4">
-        <h2 className="text-lg font-semibold text-navy">Chatbot Settings</h2>
-
-        <div className="space-y-3">
+      <CollapsibleSection
+        title="Chatbot settings"
+        subtitle="Custom greeting and auto-open delay"
+        icon={<MessageSquare className="h-4 w-4" />}
+        defaultOpen={false}
+      >
+        <div className="space-y-3 mt-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Custom Greeting</label>
             <textarea
@@ -253,11 +262,22 @@ export default function SettingsPage() {
           />
         </div>
 
-        <Button variant="gold" size="sm" onClick={handleSaveChatbot} disabled={saving}>
-          {saving ? "Saving..." : "Save Chatbot Settings"}
-        </Button>
-        {saved && <span className="text-sm text-green-600 ml-3">Saved!</span>}
-      </div>
+        <div className="mt-4">
+          <Button variant="gold" size="sm" onClick={handleSaveChatbot} disabled={saving}>
+            {saving ? "Saving..." : "Save Chatbot Settings"}
+          </Button>
+          {saved && <span className="text-sm text-green-600 ml-3">Saved!</span>}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Admin users"
+        subtitle="People who can sign into this dashboard"
+        icon={<Users className="h-4 w-4" />}
+        defaultOpen={false}
+      >
+        <AdminUsersSection />
+      </CollapsibleSection>
     </div>
   );
 }

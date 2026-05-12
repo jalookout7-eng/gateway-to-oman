@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       l.id, l.title, l.slug, l.location_city, l.area,
       l.for_sale, l.for_rent, l.selling_price_omr, l.rental_price_omr,
       l.status, l.published, l.featured, l.featured_rank,
-      l.age_years, l.employee_count,
+      l.age_years, l.employee_count, l.full_detail_text,
       l.created_at, l.updated_at,
       c.slug AS category_slug, c.name AS category_name,
       (SELECT COUNT(*) FROM inquiries i WHERE i.listing_id = l.id) AS inquiry_count
@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
       featured_rank: row.featured_rank ?? null,
       age_years: row.age_years,
       employee_count: row.employee_count,
+      full_detail_text: row.full_detail_text,
       created_at: row.created_at,
       updated_at: row.updated_at,
       category_slug: row.category_slug,
