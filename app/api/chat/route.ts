@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { chat, type ChatMessage } from "@/lib/ai/provider";
 import { parseSignals, stripSignals } from "@/lib/ai/signals";
 import { getDb } from "@/lib/db/client";
-import { SYSTEM_PROMPT } from "@/lib/ai/prompts";
+import { getSystemPrompt } from "@/lib/ai/prompts";
+
+function normalizeSource(raw: unknown): "main" | "businesses" {
+  return raw === "businesses" ? "businesses" : "main";
+}
 
 async function getAvailabilityContext(): Promise<string> {
   try {
@@ -30,7 +34,7 @@ async function getAvailabilityContext(): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, sessionId, history = [], context } = await request.json();
+    const { message, sessionId, history = [], context, source: requestSource } = await request.json();
 
     if (!message || !sessionId) {
       return NextResponse.json(
@@ -39,22 +43,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const source = normalizeSource(requestSource);
     const db = getDb();
 
     const existing = await db.execute({
-      sql: "SELECT id FROM conversations WHERE session_id = ?",
+      sql: "SELECT id, source FROM conversations WHERE session_id = ?",
       args: [sessionId],
     });
 
     let conversationId: string;
+    let conversationSource: "main" | "businesses";
     if (existing.rows.length === 0) {
       const result = await db.execute({
-        sql: "INSERT INTO conversations (session_id) VALUES (?) RETURNING id",
-        args: [sessionId],
+        sql: "INSERT INTO conversations (session_id, source) VALUES (?, ?) RETURNING id",
+        args: [sessionId, source],
       });
       conversationId = result.rows[0].id as string;
+      conversationSource = source;
     } else {
       conversationId = existing.rows[0].id as string;
+      conversationSource = normalizeSource(existing.rows[0].source);
     }
 
     await db.execute({
@@ -62,7 +70,7 @@ export async function POST(request: NextRequest) {
       args: [conversationId, message],
     });
 
-    let systemPrompt = SYSTEM_PROMPT;
+    let systemPrompt = getSystemPrompt(conversationSource);
     if (context?.intent) {
       systemPrompt += `\n\n[CONTEXT: visitor clicked '${context.topic ?? context.intent}' — they are interested in ${context.intent === "consultation" ? "booking a consultation with Ahmed" : context.topic}. Open with the right qualifying question for this specific interest.]`;
     }

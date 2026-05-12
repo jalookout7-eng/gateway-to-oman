@@ -63,6 +63,7 @@ export function ChatWidget() {
     }
   }, [messages.length]);
 
+  // pathname is captured in closure below via dependency
   const sendMessage = useCallback(
     async (text: string) => {
       if (isClosed || isTyping) return;
@@ -72,6 +73,7 @@ export function ChatWidget() {
       setIsTyping(true);
 
       try {
+        const source = pathname?.startsWith("/businesses") ? "businesses" : "main";
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -79,6 +81,7 @@ export function ChatWidget() {
             message: text,
             sessionId,
             history: messages,
+            source,
           }),
         });
 
@@ -143,6 +146,7 @@ export function ChatWidget() {
       exchangeCount,
       leadCaptured,
       showCaptureForm,
+      pathname,
     ]
   );
 

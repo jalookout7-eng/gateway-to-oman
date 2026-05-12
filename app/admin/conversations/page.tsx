@@ -24,16 +24,20 @@ export default function ConversationsPage() {
   const [selected, setSelected] = useState<ConversationDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [filterOutcome, setFilterOutcome] = useState("");
+  const [filterSource, setFilterSource] = useState("");
 
   useEffect(() => {
     async function fetch_() {
-      const params = filterOutcome ? `?outcome=${filterOutcome}` : "";
-      const res = await fetch(`/api/conversations${params}`, { headers: authHeaders() });
+      const params = new URLSearchParams();
+      if (filterOutcome) params.set("outcome", filterOutcome);
+      if (filterSource) params.set("source", filterSource);
+      const qs = params.toString();
+      const res = await fetch(`/api/conversations${qs ? `?${qs}` : ""}`, { headers: authHeaders() });
       if (res.ok) setConversations(await res.json());
       setLoading(false);
     }
     fetch_();
-  }, [filterOutcome]);
+  }, [filterOutcome, filterSource]);
 
   async function selectConversation(conv: Conversation) {
     const res = await fetch(`/api/conversations/${conv.id}`, { headers: authHeaders() });
@@ -47,7 +51,7 @@ export default function ConversationsPage() {
         <p className="text-sm text-gray-500 mt-1">{conversations.length} total conversations</p>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap">
         <select
           value={filterOutcome}
           onChange={(e) => setFilterOutcome(e.target.value)}
@@ -57,6 +61,15 @@ export default function ConversationsPage() {
           <option value="captured">Captured</option>
           <option value="abandoned">Abandoned</option>
           <option value="closed">Closed</option>
+        </select>
+        <select
+          value={filterSource}
+          onChange={(e) => setFilterSource(e.target.value)}
+          className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
+        >
+          <option value="">All Sources</option>
+          <option value="main">Main site</option>
+          <option value="businesses">Businesses</option>
         </select>
       </div>
 

@@ -3,6 +3,47 @@ import { getDb } from "@/lib/db/client";
 import { requireAuth } from "@/lib/auth/token";
 import Groq from "groq-sdk";
 import { sendPushNotification } from "@/lib/push/notify";
+import { scoreLead } from "@/lib/ai/scoring";
+
+async function scoreLeadFromConversation(
+  leadId: string,
+  conversationId: string | null,
+  segment: string | null,
+  interests: string | null,
+  db: ReturnType<typeof getDb>,
+) {
+  if (!conversationId) return;
+  try {
+    const msgs = await db.execute({
+      sql: "SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at ASC",
+      args: [conversationId],
+    });
+    const visitorMessages = msgs.rows
+      .filter((m) => String(m.role) === "user")
+      .map((m) => String(m.content));
+    const visitorText = visitorMessages.join("\n");
+    const fullText = msgs.rows
+      .map((m) => `${String(m.role).toUpperCase()}: ${String(m.content)}`)
+      .join("\n");
+
+    const breakdown = scoreLead({
+      visitorText,
+      fullText,
+      visitorMessages,
+      segment,
+      interests,
+    });
+
+    await db.execute({
+      sql: `UPDATE leads
+            SET lead_score = ?, qualification = ?, score_breakdown = ?
+            WHERE id = ?`,
+      args: [breakdown.total, breakdown.tier, JSON.stringify(breakdown), leadId],
+    });
+  } catch (err) {
+    console.error("Lead scoring failed:", err);
+  }
+}
 
 async function generateLeadSummary(leadId: string, conversationId: string | null, db: ReturnType<typeof getDb>) {
   if (!conversationId) return;
@@ -99,10 +140,22 @@ export async function POST(request: NextRequest) {
     // Fire-and-forget: generate AI summary without blocking response
     generateLeadSummary(leadId, conversationId ?? null, db).catch(console.error);
 
-    // Fire-and-forget: notify admin of new lead
+    // Programmatic lead scoring (in-process, fast — runs before push so the
+    // notification can include the tier).
+    await scoreLeadFromConversation(leadId, conversationId ?? null, segment ?? null, interests ?? null, db);
+
+    // Fetch the freshly-scored tier for the push body
+    const scored = await db.execute({
+      sql: "SELECT qualification, lead_score FROM leads WHERE id = ?",
+      args: [leadId],
+    });
+    const tier = String(scored.rows[0]?.qualification ?? "warm");
+    const score = Number(scored.rows[0]?.lead_score ?? 0);
+
+    // Fire-and-forget: notify admin of new lead with score tier
     sendPushNotification({
-      title: "New Lead",
-      body: `${name} — ${segment ?? "unknown segment"}`,
+      title: tier === "hot" ? "🔥 Hot Lead" : tier === "warm" ? "Warm Lead" : "New Lead (Cold)",
+      body: `${name} — ${segment ?? "unknown"} · score ${score}`,
       url: "/admin/leads",
     }).catch(console.error);
 
@@ -168,6 +221,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const qualification = searchParams.get("qualification");
     const segment = searchParams.get("segment");
+    const source = searchParams.get("source");
 
     let sql = "SELECT * FROM leads";
     const conditions: string[] = [];
@@ -184,6 +238,10 @@ export async function GET(request: NextRequest) {
     if (segment) {
       conditions.push("segment = ?");
       args.push(segment);
+    }
+    if (source) {
+      conditions.push("source = ?");
+      args.push(source);
     }
 
     if (conditions.length > 0) {

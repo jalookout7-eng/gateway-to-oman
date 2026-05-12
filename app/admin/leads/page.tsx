@@ -32,6 +32,7 @@ export default function LeadsPage() {
   const [filterSegment, setFilterSegment] = useState("");
   const [filterQualification, setFilterQualification] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterSource, setFilterSource] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -44,6 +45,7 @@ export default function LeadsPage() {
     if (filterSegment) params.set("segment", filterSegment);
     if (filterQualification) params.set("qualification", filterQualification);
     if (filterStatus) params.set("status", filterStatus);
+    if (filterSource) params.set("source", filterSource);
 
     const [leadsRes, emailsRes] = await Promise.all([
       fetch(`/api/leads?${params}`, { headers: authHeaders() }),
@@ -60,7 +62,7 @@ export default function LeadsPage() {
       setLeads(leadsData.map((l) => ({ ...l, pendingEmail: emailsByLead.get(l.id) ?? null })));
     }
     setLoading(false);
-  }, [filterSegment, filterQualification, filterStatus]);
+  }, [filterSegment, filterQualification, filterStatus, filterSource]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
@@ -179,6 +181,15 @@ export default function LeadsPage() {
           <option value="in_progress">In Progress</option>
           <option value="converted">Converted</option>
           <option value="closed">Closed</option>
+        </select>
+        <select
+          value={filterSource}
+          onChange={(e) => setFilterSource(e.target.value)}
+          className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
+        >
+          <option value="">All Sources</option>
+          <option value="main">Main site</option>
+          <option value="businesses">Businesses</option>
         </select>
       </div>
 
