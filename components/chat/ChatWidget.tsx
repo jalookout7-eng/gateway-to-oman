@@ -188,50 +188,42 @@ export function ChatWidget() {
         )}
       </AnimatePresence>
 
-      {/* Chat window */}
+      {/* Chat window — docked bottom-right on desktop, full bottom drawer on mobile */}
       <AnimatePresence>
         {isOpen && (
-          <>
-            {/* Backdrop (desktop only) */}
-            <motion.div
-              className="hidden sm:block fixed inset-0 bg-black/40 z-40 backdrop-blur-sm"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsOpen(false)}
-            />
           <motion.div
             className="fixed z-50 bg-white flex flex-col overflow-hidden shadow-2xl
-              bottom-0 left-0 right-0 h-[90dvh] rounded-t-2xl
-              sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2
-              sm:w-[400px] sm:h-[560px] sm:rounded-2xl sm:border sm:border-gray-100"
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              inset-x-0 bottom-0 h-[88dvh] rounded-t-2xl border-t border-gray-200
+              sm:inset-x-auto sm:bottom-6 sm:right-6 sm:top-auto
+              sm:w-[380px] sm:h-[600px] sm:max-h-[calc(100dvh-3rem)]
+              sm:rounded-2xl sm:border sm:border-gray-200"
+            initial={{ opacity: 0, y: 16, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            exit={{ opacity: 0, y: 16, scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 320, damping: 28 }}
           >
             {/* Header */}
-            <div className="gold-gradient px-4 py-3 flex items-center justify-between">
-              <div>
-                <p className="text-white font-semibold text-sm">
-                  AI Assistant
-                </p>
-                <p className="text-white/80 text-xs">
-                  Gateway to Oman
-                </p>
+            <div className="gold-gradient px-4 py-3.5 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="h-9 w-9 rounded-full bg-white/20 ring-2 ring-white/30 flex items-center justify-center flex-shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                </div>
+                <div className="leading-tight min-w-0">
+                  <p className="text-white font-semibold text-sm truncate">AI Assistant</p>
+                  <p className="text-white/85 text-xs flex items-center gap-1.5">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-300 animate-pulse" />
+                    Gateway to Oman
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-white/80 hover:text-white"
+                aria-label="Close chat"
+                className="text-white/85 hover:text-white p-1.5 -m-1 rounded-md hover:bg-white/10 transition-colors flex-shrink-0"
               >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
               </button>
@@ -257,7 +249,6 @@ export function ChatWidget() {
             {/* Input */}
             {!isClosed && <ChatInput onSend={sendMessage} disabled={isTyping} />}
           </motion.div>
-          </>
         )}
       </AnimatePresence>
     </>
