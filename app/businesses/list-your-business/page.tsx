@@ -40,7 +40,7 @@ export default function ListYourBusinessPage() {
           </h2>
           <p className="mt-2 text-sm text-gray-600 leading-relaxed">
             Gateway to Oman is already vetting and listing businesses directly. Reach out to
-            Ahmed and his team — share your business details, financials, and reason for sale,
+            our team — share your business details, financials, and reason for sale,
             and we&apos;ll handle the rest.
           </p>
 
@@ -59,7 +59,7 @@ export default function ListYourBusinessPage() {
               className="flex items-center justify-center gap-2 rounded-lg border-2 border-navy bg-white px-5 py-3 text-base font-semibold text-navy hover:bg-navy hover:text-white transition-colors"
             >
               <Mail className="h-4 w-4" />
-              Email Ahmed
+              Contact our team
             </a>
           </div>
         </div>

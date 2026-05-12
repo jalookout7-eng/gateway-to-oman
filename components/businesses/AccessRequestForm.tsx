@@ -40,7 +40,7 @@ export function AccessRequestForm({ referredListingSlug }: { referredListingSlug
           Your request is in.
         </p>
         <p className="mt-2 text-sm text-emerald-800">
-          Ahmed will be in touch within 24 hours with the invoice and access details.
+          Our team will be in touch within 24 hours with the invoice and access details.
           Watch your email and WhatsApp.
         </p>
       </div>

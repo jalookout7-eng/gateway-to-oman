@@ -66,7 +66,7 @@ export function LeadCaptureForm({
       transition={{ type: "spring", stiffness: 200, damping: 20 }}
     >
       <p className="text-sm font-semibold text-navy">
-        Let Ahmed connect with you personally:
+        Share your details and our team will reach out:
       </p>
       <Input
         placeholder="Your name"
@@ -104,7 +104,7 @@ export function LeadCaptureForm({
         className="w-full disabled:opacity-50"
         disabled={submitting || !name.trim() || !email.trim() || !phone.trim()}
       >
-        {submitting ? "Connecting..." : "Connect with Ahmed"}
+        {submitting ? "Connecting..." : "Get in touch"}
       </Button>
     </motion.form>
   );

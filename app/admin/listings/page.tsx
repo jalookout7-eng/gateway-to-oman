@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -11,6 +11,12 @@ import {
   MoreHorizontal,
   ExternalLink,
   Star,
+  X,
+  Trash2,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  Pause,
 } from "lucide-react";
 import { formatOMR, formatPriceRange } from "@/lib/businesses/format";
 import { AccessFeeCard } from "@/components/admin/AccessFeeCard";
@@ -47,11 +53,16 @@ function authHeaders() {
   return { Authorization: `Bearer ${localStorage.getItem("admin_token")}` };
 }
 
+type CategoryOption = { slug: string; name: string };
+
 export default function AdminListingsPage() {
   const [listings, setListings] = useState<AdminListing[]>([]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "available" | "reserved" | "sold">("all");
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const fetchListings = useCallback(async () => {
     setLoading(true);
@@ -70,6 +81,60 @@ export default function AdminListingsPage() {
   useEffect(() => {
     fetchListings();
   }, [fetchListings]);
+
+  // Categories — fetched once for the "+ New listing" form.
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/businesses/categories");
+        if (!res.ok) return;
+        const data = await res.json();
+        setCategories(data.categories ?? []);
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+  }, []);
+
+  // Close any open row-action menu on outside click.
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (!(e.target instanceof Element)) return;
+      if (!e.target.closest("[data-listing-menu]")) setOpenMenuId(null);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, []);
+
+  async function updateListing(id: string, body: Record<string, unknown>) {
+    const res = await fetch(`/api/admin/listings/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      credentials: "include",
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error ?? "Update failed");
+      return;
+    }
+    fetchListings();
+  }
+
+  async function deleteListing(id: string, title: string) {
+    if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+    const res = await fetch(`/api/admin/listings/${id}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+      credentials: "include",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(data.error ?? "Delete failed");
+      return;
+    }
+    fetchListings();
+  }
 
   const filtered = listings.filter((l) => {
     if (statusFilter !== "all" && l.status !== statusFilter) return false;
@@ -128,6 +193,7 @@ export default function AdminListingsPage() {
         </div>
         <button
           type="button"
+          onClick={() => setShowNewForm(true)}
           className="inline-flex items-center gap-2 rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy-light transition-colors shadow-sm"
         >
           <Plus className="h-4 w-4" />
@@ -263,7 +329,7 @@ export default function AdminListingsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1 relative" data-listing-menu>
                         <Link
                           href={`/businesses/listing/${listing.slug}`}
                           target="_blank"
@@ -274,11 +340,29 @@ export default function AdminListingsPage() {
                         </Link>
                         <button
                           type="button"
+                          onClick={() => setOpenMenuId(openMenuId === listing.id ? null : listing.id)}
                           className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100 hover:text-navy transition-colors"
                           title="More actions"
                         >
                           <MoreHorizontal className="h-4 w-4" />
                         </button>
+                        {openMenuId === listing.id && (
+                          <RowMenu
+                            listing={listing}
+                            onChangeStatus={(status) => {
+                              setOpenMenuId(null);
+                              updateListing(listing.id, { status });
+                            }}
+                            onTogglePublish={() => {
+                              setOpenMenuId(null);
+                              updateListing(listing.id, { published: !listing.published });
+                            }}
+                            onDelete={() => {
+                              setOpenMenuId(null);
+                              deleteListing(listing.id, listing.title);
+                            }}
+                          />
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -299,6 +383,337 @@ export default function AdminListingsPage() {
         )}{" "}
         listed value
       </p>
+
+      {showNewForm && (
+        <NewListingModal
+          categories={categories}
+          onClose={() => setShowNewForm(false)}
+          onCreated={() => {
+            setShowNewForm(false);
+            fetchListings();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function NewListingModal({
+  categories,
+  onClose,
+  onCreated,
+}: {
+  categories: CategoryOption[];
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [categorySlug, setCategorySlug] = useState(categories[0]?.slug ?? "");
+  const [city, setCity] = useState("");
+  const [area, setArea] = useState("");
+  const [forSale, setForSale] = useState(true);
+  const [forRent, setForRent] = useState(false);
+  const [sellingPrice, setSellingPrice] = useState("");
+  const [rentalPrice, setRentalPrice] = useState("");
+  const [ageYears, setAgeYears] = useState("");
+  const [employeeCount, setEmployeeCount] = useState("");
+  const [description, setDescription] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const firstFieldRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    firstFieldRef.current?.focus();
+    if (!categorySlug && categories.length > 0) setCategorySlug(categories[0].slug);
+  }, [categories, categorySlug]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (!title.trim()) {
+      setError("Title is required");
+      return;
+    }
+    if (!categorySlug) {
+      setError("Pick a category");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/admin/listings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        credentials: "include",
+        body: JSON.stringify({
+          title: title.trim(),
+          category_slug: categorySlug,
+          location_city: city.trim() || null,
+          area: area.trim() || null,
+          for_sale: forSale,
+          for_rent: forRent,
+          selling_price_omr: sellingPrice ? Number(sellingPrice) : null,
+          rental_price_omr: rentalPrice ? Number(rentalPrice) : null,
+          age_years: ageYears ? Number(ageYears) : null,
+          employee_count: employeeCount ? Number(employeeCount) : null,
+          full_detail_text: description.trim() || null,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Create failed");
+        return;
+      }
+      onCreated();
+    } catch {
+      setError("Connection error");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+      >
+        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+          <h2 className="font-heading text-lg font-semibold text-navy">New listing</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1.5 text-gray-400 hover:text-navy hover:bg-gray-100 transition-colors"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          <Field label="Title *">
+            <input
+              ref={firstFieldRef}
+              required
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Established Café in Al Khuwair"
+              className="input"
+            />
+          </Field>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Category *">
+              <select
+                value={categorySlug}
+                onChange={(e) => setCategorySlug(e.target.value)}
+                className="input"
+                required
+              >
+                <option value="">Select category…</option>
+                {categories.map((c) => (
+                  <option key={c.slug} value={c.slug}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="City">
+              <input
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Muscat"
+                className="input"
+              />
+            </Field>
+            <Field label="Area / district">
+              <input
+                value={area}
+                onChange={(e) => setArea(e.target.value)}
+                placeholder="Al Khuwair"
+                className="input"
+              />
+            </Field>
+            <Field label="Age (years)">
+              <input
+                type="number"
+                step="0.5"
+                value={ageYears}
+                onChange={(e) => setAgeYears(e.target.value)}
+                placeholder="3"
+                className="input"
+              />
+            </Field>
+            <Field label="Employees">
+              <input
+                type="number"
+                value={employeeCount}
+                onChange={(e) => setEmployeeCount(e.target.value)}
+                placeholder="5"
+                className="input"
+              />
+            </Field>
+            <Field label="Selling price (OMR)">
+              <input
+                type="number"
+                value={sellingPrice}
+                onChange={(e) => setSellingPrice(e.target.value)}
+                placeholder="35000"
+                disabled={!forSale}
+                className="input disabled:bg-gray-50 disabled:text-gray-400"
+              />
+            </Field>
+            <Field label="Rental price (OMR / month)">
+              <input
+                type="number"
+                value={rentalPrice}
+                onChange={(e) => setRentalPrice(e.target.value)}
+                placeholder="800"
+                disabled={!forRent}
+                className="input disabled:bg-gray-50 disabled:text-gray-400"
+              />
+            </Field>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4">
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={forSale}
+                onChange={(e) => setForSale(e.target.checked)}
+                className="rounded border-gray-300 text-gold focus:ring-gold"
+              />
+              For sale
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={forRent}
+                onChange={(e) => setForRent(e.target.checked)}
+                className="rounded border-gray-300 text-gold focus:ring-gold"
+              />
+              For rent
+            </label>
+          </div>
+
+          <Field label="Description">
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={4}
+              placeholder="Headline pitch — what makes this business worth buying?"
+              className="input resize-none"
+            />
+          </Field>
+
+          {error && <p className="text-sm text-red-500">{error}</p>}
+        </div>
+
+        <div className="flex items-center justify-end gap-3 px-6 py-4 bg-gray-50/50 border-t border-gray-100 rounded-b-2xl">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="rounded-lg bg-navy text-white px-4 py-2 text-sm font-semibold hover:bg-navy-light transition-colors disabled:opacity-60"
+          >
+            {submitting ? "Creating…" : "Create listing"}
+          </button>
+        </div>
+
+        <style jsx>{`
+          .input {
+            width: 100%;
+            border-radius: 0.375rem;
+            border: 1px solid #e5e7eb;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+          }
+          .input:focus {
+            border-color: rgb(201 155 60);
+            box-shadow: 0 0 0 2px rgba(201, 155, 60, 0.2);
+          }
+        `}</style>
+      </form>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="text-xs font-semibold text-gray-600 mb-1.5 block">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function RowMenu({
+  listing,
+  onChangeStatus,
+  onTogglePublish,
+  onDelete,
+}: {
+  listing: AdminListing;
+  onChangeStatus: (status: "available" | "reserved" | "sold") => void;
+  onTogglePublish: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div
+      className="absolute right-0 top-full mt-1 z-20 w-52 rounded-lg bg-white shadow-lg ring-1 ring-gray-200 py-1.5"
+      role="menu"
+    >
+      <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+        Change status
+      </div>
+      {(
+        [
+          { key: "available", label: "Available", icon: CheckCircle2 },
+          { key: "reserved", label: "Reserved", icon: Pause },
+          { key: "sold", label: "Sold", icon: CheckCircle2 },
+        ] as const
+      ).map(({ key, label, icon: Icon }) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => onChangeStatus(key)}
+          disabled={listing.status === key}
+          className="w-full inline-flex items-center gap-2 px-3 py-1.5 text-sm text-left text-gray-700 hover:bg-gray-50 disabled:text-gray-300 disabled:bg-transparent"
+        >
+          <Icon className="h-3.5 w-3.5" />
+          {label}
+          {listing.status === key && <span className="ml-auto text-xs text-gray-400">·current</span>}
+        </button>
+      ))}
+
+      <div className="border-t border-gray-100 my-1" />
+
+      <button
+        type="button"
+        onClick={onTogglePublish}
+        className="w-full inline-flex items-center gap-2 px-3 py-1.5 text-sm text-left text-gray-700 hover:bg-gray-50"
+      >
+        {listing.published ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+        {listing.published ? "Hide from marketplace" : "Publish to marketplace"}
+      </button>
+
+      <div className="border-t border-gray-100 my-1" />
+
+      <button
+        type="button"
+        onClick={onDelete}
+        className="w-full inline-flex items-center gap-2 px-3 py-1.5 text-sm text-left text-red-600 hover:bg-red-50"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+        Delete listing
+      </button>
     </div>
   );
 }

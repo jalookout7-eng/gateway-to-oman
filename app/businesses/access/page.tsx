@@ -38,7 +38,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Searc
           <p className="mt-3 text-base text-gray-200 leading-relaxed">
             Full listing details — financials, ownership, contact paths, due-diligence
             notes — are available to vetted subscribers only. Submit your details below
-            and Ahmed will be in touch personally to set up your access.
+            and our team will be in touch to set up your access.
           </p>
         </div>
 
@@ -53,8 +53,8 @@ export default async function AccessPage({ searchParams }: { searchParams: Searc
               </p>
             </div>
             <p className="text-sm text-gray-600 max-w-xs text-right">
-              One-time fee for marketplace access. Ahmed handles invoicing personally
-              after he reviews your request.
+              One-time fee for marketplace access. Our team handles invoicing
+              after reviewing your request.
             </p>
           </div>
         </div>
@@ -80,7 +80,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Searc
           <NextStep
             icon={<Mail className="h-4 w-4 text-gold" />}
             title="1. We review"
-            body="Ahmed personally reviews each request to make sure the marketplace is the right fit."
+            body="Our team reviews each request to make sure the marketplace is the right fit."
           />
           <NextStep
             icon={<Phone className="h-4 w-4 text-gold" />}

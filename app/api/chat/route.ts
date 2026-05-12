@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     let systemPrompt = getSystemPrompt(conversationSource);
     if (context?.intent) {
-      systemPrompt += `\n\n[CONTEXT: visitor clicked '${context.topic ?? context.intent}' — they are interested in ${context.intent === "consultation" ? "booking a consultation with Ahmed" : context.topic}. Open with the right qualifying question for this specific interest.]`;
+      systemPrompt += `\n\n[CONTEXT: visitor clicked '${context.topic ?? context.intent}' — they are interested in ${context.intent === "consultation" ? "booking a consultation with our team" : context.topic}. Open with the right qualifying question for this specific interest.]`;
     }
     if (context?.intent === "consultation") {
       const availabilityContext = await getAvailabilityContext();

@@ -8,7 +8,7 @@ import type { LucideIcon } from "lucide-react";
 const reasons: { title: string; desc: string; Icon: LucideIcon }[] = [
   {
     title: "Local Expertise, Global Mindset",
-    desc: "Founded by Ahmed Al-Azizi with 26 years of experience in Oman's telecom and legal sectors.",
+    desc: "Backed by 26 years of experience in Oman's telecom and legal sectors — long-standing local relationships, not parachute consultants.",
     Icon: Target,
   },
   {

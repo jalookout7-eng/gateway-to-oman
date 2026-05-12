@@ -15,19 +15,19 @@ export function FounderMission() {
             </div>
 
             <blockquote className="text-2xl md:text-3xl text-white font-light leading-relaxed italic mb-8 font-body">
-              &ldquo;My mission is simple: to build genuine bridges between
+              &ldquo;Our mission is simple: to build genuine bridges between
               global talent and Oman&apos;s emerging opportunities. Not with
               hype, but with honesty. Not with promises, but with proof.&rdquo;
             </blockquote>
 
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full gold-gradient flex items-center justify-center text-white font-bold text-lg font-heading shadow-md shadow-gold/30 flex-shrink-0">
-                A
+                GTO
               </div>
               <div>
-                <p className="text-gold font-semibold font-heading">Ahmed Al-Azizi</p>
+                <p className="text-gold font-semibold font-heading">Gateway to Oman</p>
                 <p className="text-gray-400 text-sm font-body">
-                  Founder, Gateway to Oman · 26 Years Experience
+                  26 years of experience in Oman&apos;s telecom and legal sectors
                 </p>
               </div>
             </div>

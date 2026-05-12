@@ -159,7 +159,7 @@ export function ChatWidget() {
       ...prev,
       {
         role: "assistant",
-        content: "Details received — Ahmed will be in touch with you shortly.",
+        content: "Details received — our team will be in touch with you shortly.",
       },
     ]);
   }, []);

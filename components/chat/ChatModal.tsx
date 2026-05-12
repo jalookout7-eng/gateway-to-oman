@@ -10,7 +10,7 @@ import { useChatModal } from "@/lib/context/ChatModalContext";
 
 const CONTEXT_GREETINGS: Record<string, string> = {
   consultation:
-    "To make the most of a consultation with Ahmed, I need to understand your situation first. What's the main thing you're trying to figure out — is it a business opportunity, investment, career move, or a lifestyle relocation?",
+    "To make the most of a consultation with our team, I need to understand your situation first. What's the main thing you're trying to figure out — is it a business opportunity, investment, career move, or a lifestyle relocation?",
   "Businesses for Sale":
     "There's a wide range here from OMR 2,500 to 200,000. Are you looking at something small to get started, or are you positioned for a larger acquisition?",
   "Franchise Partnerships":
@@ -110,7 +110,7 @@ export function ChatModal() {
     setShowCaptureForm(false);
     setMessages((prev) => [
       ...prev,
-      { role: "assistant", content: "Details received — Ahmed will be in touch with you shortly." },
+      { role: "assistant", content: "Details received — our team will be in touch with you shortly." },
     ]);
     setTimeout(closeModal, 2000);
   }, [closeModal]);
