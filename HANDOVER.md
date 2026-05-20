@@ -2,7 +2,7 @@
 
 **Prepared by:** JA (Developer)
 **Prepared for:** Ahmed Al-Azizi — Al Azizi Group
-**Last Updated:** May 13, 2026
+**Last Updated:** May 20, 2026
 **Live URL:** https://gateway-to-oman.vercel.app
 **Marketplace landing:** https://gateway-to-oman.vercel.app/businesses
 **Marketplace grid:** https://gateway-to-oman.vercel.app/businesses/listings
@@ -19,8 +19,9 @@ Gateway to Oman is a lead-generation platform with an AI-powered chatbot ("Omar"
 
 ### What It Does
 - **Landing page** showcasing Oman opportunities, services, and the team's credentials — with real photography from Muscat, Oman's wadis, and key landmarks. "Businesses for Sale" opportunity card links live to `/businesses`; other 5 verticals show a "Coming Soon" badge.
-- **Businesses-for-Sale marketplace** at `/businesses` (landing page) + `/businesses/listings` (grid) — vetted listings with category, location, price, age, employees, financials. Collapsible filter sidebar (category, city, listing type, status, price range), search bar, "Editor's picks" featured row. Landing carries hero, value props, what-you-get panel, 4-step how-it-works, FAQ.
-- **Marketplace authentication** at `/businesses/sign-in` — visitors sign up with full name, email, ISO country-code phone, and a password (strength meter). A 6-digit OTP is emailed for verification. Sign-in also requires the OTP. Google OAuth button parked until credentials provided.
+- **Businesses-for-Sale marketplace** at `/businesses` (landing page) + `/businesses/listings` (grid) — vetted listings with category, location, price, age, employees, financials. Collapsible filter sidebar (category, city, listing type, status, price range), search bar, "Editor's picks" featured row. Landing carries hero, value props, what-you-get panel, 4-step how-it-works, FAQ. **As of Phase 8 the full grid + listing detail pages are subscriber-gated:** non-activated visitors see the grid blurred behind a paywall overlay (one-time fee + Sign in / Request access); only activated subscribers browse freely.
+- **Marketplace authentication** at `/businesses/sign-in` — visitors sign up with full name, email, ISO country-code phone, and a password (strength meter). A 6-digit OTP is emailed for verification. Sign-in also requires the OTP. **Google sign-in is now live** ("Continue with Google" runs a real OAuth flow; needs `GOOGLE_CLIENT_ID`/`SECRET` set, otherwise it shows a friendly "not configured yet" notice).
+- **Reviewer access link** (Phase 8) — an admin-managed, regenerable link on `/admin/users` that grants temporary full-marketplace access to anyone (signs into a pre-activated reviewer account; no OTP). Shuffling the link instantly revokes old ones.
 - **Marketplace access flow** at `/businesses/access` — visitors submit name, email, mobile, and a brief message. The team receives the request in `/admin/inquiries`, invoices and grants access manually. Access fee (default OMR 100) is admin-configurable.
 - **Context-aware AI chatbot** that auto-opens after 7 seconds, OR opens in a centered modal when any CTA or opportunity card is clicked — pre-seeded with the relevant context
 - **Lead capture** with name, email, and phone — triggered intelligently by AI signals or after 5 exchanges max; chat closes fully after submission
@@ -107,6 +108,8 @@ Configured in Vercel → Project Settings → Environment Variables:
 | `AI_PROVIDER` | AI provider (`groq`) | Yes |
 | `GROQ_API_KEY` | Groq API key for chat | Yes |
 | `ADMIN_TOKEN` | Token for admin dashboard login | Yes |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID (marketplace "Continue with Google") | For Google sign-in |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | For Google sign-in |
 | `VAPID_PUBLIC_KEY` | Web Push public key (generated, see env-vars-private.md) | Yes |
 | `VAPID_PRIVATE_KEY` | Web Push private key | Yes |
 | `VAPID_EMAIL` | Contact email for push service (`mailto:you@gmail.com`) | Yes |
@@ -563,8 +566,29 @@ npm run dev             # http://localhost:3000
 **Section I — VPS runbook drafted**
 - [x] `delivery/stages/04-build/references/vps-deploy-runbook.md` — server prep, runtime install, app deploy, nginx reverse proxy (main + businesses subdomain), DNS cutover via GoDaddy, TLS via Let's Encrypt, cron migration, validation, rollback. Cutover is now blocked only on GoDaddy access.
 
+### Phase 8 — Marketplace gating, reviewer access, Google sign-in (May 20, 2026 — COMPLETE, awaiting deploy)
+
+Committed to `section-b-marketplace` (`adb8607`). Built, tests 68/68, build clean. Not yet deployed — held for JA review under the deploy freeze. (Poppins font change was considered and declined; Bodoni Moda + Jost kept.)
+
+**Marketplace gating (blurred paywall)**
+- [x] `/businesses/listings` + `/businesses/listing/[slug]` are now subscriber-only. Non-activated visitors get the grid blurred behind a `PaywallOverlay` (one-time fee + Sign in / Request access). Activated subscribers get the full grid; cards link to detail pages.
+- [x] `lib/auth/marketplace-server.ts` — `getCurrentMarketplaceUser()` reads the session cookie in server components. `ListingCard` gained an `unlocked` prop.
+- Resolves the long-deferred "blurred view for non-logged-in" + "proper gating ships with Section D auth".
+
+**Admin-managed reviewer access link**
+- [x] Regenerable token in the `settings` table (`reviewer_access_token`). Public `GET /api/businesses/reviewer?key=` signs into a lazily-ensured, pre-activated reviewer account (`reviewer@gatewaytooman.com`, no password, no OTP) and lands on the full marketplace.
+- [x] Admin card on `/admin/users` (`ReviewerLinkCard`) — view, copy, and **shuffle** the link (rotating revokes old links). Backed by `GET/POST /api/admin/reviewer-link`. Logic in `lib/businesses/reviewer.ts`.
+
+**Google "Continue with Google" OAuth**
+- [x] Real flow: `/api/businesses/google/start` (CSRF state cookie → consent) + `/api/businesses/google/callback` (code exchange, id_token decode, `upsertGoogleUser`, session). `lib/auth/google.ts` holds the testable URL builder + decode.
+- [x] Graceful fallback notice when `GOOGLE_CLIENT_ID`/`SECRET` are unset. Google authenticates only — access still requires admin approval; Google bypasses OTP (so it is the working signup path while email OTP is on hold).
+
+**Notes**
+- No schema migration — `marketplace_users` already had `google_id` + nullable `password_hash`.
+- `.vs/` added to `.gitignore`.
+
 ### Open items (waiting on Ahmed / external)
-- [ ] **Google OAuth credentials** — Ahmed to create OAuth client in Google Cloud Console; provide `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`. Once added, the parked Google button switches on.
+- [ ] **Google OAuth credentials** — the flow is built (Phase 8); create a Web OAuth client in Google Cloud Console (signed in as `gatewaytooman@gmail.com`), add redirect URI `https://gateway-to-oman.vercel.app/api/businesses/google/callback` (+ `http://localhost:3000/...` for dev; add the official domain later when GoDaddy DNS lands — additive, no recreate), set `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` in `.env` + Vercel, and publish the consent screen (non-sensitive scopes → no Google review). No GoDaddy/domain ownership required for sign-in to work.
 - [ ] **Email provider configuration** — until Resend / SendGrid / SMTP is configured in `/admin/settings`, OTP codes log to Vercel function logs instead of emailing. Required before opening marketplace sign-up to real visitors.
 - [ ] **Copy review pass** — JA flagged for review after the 2026-05-13 batch.
 - [ ] Section E — Flask + LiteLLM AI backend migration (deferred; one env var flip when ready)
@@ -638,5 +662,5 @@ npm run dev             # http://localhost:3000
 
 ---
 
-**Document Version:** 6.0
-**Last Updated:** May 13, 2026
+**Document Version:** 7.0
+**Last Updated:** May 20, 2026
