@@ -124,7 +124,7 @@ export function Hero() {
           transition={{ duration: 0.8, delay: 1.1 }}
         >
           {trustBadges.map(({ Icon, label }) => (
-            <div key={label} className="flex items-center gap-2 text-gray-400 text-sm font-body">
+            <div key={label} className="flex items-center gap-2 text-gray-300 text-sm font-body">
               <Icon className="w-4 h-4 text-gold" strokeWidth={1.5} />
               <span>{label}</span>
             </div>
