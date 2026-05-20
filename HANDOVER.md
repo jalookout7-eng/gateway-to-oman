@@ -2,7 +2,7 @@
 
 **Prepared by:** JA (Developer)
 **Prepared for:** Ahmed Al-Azizi — Al Azizi Group
-**Last Updated:** May 20, 2026
+**Last Updated:** May 21, 2026
 **Live URL:** https://gateway-to-oman.vercel.app
 **Marketplace landing:** https://gateway-to-oman.vercel.app/businesses
 **Marketplace grid:** https://gateway-to-oman.vercel.app/businesses/listings
@@ -568,7 +568,11 @@ npm run dev             # http://localhost:3000
 
 ### Phase 8 — Marketplace gating, reviewer access, Google sign-in (May 20, 2026 — COMPLETE, awaiting deploy)
 
-Committed to `section-b-marketplace` (`adb8607`). Built, tests 68/68, build clean. Not yet deployed — held for JA review under the deploy freeze. (Poppins font change was considered and declined; Bodoni Moda + Jost kept.)
+Pushed to `section-b-marketplace` (`adb8607` feat + `e3d1a8d` handover). Built, tests 68/68, build clean. JA reviewed the batch live on localhost and approved; production deploy still pending (CLI-only, freeze holds). (Poppins font change was considered and declined; Bodoni Moda + Jost kept.)
+
+**Polish (May 21, 2026)**
+- [x] Hero trust badges ("150+ Families Guided", "Verified Opportunities", "26 Years Local Expertise") bumped from `text-gray-400` to `text-gray-300` (`components/landing/Hero.tsx`) — they were too dim over the mosque photo; now match the hadith quote for readability.
+- [ ] **Known gap (JA, deferred to Omar phasing):** Omar's opening hook is not personalized per surface — homepage and `/businesses` show the same greeting. `getContextualGreeting()` has no `businesses` key and the chat widget doesn't pass the current surface. The system prompt already has a businesses variant; only the visible greeting + surface wiring are missing.
 
 **Marketplace gating (blurred paywall)**
 - [x] `/businesses/listings` + `/businesses/listing/[slug]` are now subscriber-only. Non-activated visitors get the grid blurred behind a `PaywallOverlay` (one-time fee + Sign in / Request access). Activated subscribers get the full grid; cards link to detail pages.
@@ -586,6 +590,14 @@ Committed to `section-b-marketplace` (`adb8607`). Built, tests 68/68, build clea
 **Notes**
 - No schema migration — `marketplace_users` already had `google_id` + nullable `password_hash`.
 - `.vs/` added to `.gitignore`.
+
+### Thread 2 — Planned next (in this order)
+
+Agreed roadmap after Phase 8. Brainstorm-first (design before code) for items 1 and 2.
+
+1. **Intelligence dashboard** — surface the Layer 3 lead data the platform already captures into an owner-facing view Ahmed reviews monthly (justifies the retainer). Candidate metrics: lessons learned, Omar's active prompt version, pending intelligence publishes (per the `intelligence/` workspace), Omar's qualification precision-rate growth, visitor→lead conversion. Ties into the `intelligence/` workspace.
+2. **Omar's phasing** — the "new employee" trust model: a phase ladder for how much Omar is allowed to do, what each phase unlocks, guardrails, KB-answer vs customer-service boundary, WhatsApp routing for high-intent visitors, multiple-choice answer options that let Omar silently qualify, and the **per-surface personalized hooks** (homepage vs `/businesses` vs `/businesses/listings`). Reference: chatbot screenshots in the project folder + `GTO_KnowledgeBase_BuyerQualification v2.docx`. Omar's prompt lives in `lib/ai/prompts.ts`.
+3. **Meeting-notes audit** — read `delivery/shared/gto-meeting-notes.md` + the blueprint and report any gap between what was promised and what's built / captured.
 
 ### Open items (waiting on Ahmed / external)
 - [ ] **Google OAuth credentials** — the flow is built (Phase 8); create a Web OAuth client in Google Cloud Console (signed in as `gatewaytooman@gmail.com`), add redirect URI `https://gateway-to-oman.vercel.app/api/businesses/google/callback` (+ `http://localhost:3000/...` for dev; add the official domain later when GoDaddy DNS lands — additive, no recreate), set `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` in `.env` + Vercel, and publish the consent screen (non-sensitive scopes → no Google review). No GoDaddy/domain ownership required for sign-in to work.
@@ -662,5 +674,5 @@ Committed to `section-b-marketplace` (`adb8607`). Built, tests 68/68, build clea
 
 ---
 
-**Document Version:** 7.0
-**Last Updated:** May 20, 2026
+**Document Version:** 7.1
+**Last Updated:** May 21, 2026
