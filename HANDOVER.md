@@ -568,7 +568,7 @@ npm run dev             # http://localhost:3000
 
 ### Phase 8 — Marketplace gating, reviewer access, Google sign-in (May 20, 2026 — COMPLETE, awaiting deploy)
 
-Pushed to `section-b-marketplace` (`adb8607` feat + `e3d1a8d` handover). Built, tests 68/68, build clean. JA reviewed the batch live on localhost and approved; production deploy still pending (CLI-only, freeze holds). (Poppins font change was considered and declined; Bodoni Moda + Jost kept.)
+Pushed to `section-b-marketplace` (`adb8607` feat + `e3d1a8d` handover). Built, tests 68/68, build clean. JA reviewed live and approved; **deployed to production 2026-05-21** (`gateway-to-oman.vercel.app`, `dpl_GCLQEUAojHaqQNwZyJhz66QeCfCt`). (Poppins font change was considered and declined; Bodoni Moda + Jost kept.) Deploy note: production is CLI-only — run `vercel deploy --prod --cwd <repo>` (running from the wrong directory fails the build).
 
 **Polish (May 21, 2026)**
 - [x] Hero trust badges ("150+ Families Guided", "Verified Opportunities", "26 Years Local Expertise") bumped from `text-gray-400` to `text-gray-300` (`components/landing/Hero.tsx`) — they were too dim over the mosque photo; now match the hadith quote for readability.
