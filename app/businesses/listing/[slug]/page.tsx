@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getListingBySlug } from "@/lib/businesses/queries";
+import { getCurrentMarketplaceUser } from "@/lib/auth/marketplace-server";
 import { formatOMR, formatPriceRange, ageLabel } from "@/lib/businesses/format";
 import { StatusBadge } from "@/components/businesses/StatusBadge";
 import { InquireBlock } from "@/components/businesses/InquireBlock";
@@ -28,8 +29,16 @@ const CATEGORY_GRADIENTS: Record<string, string> = {
   "industrial-commercial": "from-zinc-200 to-gray-100",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function ListingDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+
+  // Detail pages are subscriber-only. Non-activated visitors land back on the
+  // gated listings page (which shows the paywall).
+  const user = await getCurrentMarketplaceUser();
+  if (!user?.access_activated) redirect("/businesses/listings");
+
   const listing = await getListingBySlug(slug);
   if (!listing) notFound();
 

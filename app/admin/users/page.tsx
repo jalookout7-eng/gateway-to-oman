@@ -12,6 +12,7 @@ import {
   Ban,
   Globe,
 } from "lucide-react";
+import { ReviewerLinkCard } from "@/components/admin/ReviewerLinkCard";
 
 type MarketplaceUser = {
   id: string;
@@ -112,6 +113,8 @@ export default function AdminMarketplaceUsersPage() {
         <StatCard label="Email verified" value={stats.verified} accent="blue" />
         <StatCard label="Activated" value={stats.activated} accent="emerald" />
       </div>
+
+      <ReviewerLinkCard />
 
       <div className="rounded-xl bg-white ring-1 ring-gray-200 shadow-sm overflow-hidden">
         <div className="border-b border-gray-100 p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">

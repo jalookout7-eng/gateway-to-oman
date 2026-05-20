@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -10,15 +10,28 @@ import {
   UserPlus,
   Eye,
   EyeOff,
+  AlertCircle,
 } from "lucide-react";
 import { COUNTRY_CODES, DEFAULT_COUNTRY } from "@/lib/countries";
 
 type Mode = "signin" | "signup";
 type Step = "form" | "otp" | "success";
 
+const ERROR_MESSAGES: Record<string, string> = {
+  invalid_link: "That access link is no longer valid. Ask for a fresh link or sign in below.",
+  google_failed: "Google sign-in didn't complete. Please try again or use email and password.",
+  google_unconfigured: "Google sign-in isn't available yet — please use email and password.",
+};
+
 export default function SignInPage() {
   const [mode, setMode] = useState<Mode>("signin");
   const [step, setStep] = useState<Step>("form");
+  const [notice, setNotice] = useState<string>("");
+
+  useEffect(() => {
+    const err = new URLSearchParams(window.location.search).get("error");
+    if (err && ERROR_MESSAGES[err]) setNotice(ERROR_MESSAGES[err]);
+  }, []);
 
   return (
     <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 py-10">
@@ -29,6 +42,13 @@ export default function SignInPage() {
         <ChevronLeft className="h-4 w-4" />
         Back to overview
       </Link>
+
+      {notice && (
+        <div className="mt-4 flex items-start gap-2 rounded-lg bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
+          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-amber-500" />
+          <span>{notice}</span>
+        </div>
+      )}
 
       <div className="mt-6 rounded-2xl bg-white ring-1 ring-gray-200 shadow-sm overflow-hidden">
         <div className="bg-gradient-to-br from-navy to-navy-light px-8 py-7 text-white">
@@ -492,9 +512,9 @@ function OtpStep({
 
 function GoogleButton() {
   function handleClick() {
-    alert(
-      "Sign in with Google is being set up. For now please use email and password — we&apos;ll have Google sign-in live shortly.",
-    );
+    // Full-page redirect into the OAuth flow. If Google isn't configured yet the
+    // start route bounces back here with ?error=google_unconfigured.
+    window.location.href = "/api/businesses/google/start";
   }
   return (
     <button

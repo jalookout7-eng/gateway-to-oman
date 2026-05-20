@@ -5,6 +5,9 @@ import { ListingCard } from "@/components/businesses/ListingCard";
 import { FilterSidebar } from "@/components/businesses/FilterSidebar";
 import { SearchBar } from "@/components/businesses/SearchBar";
 import { SortControl } from "@/components/businesses/SortControl";
+import { PaywallOverlay } from "@/components/businesses/PaywallOverlay";
+import { getCurrentMarketplaceUser } from "@/lib/auth/marketplace-server";
+import { getMarketplaceAccessFee } from "@/lib/businesses/settings";
 import { Briefcase } from "lucide-react";
 
 type SearchParams = Promise<{
@@ -38,11 +41,21 @@ export default async function BusinessesListingsPage({ searchParams }: { searchP
     sort: params.sort,
   };
 
-  const [listings, categories, cities] = await Promise.all([
+  const [user, listings, categories, cities, accessFee] = await Promise.all([
+    getCurrentMarketplaceUser(),
     listListings(filters),
     listCategories(),
     listCities(),
+    getMarketplaceAccessFee(),
   ]);
+
+  const activated = !!user?.access_activated;
+
+  // Non-subscribers see a blurred teaser of the grid behind a paywall overlay,
+  // with filters/search disabled. Activated subscribers get the full experience.
+  if (!activated) {
+    return <LockedListings listings={listings} fee={accessFee} />;
+  }
 
   return (
     <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
@@ -60,16 +73,9 @@ export default async function BusinessesListingsPage({ searchParams }: { searchP
             All listings
           </h1>
           <p className="mt-2 text-sm text-gray-600">
-            Vetted businesses across Oman. Click a card to request subscriber access.
+            Vetted businesses across Oman. Click a card for full details.
           </p>
         </div>
-      </div>
-
-      <div className="mb-6 rounded-xl bg-gold/5 ring-1 ring-gold/20 px-5 py-4 text-sm text-navy">
-        <strong className="font-semibold text-gold-dark">Preview marketplace.</strong>{" "}
-        The listings below are a snapshot of currently available businesses. Click any
-        card to request subscriber access — our team will reach out with the invoice
-        and full listing details.
       </div>
 
       <div className="mb-6">
@@ -96,11 +102,56 @@ export default async function BusinessesListingsPage({ searchParams }: { searchP
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
               {listings.map((listing) => (
-                <ListingCard key={listing.id} listing={listing} />
+                <ListingCard key={listing.id} listing={listing} unlocked />
               ))}
             </div>
           )}
         </div>
+      </div>
+    </section>
+  );
+}
+
+function LockedListings({
+  listings,
+  fee,
+}: {
+  listings: Awaited<ReturnType<typeof listListings>>;
+  fee: number;
+}) {
+  // Teaser: up to 9 cards, blurred and non-interactive, under the paywall.
+  const teaser = listings.slice(0, 9);
+
+  return (
+    <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+      <Link
+        href="/businesses"
+        className="inline-flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gold transition-colors"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Back to overview
+      </Link>
+
+      <div className="mt-4 mb-8">
+        <h1 className="font-heading text-3xl sm:text-4xl font-semibold text-navy">
+          All listings
+        </h1>
+        <p className="mt-2 text-sm text-gray-600">
+          Vetted businesses for sale across Oman.
+        </p>
+      </div>
+
+      <div className="relative">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none select-none blur-sm grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6"
+        >
+          {teaser.map((listing) => (
+            <ListingCard key={listing.id} listing={listing} />
+          ))}
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-warm-white/30 to-warm-white/80" aria-hidden="true" />
+        <PaywallOverlay fee={fee} />
       </div>
     </section>
   );

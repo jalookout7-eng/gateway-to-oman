@@ -77,6 +77,34 @@ export async function createUser(input: {
   return result.rows[0].id as string;
 }
 
+/**
+ * Upsert a marketplace user authenticated via Google. Email is the identity key:
+ * if the email already exists (e.g. they signed up with a password earlier), we
+ * just link the google_id and confirm their email. New users are created with no
+ * password. Access still requires admin approval (access_activated is untouched).
+ * Returns the user id.
+ */
+export async function upsertGoogleUser(input: {
+  email: string;
+  full_name: string;
+  google_id: string;
+}): Promise<string> {
+  const db = getDb();
+  const email = input.email.trim().toLowerCase();
+  const fullName = input.full_name.trim() || email.split("@")[0];
+  const result = await db.execute({
+    sql: `INSERT INTO marketplace_users (email, full_name, google_id, email_verified)
+          VALUES (?, ?, ?, 1)
+          ON CONFLICT(email) DO UPDATE SET
+            google_id = excluded.google_id,
+            email_verified = 1,
+            updated_at = datetime('now')
+          RETURNING id`,
+    args: [email, fullName, input.google_id],
+  });
+  return result.rows[0].id as string;
+}
+
 export async function verifyUserPassword(email: string, password: string): Promise<MarketplaceUser | null> {
   const db = getDb();
   const result = await db.execute({

@@ -15,7 +15,7 @@ const CATEGORY_GRADIENTS: Record<string, string> = {
   "industrial-commercial": "from-zinc-200 to-gray-100",
 };
 
-export function ListingCard({ listing }: { listing: Listing }) {
+export function ListingCard({ listing, unlocked = false }: { listing: Listing; unlocked?: boolean }) {
   const gradient = CATEGORY_GRADIENTS[listing.category_slug] ?? "from-gray-100 to-gray-50";
   const priceLine = formatPriceRange(
     listing.for_sale,
@@ -24,9 +24,15 @@ export function ListingCard({ listing }: { listing: Listing }) {
     listing.rental_price_omr,
   );
 
+  // Activated subscribers go straight to the full detail page; everyone else is
+  // routed to the access/fee flow.
+  const href = unlocked
+    ? `/businesses/listing/${listing.slug}`
+    : `/businesses/access?listing=${listing.slug}`;
+
   return (
     <Link
-      href={`/businesses/access?listing=${listing.slug}`}
+      href={href}
       className="group block overflow-hidden rounded-xl bg-white ring-1 ring-gray-200 transition-all hover:ring-gold hover:shadow-lg"
     >
       <div className={`relative aspect-[16/10] bg-gradient-to-br ${gradient} flex items-center justify-center`}>
@@ -76,7 +82,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
             {listing.employee_count !== null ? `${listing.employee_count} staff` : "—"}
           </span>
           <span className="ml-auto inline-flex items-center gap-1 text-gold opacity-0 transition-opacity group-hover:opacity-100">
-            Request access <ArrowRight className="h-3.5 w-3.5" />
+            {unlocked ? "View details" : "Request access"} <ArrowRight className="h-3.5 w-3.5" />
           </span>
         </div>
       </div>
