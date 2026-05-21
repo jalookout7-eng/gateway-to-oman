@@ -408,3 +408,20 @@ CREATE TABLE IF NOT EXISTS marketplace_sessions (
 
 CREATE INDEX IF NOT EXISTS idx_marketplace_sessions_user ON marketplace_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_marketplace_sessions_expires ON marketplace_sessions(expires_at);
+
+-- ----------------------------------------------------------------------------
+-- 14. Intelligence notes (JA-internal: hypotheses, confirmed learnings,
+-- monthly analysis-run log). Powers the /admin/intelligence Group D panel.
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS intelligence_notes (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  kind TEXT NOT NULL CHECK (kind IN ('hypothesis', 'learning', 'analysis_run')),
+  title TEXT NOT NULL,
+  body TEXT,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'confirmed', 'archived')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_intel_notes_kind ON intelligence_notes(kind, status);
