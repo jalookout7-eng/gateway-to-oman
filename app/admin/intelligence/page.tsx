@@ -2,6 +2,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import type { IntelligenceStats } from "@/lib/intelligence/api-types";
 import { FileDown, Loader2 } from "lucide-react";
 import { PrecisionCards } from "@/components/admin/intelligence/PrecisionCards";
 import { ReGradingMatrix } from "@/components/admin/intelligence/ReGradingMatrix";
@@ -15,7 +16,7 @@ function authHeaders() {
 }
 
 export default function IntelligencePage() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<IntelligenceStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {

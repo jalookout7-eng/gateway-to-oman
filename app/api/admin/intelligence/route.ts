@@ -7,6 +7,7 @@ import {
   getDataCoverage, getConversionStats, getTopSource,
 } from "@/lib/intelligence/queries";
 import { OMAR_VERSION, OMAR_CHANGELOG } from "@/lib/ai/version";
+import type { IntelligenceStats } from "@/lib/intelligence/api-types";
 
 /** Previous calendar month for a "YYYY-MM" string, else null. */
 function prevMonth(month: string): string {
@@ -27,10 +28,11 @@ export async function GET(request: NextRequest) {
   ]);
   const conversionPrevious = month ? await getConversionStats(db, prevMonth(month)) : null;
 
-  return NextResponse.json({
+  const payload: IntelligenceStats = {
     month: month ?? null,
     precision, regrading, calibration, coverage, topSource,
     conversion: { current: conversionCurrent, previous: conversionPrevious },
     version: { current: OMAR_VERSION, changelog: OMAR_CHANGELOG },
-  });
+  };
+  return NextResponse.json(payload);
 }

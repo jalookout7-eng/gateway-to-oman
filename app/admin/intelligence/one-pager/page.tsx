@@ -2,6 +2,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import type { IntelligenceStats } from "@/lib/intelligence/api-types";
 import { ChevronLeft, Printer, Copy, Check } from "lucide-react";
 import { renderOnePagerMarkdown } from "@/lib/intelligence/one-pager";
 
@@ -15,7 +16,7 @@ function periodLabel(month: string | null) {
 }
 
 export default function OnePagerPage() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<IntelligenceStats | null>(null);
   const [prose, setProse] = useState({ happened: "", omar: "", next: "" });
   const [copied, setCopied] = useState(false);
 
