@@ -591,6 +591,10 @@ Pushed to `section-b-marketplace` (`adb8607` feat + `e3d1a8d` handover). Built, 
 - No schema migration — `marketplace_users` already had `google_id` + nullable `password_hash`.
 - `.vs/` added to `.gitignore`.
 
+### Phase 9 — Intelligence dashboard v1 (May 21, 2026 — built on branch, not yet merged/deployed)
+
+Branch `feat/intelligence-dashboard` (off `section-b-marketplace`). JA-internal `/admin/intelligence`: per-tier precision (converted | engaged), tier re-grading matrix (predicted → effective, auto-from-outcome), score-category calibration, Omar version + changelog, data coverage, hypotheses/learnings CRUD, and a template one-pager export (`/admin/intelligence/one-pager`, print + copy-markdown). New `intelligence_notes` table; `lib/intelligence/*` + `lib/ai/version.ts`; stats + notes API routes. 82 tests pass, build clean. Spec + plan in `docs/superpowers/`. **Deploy prereq:** `npm run migrate` (adds `intelligence_notes` to Turso) before promoting.
+
 ### Thread 2 — Planned next (in this order)
 
 Agreed roadmap after Phase 8. Brainstorm-first (design before code) for items 1 and 2.
@@ -674,5 +678,5 @@ Agreed roadmap after Phase 8. Brainstorm-first (design before code) for items 1 
 
 ---
 
-**Document Version:** 7.1
+**Document Version:** 7.2
 **Last Updated:** May 21, 2026
