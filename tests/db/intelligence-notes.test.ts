@@ -36,7 +36,7 @@ describe("intelligence_notes schema", () => {
       db.execute({ sql: "INSERT INTO intelligence_notes (kind, title) VALUES ('bogus','x')", args: [] })
     ).rejects.toThrow();
     await db.execute({ sql: "INSERT INTO intelligence_notes (kind, title) VALUES ('hypothesis','x')", args: [] });
-    const rows = await db.execute("SELECT status FROM intelligence_notes");
+    const rows = await db.execute("SELECT status FROM intelligence_notes WHERE kind = 'hypothesis'");
     expect(rows.rows[0].status).toBe("open");
   });
 });

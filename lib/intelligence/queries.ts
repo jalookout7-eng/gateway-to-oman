@@ -61,13 +61,14 @@ export async function getReGradingMatrix(db: Client, month?: string): Promise<Re
     cold: { promoted: 0, held: 0, demoted: 0, total: 0 },
   };
   for (const r of res.rows) {
-    const predicted = String(r.qualification) as Tier;
-    if (!TIERS.includes(predicted)) continue;
+    const predicted = String(r.qualification);
+    if (!(TIERS as string[]).includes(predicted)) continue;
+    const tier = predicted as Tier;
     const effective = outcomeToEffectiveTier(String(r.outcome));
     if (!effective) continue; // pending excluded
-    matrix[predicted][effective] += 1;
-    summary[predicted][movementOf(predicted, effective)] += 1;
-    summary[predicted].total += 1;
+    matrix[tier][effective] += 1;
+    summary[tier][movementOf(tier, effective)] += 1;
+    summary[tier].total += 1;
   }
   return { matrix, summary };
 }
@@ -116,7 +117,10 @@ export async function getDataCoverage(db: Client, month?: string): Promise<DataC
   const { where, args } = monthClause(month);
   const res = await db.execute({ sql: `SELECT outcome, created_at FROM leads${where}`, args });
   const rows = res.rows;
-  const dates = rows.map((r) => String(r.created_at)).filter(Boolean).sort();
+  const dates = rows
+    .map((r) => r.created_at)
+    .filter((v): v is string => typeof v === "string" && v.length > 0)
+    .sort();
   return {
     total: rows.length,
     resolved: rows.filter((r) => isResolved(String(r.outcome))).length,

@@ -69,6 +69,26 @@ describe("getCategoryCalibration", () => {
   });
 });
 
+describe("getTierPrecision – month filter and nurture", () => {
+  it("month filter scopes results to the given YYYY-MM", async () => {
+    const db = await makeTestDb();
+    await seedLead(db, { qualification: "hot", outcome: "converted", createdAt: "2026-04-15 10:00:00" });
+    await seedLead(db, { qualification: "hot", outcome: "converted", createdAt: "2026-05-15 10:00:00" });
+    const rows = await getTierPrecision(db, "2026-05");
+    expect(rows.find((r) => r.tier === "hot")!.resolved).toBe(1);
+  });
+
+  it("nurture counts as resolved+warm but not engaged", async () => {
+    const db = await makeTestDb();
+    await seedLead(db, { qualification: "warm", outcome: "nurture" });
+    const rows = await getTierPrecision(db, undefined);
+    const warm = rows.find((r) => r.tier === "warm")!;
+    expect(warm.resolved).toBe(1);
+    expect(warm.convertedPct).toBe(0);
+    expect(warm.engagedPct).toBe(0);
+  });
+});
+
 describe("coverage / conversion / top source", () => {
   it("summarises coverage, conversion rate and the leading source", async () => {
     const db = await makeTestDb();
