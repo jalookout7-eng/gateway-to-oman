@@ -11,7 +11,7 @@ function monthClause(month?: string): { where: string; args: string[] } {
 }
 
 // ---------------------------------------------------------------------------
-// Task 3: Tier Precision
+// Tier Precision
 // ---------------------------------------------------------------------------
 
 export interface TierPrecision {
@@ -40,7 +40,7 @@ export async function getTierPrecision(db: Client, month?: string): Promise<Tier
 }
 
 // ---------------------------------------------------------------------------
-// Task 4: Re-grading Matrix
+// Re-grading Matrix
 // ---------------------------------------------------------------------------
 
 export type TierCounts = Record<Tier, number>;
@@ -74,7 +74,7 @@ export async function getReGradingMatrix(db: Client, month?: string): Promise<Re
 }
 
 // ---------------------------------------------------------------------------
-// Task 5: Category Calibration
+// Category Calibration
 // ---------------------------------------------------------------------------
 
 const CATEGORIES = ["budget", "timeline", "decisionAuthority", "objectiveClarity", "mindsetIndicator"] as const;
@@ -108,7 +108,7 @@ export async function getCategoryCalibration(db: Client, month?: string): Promis
 }
 
 // ---------------------------------------------------------------------------
-// Task 6: Data Coverage, Conversion Stats, Top Source
+// Data Coverage, Conversion Stats, Top Source
 // ---------------------------------------------------------------------------
 
 export interface DataCoverage { total: number; resolved: number; pending: number; earliest: string | null; latest: string | null; }

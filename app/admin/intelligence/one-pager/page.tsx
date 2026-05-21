@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import type { IntelligenceStats } from "@/lib/intelligence/api-types";
+import type { IntelNote } from "@/lib/intelligence/notes";
 import { ChevronLeft, Printer, Copy, Check } from "lucide-react";
 import { renderOnePagerMarkdown } from "@/lib/intelligence/one-pager";
 
@@ -17,17 +18,31 @@ function periodLabel(month: string | null) {
 
 export default function OnePagerPage() {
   const [data, setData] = useState<IntelligenceStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notes, setNotes] = useState<IntelNote[]>([]);
   const [prose, setProse] = useState({ happened: "", omar: "", next: "" });
   const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
-    const r = await fetch("/api/admin/intelligence", { headers: authHeaders(), credentials: "include" });
-    if (r.ok) setData(await r.json());
+    setLoading(true);
+    try {
+      const [statsRes, notesRes] = await Promise.all([
+        fetch("/api/admin/intelligence", { headers: authHeaders(), credentials: "include" }),
+        fetch("/api/admin/intelligence/notes", { headers: authHeaders(), credentials: "include" }),
+      ]);
+      if (statsRes.ok) setData(await statsRes.json());
+      if (notesRes.ok) setNotes((await notesRes.json()).notes ?? []);
+    } finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
-  if (!data) return <p className="text-gray-400">Loading…</p>;
 
-  const learnings: { title: string; body: string | null }[] = []; // populated below from notes fetch in a follow-up; empty is valid
+  if (loading) return <p className="text-gray-400">Loading…</p>;
+  if (!data) return <p className="text-gray-500">Couldn&apos;t load intelligence data.</p>;
+
+  const learnings = notes
+    .filter((n) => n.status === "confirmed")
+    .map((n) => ({ title: n.title, body: n.body }));
+
   const input = {
     period: periodLabel(data.month),
     coverage: data.coverage,

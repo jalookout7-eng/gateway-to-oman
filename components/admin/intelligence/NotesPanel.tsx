@@ -18,19 +18,19 @@ export function NotesPanel() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  async function add() {
+  const add = useCallback(async () => {
     if (!title.trim()) return;
     await fetch("/api/admin/intelligence/notes", { method: "POST", headers: authHeaders(), credentials: "include", body: JSON.stringify({ kind, title }) });
     setTitle(""); load();
-  }
-  async function patch(id: string, status: string) {
+  }, [kind, title, load]);
+  const patch = useCallback(async (id: string, status: string) => {
     await fetch("/api/admin/intelligence/notes", { method: "PATCH", headers: authHeaders(), credentials: "include", body: JSON.stringify({ id, status }) });
     load();
-  }
-  async function remove(id: string) {
+  }, [load]);
+  const remove = useCallback(async (id: string) => {
     await fetch(`/api/admin/intelligence/notes?id=${id}`, { method: "DELETE", headers: authHeaders(), credentials: "include" });
     load();
-  }
+  }, [load]);
 
   return (
     <div className="rounded-xl bg-white ring-1 ring-gray-200 shadow-sm p-4">
