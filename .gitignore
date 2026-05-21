@@ -36,6 +36,9 @@ yarn-error.log*
 .vs/
 .idea/
 
+# brainstorming visual companion
+.superpowers/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
