@@ -8,6 +8,8 @@ import { ChatInput } from "./ChatInput";
 import { LeadCaptureForm } from "./LeadCaptureForm";
 import { BookingButton } from "./BookingButton";
 import { getContextualGreeting } from "@/lib/ai/prompts";
+import { resolveSurface } from "@/lib/ai/surface";
+import { WhatsAppHandoffButton } from "./WhatsAppHandoffButton";
 
 export function ChatWidget() {
   const pathname = usePathname();
@@ -19,6 +21,7 @@ export function ChatWidget() {
   const [isTyping, setIsTyping] = useState(false);
   const [showCaptureForm, setShowCaptureForm] = useState(false);
   const [showBooking, setShowBooking] = useState(false);
+  const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
   const [isClosed, setIsClosed] = useState(false);
   const [exchangeCount, setExchangeCount] = useState(0);
   const [sessionId] = useState(() => crypto.randomUUID());
@@ -58,10 +61,10 @@ export function ChatWidget() {
   const handleOpen = useCallback(() => {
     setIsOpen(true);
     if (messages.length === 0) {
-      const greeting = getContextualGreeting();
+      const greeting = getContextualGreeting(resolveSurface(pathname ?? "/").page);
       setMessages([{ role: "assistant", content: greeting }]);
     }
-  }, [messages.length]);
+  }, [messages.length, pathname]);
 
   // pathname is captured in closure below via dependency
   const sendMessage = useCallback(
@@ -73,7 +76,7 @@ export function ChatWidget() {
       setIsTyping(true);
 
       try {
-        const source = pathname?.startsWith("/businesses") ? "businesses" : "main";
+        const { surface } = resolveSurface(pathname ?? "/");
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -81,7 +84,7 @@ export function ChatWidget() {
             message: text,
             sessionId,
             history: messages,
-            source,
+            source: surface,
           }),
         });
 
@@ -96,6 +99,10 @@ export function ChatWidget() {
           content: data.message,
         };
         setMessages((prev) => [...prev, assistantMessage]);
+
+        if (data.whatsappUrl) {
+          setWhatsappUrl(data.whatsappUrl);
+        }
 
         const newExchangeCount = exchangeCount + 1;
         setExchangeCount(newExchangeCount);
@@ -313,6 +320,7 @@ export function ChatWidget() {
 
             {/* Booking button */}
             {showBooking && <BookingButton onClick={handleBookingClick} />}
+            {whatsappUrl && <WhatsAppHandoffButton href={whatsappUrl} />}
 
             {/* Input */}
             {!isClosed && <ChatInput onSend={sendMessage} disabled={isTyping} />}
