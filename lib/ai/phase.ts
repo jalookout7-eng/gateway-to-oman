@@ -44,6 +44,7 @@ export const PHASES: PhaseDef[] = [
       { minPhase: 2, instruction: "Proactively ease relocation and visa anxiety by pointing warm visitors to the relevant residency, visa, and ownership topics." },
     ],
     guardrails: [
+      "Do not promise or quote anything beyond what the knowledge base states.",
       "Do not book or schedule on Ahmed's behalf — offer the WhatsApp handoff or the booking option instead.",
       "Do not collect documents — you may say what's needed, but documents go to the team directly.",
       "Do not give legal, tax, or financial advice beyond the knowledge base; tell visitors to verify specifics with the team.",
@@ -58,6 +59,7 @@ export const PHASES: PhaseDef[] = [
       { minPhase: 3, instruction: "Offer to book a consultation directly into Ahmed's calendar when a visitor is ready." },
     ],
     guardrails: [
+      "Do not promise or quote anything beyond what the knowledge base states.",
       "Do not collect documents — you may say what's needed, but documents go to the team directly.",
       "Do not give legal, tax, or financial advice beyond the knowledge base; tell visitors to verify specifics with the team.",
     ],
@@ -71,6 +73,9 @@ export function capabilitiesFor(phase: PhaseNumber): string[] {
     .map((c) => c.instruction);
 }
 
+// Guardrails are intentionally per-phase, NOT accumulated: higher phases LIFT
+// restrictions (e.g. Phase 3 removes the no-booking rule). The KB-grounding rule
+// applies at every phase, so it is repeated in each phase's list.
 export function guardrailsFor(phase: PhaseNumber): string[] {
   return PHASES.find((p) => p.phase === phase)?.guardrails ?? PHASES[0].guardrails;
 }
@@ -106,7 +111,7 @@ export async function getPhaseProgress(db: Client): Promise<PhaseProgress> {
   const coverage = await getDataCoverage(db);
   const tiers = await getTierPrecision(db);
   const hot = tiers.find((t) => t.tier === "hot");
-  const next = PHASES.find((p) => p.phase === ((activePhase + 1) as PhaseNumber));
+  const next = PHASES.find((p) => p.phase > activePhase);
   return {
     activePhase,
     resolvedLeads: coverage.resolved,

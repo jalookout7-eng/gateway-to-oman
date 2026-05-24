@@ -4,11 +4,12 @@ export interface KbTopic {
   id: string;
   title: string;
   body: string;
-  surfaces: Surface[];
+  surfaces: readonly Surface[];
   minPhase: 1 | 2 | 3;
 }
 
-const BOTH: Surface[] = ["main", "businesses"];
+// Frozen + readonly so a shared reference can't be mutated by a consumer.
+const BOTH: readonly Surface[] = Object.freeze(["main", "businesses"] as Surface[]);
 
 export const KB_TOPICS: KbTopic[] = [
   {
@@ -238,6 +239,11 @@ export const KB_TOPICS: KbTopic[] = [
       "1–2 weeks. GTO assists with bank introductions and document preparation as part of the business setup service.",
   },
 ];
+
+/** KB topics applicable to a surface at a given phase (used by the prompt assembler). */
+export function topicsFor(surface: Surface, phase: number): KbTopic[] {
+  return KB_TOPICS.filter((t) => t.surfaces.includes(surface) && t.minPhase <= phase);
+}
 
 export interface BuyerQualification {
   surface: Surface;

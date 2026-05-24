@@ -14,6 +14,7 @@ describe("buildWhatsAppHandoff", () => {
   it("works with no segment/interest", () => {
     const url = buildWhatsAppHandoff({ surface: "main" });
     expect(url.startsWith("https://wa.me/96895108257?text=")).toBe(true);
-    expect(() => decodeURIComponent(url.split("text=")[1])).not.toThrow();
+    const text = decodeURIComponent(url.split("text=")[1]);
+    expect(text).toContain("main Gateway to Oman site");
   });
 });

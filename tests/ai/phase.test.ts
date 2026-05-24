@@ -19,6 +19,11 @@ describe("phase definitions", () => {
   });
   it("guardrailsFor returns the active phase restrictions", () => {
     expect(guardrailsFor(1).join(" ")).toMatch(/book|schedule/i);
+    // KB-grounding rule must apply at EVERY phase (regression canary)
+    expect(guardrailsFor(2).join(" ")).toMatch(/knowledge base/i);
+    expect(guardrailsFor(3).join(" ")).toMatch(/knowledge base/i);
+    // Phase 3 (Scheduler) lifts the no-booking restriction
+    expect(guardrailsFor(3).join(" ")).not.toMatch(/book or schedule/i);
   });
 });
 
