@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/auth/token";
 import { getReviewerToken, regenerateReviewerToken } from "@/lib/businesses/reviewer";
 
 function linkFor(request: NextRequest, token: string): string {
-  return new URL(`/businesses/reviewer?key=${token}`, request.url).toString();
+  return new URL(`/api/businesses/reviewer?key=${token}`, request.url).toString();
 }
 
 // GET — current reviewer link (created on first read if none exists yet).
