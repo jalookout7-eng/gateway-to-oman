@@ -69,7 +69,7 @@ export const KB_TOPICS: KbTopic[] = [
     minPhase: 1,
     body:
       "Timelines vary by complexity. General framework for a business acquisition through GTO: " +
-      "Weeks 1–2: initial inquiry, qualification, platform access granted, and reservation fee paid to initiate listing access. " +
+      "Weeks 1–2: initial inquiry, qualification, platform access granted, and an OMR 50 reservation/booking fee paid to initiate listing access. " +
       "Weeks 2–3: buyer reviews financials, site visit arranged if needed. " +
       "Weeks 3–4: Letter of Intent (LOI) or formal expression of interest submitted. " +
       "Weeks 4–6: due diligence period — documents reviewed, questions answered. " +
@@ -213,6 +213,8 @@ export const KB_TOPICS: KbTopic[] = [
       "(high). " +
       "Foreign ownership: Oman allows up to 100% in most sectors; UAE allows up to 100% in free zones with onshore varying; " +
       "Qatar allows up to 100% in select areas. " +
+      "Business environment: Oman is relationship-driven, trust-based, and slower-paced; UAE is fast-paced, transactional, and " +
+      "crowded; Qatar is government-driven and selective. " +
       "Tax: Oman is 15% corporate, 5% VAT, no current personal income tax; UAE is 9% corporate (new), 5% VAT, no personal " +
       "income tax; Qatar has no income or corporate tax for most businesses. " +
       "Residency: Oman offers investor visa and Golden Visa; UAE has a competitive Golden Visa program; Qatar ties residence " +
