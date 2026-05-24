@@ -64,7 +64,18 @@ export function OmarRoadmap() {
     }
   }
 
-  if (error) return <div className="rounded-xl bg-white ring-1 ring-gray-200 p-5 text-sm text-red-600">{error}</div>;
+  if (error)
+    return (
+      <div className="rounded-xl bg-white ring-1 ring-gray-200 p-5 text-sm text-red-600">
+        {error}
+        <button
+          onClick={() => { setError(null); setState(null); load(); }}
+          className="ml-3 rounded-md bg-gray-50 px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+        >
+          Retry
+        </button>
+      </div>
+    );
   if (!state) return <div className="rounded-xl bg-white ring-1 ring-gray-200 p-5 text-sm text-gray-500">Loading roadmap…</div>;
 
   return (
