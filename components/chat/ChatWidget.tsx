@@ -88,7 +88,12 @@ export function ChatWidget() {
           }),
         });
 
-        const data = await res.json();
+        const data = await res.json().catch(() => null);
+
+        // Don't render an empty bubble on an API error / empty reply — fall back.
+        if (!res.ok || !data?.message) {
+          throw new Error("Empty or error response from chat API");
+        }
 
         if (data.conversationId) {
           setConversationId(data.conversationId);
