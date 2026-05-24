@@ -680,7 +680,52 @@ Agreed roadmap after Phase 8. Brainstorm-first (design before code) for items 1 
 
 ---
 
-**Document Version:** 7.3
+## 11. Status Snapshot — Completed / Pending (2026-05-24)
+
+**Completed & live in production:**
+- Phases 1–8 (landing, marketplace, admin, auth, gating, reviewer link, Google sign-in, hero fix).
+- **Phase 9 — Intelligence dashboard** (`/admin/intelligence`) — deployed 2026-05-24.
+- **Phase 10 — Omar phasing + KB integration** — deployed 2026-05-24 (see v7.3 note).
+- **Reviewer-link 404 fix** — deployed.
+- **Intelligence dashboard hidden from the admin sidebar** — committed (live on next deploy).
+
+**Pending / open:**
+- **Intelligence dashboard hard access-gate** — there is **more than one admin account**, and the dashboard is currently only *hidden* from the nav; the page + its APIs (`/api/admin/intelligence*`, `/api/admin/omar-phase`) are still reachable by **any** authenticated admin via direct URL. To make it truly owner-only, add an `is_owner`/`super_admin` check on the page and those routes. (Deferred per JA, 2026-05-24.)
+- **Compliance & privacy** — not started; see Section 12.
+- **Chatbot model upgrade** — direction in Section 13 (cost is the open concern).
+- **Cloudflare media uploads** — admin photo/video upload → Cloudflare (R2 for images / Stream for video) → URL stored on the listing → frontend renders at 16:9 with `object-fit: contain` + blurred backdrop (no stretch). Blocked on Cloudflare account + API token; then build the upload UI + API route + listing media field. (The upload option is absent because it isn't built yet — Cloudflare is the chosen storage backend for when it is.)
+- **Multiple-choice / quick-reply answer UI** (Omar "piece F") — deferred to its own spec/plan.
+- **Other brain-dump fixes still open** (`important-additional-notes-to-finalize-project`): sign-up phone country-code field width; OTP not sending; booking calendar mobile + Calendly sync; security stress-test + scaling to ~1000 concurrent; lead-column editing (status/qualification/interest) + activity logging; confirm AI lead summary on click. (Poppins font change — **declined**, leave as-is.)
+- **Meeting-notes audit** (Thread 2 item 3) — not started.
+- **Repo hygiene:** `master` is ~57 commits behind `section-b-marketplace`; production deploys from the local `section-b` checkout (not `master`), so this is cosmetic — left as-is.
+
+## 12. Compliance & Privacy Requirements (pending)
+
+**Password assurance (already true in code):** marketplace passwords are **bcrypt-hashed (cost 12)**; plaintext is never stored. No one — admins or anyone with a DB dump — can read or recover a password; the system only verifies a login. Google sign-in users have no password at all.
+
+**Honest data-access position:** as the platform operator you (and admins) **can** see everything users submit — names, emails, phones, marketplace inquiries, lead scores, and full chat transcripts (DB in Ahmed's Turso account). The only unreadable item is passwords. Also disclose two external data flows: **chat content is sent to Groq (AI)** to generate replies, and **Google OAuth** shares basic profile on sign-in. The compliant posture is transparency, not "we can't see anything."
+
+**Pages to add:** Privacy Policy · Terms of Service · Cookie Notice (footer-linked).
+**Mechanisms to add:** sign-up **consent checkbox** (unticked, linking Privacy + Terms); **cookie consent banner** *only if* non-essential cookies are added (current cookies are session-only = "strictly necessary" → disclose, no opt-in needed yet); a **data-rights path** (access/correction/deletion, email at minimum); **email marketing consent + unsubscribe** (the cold-lead newsletter needs both).
+**Laws in scope:** **Oman PDPL** (Royal Decree 6/2022, in force Feb 2025) — primary, GTO is Oman-based; **GDPR / UK GDPR** — the audience is international.
+**Sub-processors to name in the policy:** Vercel (hosting), Turso (database), the email provider, **Groq (AI — receives chat content)**, Google (OAuth).
+**Security to advertise:** HTTPS everywhere (Vercel), bcrypt passwords, HttpOnly expiring session cookies, access-controlled admin, DB in the client's own Turso account.
+⚠️ **Not legal advice** — the policy *wording* (to satisfy Oman PDPL **and** GDPR together) should be reviewed by a qualified privacy lawyer. JA can scaffold the pages + consent UI + cookie banner as a small sub-project.
+
+## 13. Infrastructure & Model — Current Direction (2026-05-24)
+
+**Hosting — leaning to STAY ON VERCEL for now.** Reasons: managed Next.js (Vercel builds Next.js), global CDN, auto-HTTPS, instant rollbacks, zero server maintenance — vs. a GoDaddy VPS, which means self-managing OS/Node/nginx/SSL/PM2/CI/monitoring for marginal benefit at current traffic. The **domain stays registered at GoDaddy** with DNS pointed at Vercel (a VPS is not required to use `gatewaytooman.com`). Recommended: upgrade **Hobby → Vercel Pro ($20/mo)** — Hobby is technically non-commercial, and Pro lifts the cron/timeout limits. Revisit a VPS only if cost-at-scale, always-on background workers, or a data-residency requirement appears.
+
+**Chatbot model — leaning to the EASIEST path: upgrade the model** (cost is the open concern). Current = Groq Llama 3.1 8B (fast but weak reasoning). Candidates:
+- **Groq Llama 3.3 70B** — cheap + fast, big quality jump, ~1-line change in `lib/ai/provider.ts` + Groq paid dev tier. Lowest cost.
+- **Claude Haiku 4.5** — stronger reasoning + instruction-following at low cost (good balance for Omar's elaborate persona). JA flagged Haiku as a strong option.
+Swap happens in the single integration point `lib/ai/provider.ts`. **LiteLLM** (a proxy giving one interface to many providers + fallbacks + cost tracking) is **deferred** until multi-provider routing is actually needed — it would run off-Vercel (Railway/Render/Fly or LiteLLM cloud) and slot in behind `provider.ts` with no app churn.
+
+---
+
+**Document Version:** 7.4
 **Last Updated:** May 24, 2026
+
+*v7.4 — Post-deploy housekeeping + planning. Phase 9 (intelligence dashboard) + Phase 10 (Omar phasing/KB) deployed to production; reviewer-link 404 fixed; Intelligence removed from the admin sidebar (soft-hide only — a hard owner-only gate is still pending since more than one admin account exists). Added Section 11 (completed/pending snapshot), Section 12 (compliance & privacy requirements — privacy policy, ToS, cookie notice/consent, Oman PDPL + GDPR, sub-processors, data-rights), and Section 13 (infra + model direction: leaning to stay on Vercel + Pro; leaning to an upgraded chatbot model with Haiku 4.5 a strong candidate, cost TBD; LiteLLM deferred).*
 
 *v7.3 — Omar phasing + knowledge-base integration (Thread 2 item 2). Surface-scoped 15-topic KB reference layer (full structured injection) replacing the 8 hardcoded facts (tax/ownership corrected); surface-aware prompt + per-page greeting hooks; Azizi buyer-qualification logic on the businesses surface; settings-backed "new employee" phasing ladder + Omar Roadmap panel on `/admin/intelligence`; WhatsApp handoff for HOT leads; `[WHATSAPP_HANDOFF]`/`[KB_GAP]` signals. New modules: `lib/ai/{surface,knowledge-base,phase,whatsapp,prompt-assembler}.ts`; new `app/api/admin/omar-phase/route.ts`; `components/admin/intelligence/OmarRoadmap.tsx`; `components/chat/WhatsAppHandoffButton.tsx`. 115 tests green; build clean. Merged to `section-b-marketplace` and **deployed to production 2026-05-24** (`intelligence_notes` migrated to live Turso; `omar_phase` settings row auto-created; reviewer-link 404 fixed). Verified live: `/api/admin/omar-phase` returns 401 (route present). Multiple-choice answer UI (piece F) deferred to a follow-up.*
