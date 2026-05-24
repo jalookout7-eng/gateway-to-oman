@@ -682,17 +682,26 @@ Agreed roadmap after Phase 8. Brainstorm-first (design before code) for items 1 
 
 ## 11. Status Snapshot — Completed / Pending (2026-05-24)
 
-**Completed & live in production:**
+**Completed & live in production (as of 2026-05-25):**
 - Phases 1–8 (landing, marketplace, admin, auth, gating, reviewer link, Google sign-in, hero fix).
 - **Phase 9 — Intelligence dashboard** (`/admin/intelligence`) — deployed 2026-05-24.
 - **Phase 10 — Omar phasing + KB integration** — deployed 2026-05-24 (see v7.3 note).
-- **Reviewer-link 404 fix** — deployed.
-- **Intelligence dashboard hidden from the admin sidebar** — committed (live on next deploy).
+- **Reviewer-link 404 fix**, **surface-aware teaser hook**, **Intelligence hidden from admin sidebar** — all deployed 2026-05-24.
+
+**⚠️ KNOWN LIVE ISSUE — Omar 500s on the `/businesses` surface (doesn't reply there).**
+Cause: the KB-heavy businesses system prompt (~7k tokens) exceeds the **Groq free-tier** per-minute token limit; the main surface is smaller, fits, and works fine. Confirmed by live probe (`/api/chat` businesses → 500, main → 200). **Fix:** upgrade Groq to the paid Developer tier (negligible cost — ~$2/1,000 conversations on the 8B model) and/or switch `GROQ_MODEL` to a stronger model. JA upgrading ~2026-05-25/26. A graceful-fallback safeguard (shows "trouble connecting" instead of blank bubbles) is committed (`e729d49`) but **not yet deployed**.
+
+**Committed but NOT yet deployed** (will ship in the next deploy):
+- Chat graceful-fallback safeguard (`e729d49`). (Docs/specs/plans need no deploy.)
+
+**Designed, not yet built:**
+- **Intelligence v2 — outcome attribution + decoupled Omar precision.** Spec + plan committed (`docs/superpowers/specs/2026-05-25-intelligence-v2-outcome-attribution-design.md`, `docs/superpowers/plans/2026-05-25-intelligence-v2-outcome-attribution.md`). 10 TDD tasks, build later (subagent-driven). **Deploy needs `npm run migrate`** (adds `outcome_reason` + `omar_grade_correct` to `leads`). Fixes the attribution flaw where a hot lead lost to poor sales follow-up wrongly counts as Omar being wrong; adds an attribution-adjusted precision card + loss-reasons panel; phase advancement keys off the decoupled precision.
 
 **Pending / open:**
-- **Intelligence dashboard hard access-gate** — there is **more than one admin account**, and the dashboard is currently only *hidden* from the nav; the page + its APIs (`/api/admin/intelligence*`, `/api/admin/omar-phase`) are still reachable by **any** authenticated admin via direct URL. To make it truly owner-only, add an `is_owner`/`super_admin` check on the page and those routes. (Deferred per JA, 2026-05-24.)
+- **Intelligence dashboard hard access-gate** — there is **more than one admin account**; the dashboard is now *hidden* from the nav (deployed) but the page + its APIs (`/api/admin/intelligence*`, `/api/admin/omar-phase`) remain reachable by **any** authenticated admin via direct URL. For true owner-only, add an `is_owner`/`super_admin` check. (Deferred per JA, 2026-05-24.)
+- **Security audit remediations** — see Section 14 (5 High incl. rate limiting, owner-gate, ADMIN_TOKEN, OTP randomness, `/api/leads` field leak). Documented, not yet fixed.
 - **Compliance & privacy** — not started; see Section 12.
-- **Chatbot model upgrade** — direction in Section 13 (cost is the open concern).
+- **Chatbot model upgrade / Groq paid tier** — Section 13. (Also the fix for the live businesses-500 issue above.)
 - **Cloudflare media uploads** — admin photo/video upload → Cloudflare (R2 for images / Stream for video) → URL stored on the listing → frontend renders at 16:9 with `object-fit: contain` + blurred backdrop (no stretch). Blocked on Cloudflare account + API token; then build the upload UI + API route + listing media field. (The upload option is absent because it isn't built yet — Cloudflare is the chosen storage backend for when it is.)
 - **Multiple-choice / quick-reply answer UI** (Omar "piece F") — deferred to its own spec/plan.
 - **Other brain-dump fixes still open** (`important-additional-notes-to-finalize-project`): sign-up phone country-code field width; OTP not sending; booking calendar mobile + Calendly sync; security stress-test + scaling to ~1000 concurrent; lead-column editing (status/qualification/interest) + activity logging; confirm AI lead summary on click. (Poppins font change — **declined**, leave as-is.)
@@ -740,8 +749,10 @@ Internal first-pass audit (not a professional pentest). **Full findings + remedi
 
 ---
 
-**Document Version:** 7.5
-**Last Updated:** May 24, 2026
+**Document Version:** 7.6
+**Last Updated:** May 25, 2026
+
+*v7.6 — Intelligence v2 **designed** (spec + plan committed, NOT built) — outcome attribution + decoupled Omar precision (`outcome_reason` + `omar_grade_correct`; separates Omar's accuracy from sales execution / external factors). Recorded current state in §11: **businesses-surface Omar currently 500s** (KB-heavy prompt exceeds Groq free-tier limit; fix = paid Groq tier / model upgrade, JA ~05-25/26); chat graceful-fallback safeguard committed (`e729d49`) not yet deployed; teaser hook + intelligence nav-hide are deployed. Build of intelligence v2 deferred per JA ("proceed later") — needs `npm run migrate` at deploy.*
 
 *v7.5 — Security first-pass audit. Findings doc at `delivery/shared/gto-security-audit-2026-05-24.md`; summary mapped in HANDOVER §14. `npm audit` = 9 vulns (all DEV-only via vitest). Code review: 5 High (no rate limiting on public endpoints; legacy `ADMIN_TOKEN` non-timing-safe + role bypass; OTP via `Math.random`; owner-gate missing on intelligence/omar-phase; `/api/leads` `RETURNING *` leaks internal fields publicly), 6 Medium, several Low/Info. `.env` verified git-ignored + not committed. Remediation order documented; fixes NOT yet applied.*
 
