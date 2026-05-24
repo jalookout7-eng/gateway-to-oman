@@ -6,6 +6,8 @@ export interface Signals {
   closeChat: boolean;
   bookingDay: string | null;
   bookingTime: string | null;
+  whatsappHandoff: boolean;
+  kbGap: boolean;
 }
 
 const VALID_SEGMENTS = ["entrepreneur", "investor", "professional", "retiree"];
@@ -28,6 +30,8 @@ export function parseSignals(text: string): Signals {
     closeChat: /\[CLOSE_CHAT\]/.test(text),
     bookingDay: text.match(/\[BOOKING_DAY:([^\]]+)\]/)?.[1]?.trim() ?? null,
     bookingTime: text.match(/\[BOOKING_TIME:([^\]]+)\]/)?.[1]?.trim() ?? null,
+    whatsappHandoff: /\[WHATSAPP_HANDOFF\]/.test(text),
+    kbGap: /\[KB_GAP\]/.test(text),
   };
 }
 
@@ -40,6 +44,8 @@ export function stripSignals(text: string): string {
     .replace(/\[CLOSE_CHAT\]/g, "")
     .replace(/\[BOOKING_DAY:[^\]]*\]/g, "")
     .replace(/\[BOOKING_TIME:[^\]]*\]/g, "")
+    .replace(/\[WHATSAPP_HANDOFF\]/g, "")
+    .replace(/\[KB_GAP\]/g, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 }

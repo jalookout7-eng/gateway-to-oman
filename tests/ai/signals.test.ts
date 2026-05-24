@@ -55,3 +55,20 @@ describe("Signal stripping", () => {
     expect(clean).toBe("Welcome to Gateway to Oman!");
   });
 });
+
+describe("new signals", () => {
+  it("parses whatsappHandoff and kbGap", () => {
+    const s = parseSignals("Here you go. [WHATSAPP_HANDOFF] [KB_GAP]");
+    expect(s.whatsappHandoff).toBe(true);
+    expect(s.kbGap).toBe(true);
+  });
+  it("defaults both to false", () => {
+    const s = parseSignals("plain message");
+    expect(s.whatsappHandoff).toBe(false);
+    expect(s.kbGap).toBe(false);
+  });
+  it("strips both from visible text", () => {
+    const out = stripSignals("Answer here. [WHATSAPP_HANDOFF] [KB_GAP]");
+    expect(out).toBe("Answer here.");
+  });
+});
