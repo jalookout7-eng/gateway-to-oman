@@ -14,6 +14,9 @@ describe("buildSystemPrompt", () => {
   it("includes the buyer-qualification playbook only on businesses", () => {
     expect(buildSystemPrompt({ surface: "businesses", phase: 1 })).toMatch(/operate this business yourself/i);
     expect(buildSystemPrompt({ surface: "main", phase: 1 })).not.toMatch(/operate this business yourself/i);
+    // main surface must not even emit the qualification heading (filter(Boolean) path)
+    expect(buildSystemPrompt({ surface: "businesses", phase: 1 })).toContain("## BUYER QUALIFICATION");
+    expect(buildSystemPrompt({ surface: "main", phase: 1 })).not.toContain("## BUYER QUALIFICATION");
   });
 
   it("never leaks the corrected-away wrong facts", () => {

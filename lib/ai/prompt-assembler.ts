@@ -30,13 +30,12 @@ function renderQualification(): string {
     .join("\n");
   return [
     "## BUYER QUALIFICATION (this marketplace)",
-    q.dualIntentFilter,
-    `Key question to separate operators from speculators: "${q.keyQuestion}"`,
-    "Hot signals:", list(q.hotSignals),
-    "Seriousness triggers:", list(q.seriousnessTriggers),
-    "Cold signals:", list(q.coldSignals),
-    "Classification → action:", cls,
-  ].join("\n");
+    `${q.dualIntentFilter}\n\nKey question to separate operators from speculators: "${q.keyQuestion}"`,
+    `Hot signals:\n${list(q.hotSignals)}`,
+    `Seriousness triggers:\n${list(q.seriousnessTriggers)}`,
+    `Cold signals:\n${list(q.coldSignals)}`,
+    `Classification → action:\n${cls}`,
+  ].join("\n\n");
 }
 
 function renderCapabilities(phase: PhaseNumber): string {
