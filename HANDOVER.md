@@ -721,10 +721,29 @@ Agreed roadmap after Phase 8. Brainstorm-first (design before code) for items 1 
 - **Claude Haiku 4.5** — stronger reasoning + instruction-following at low cost (good balance for Omar's elaborate persona). JA flagged Haiku as a strong option.
 Swap happens in the single integration point `lib/ai/provider.ts`. **LiteLLM** (a proxy giving one interface to many providers + fallbacks + cost tracking) is **deferred** until multi-provider routing is actually needed — it would run off-Vercel (Railway/Render/Fly or LiteLLM cloud) and slot in behind `provider.ts` with no app churn.
 
+## 14. Security Audit (first-pass, 2026-05-24)
+
+Internal first-pass audit (not a professional pentest). **Full findings + remediation order:** `delivery/shared/gto-security-audit-2026-05-24.md`.
+
+**Counts:** `npm audit` = 9 (4 moderate, 5 high) — **all DEV-only** (vitest → vite/ws; not in the prod bundle; clear with `npm audit fix`, *not* `--force`). Code review = **5 High, 6 Medium**, plus Low/Informational.
+
+**Top priorities (in order):**
+1. **Quick 1–2 line fixes:** OTP → `crypto.randomInt` (was `Math.random`); `/api/leads` → `RETURNING id` not `*` (currently leaks internal lead fields to the public caller); add security headers in `next.config.js`; `timingSafeEqual` for `ADMIN_TOKEN`/`CRON_SECRET`; `npm audit fix`.
+2. **Owner-only role gate** on `/admin/intelligence`, `/api/admin/intelligence*`, `/api/admin/omar-phase` — any admin can reach them today (ties to the pending intelligence hard-gate).
+3. **Rate limiting** on public endpoints — esp. `/api/chat` (Groq cost + DB flood), login/OTP brute-force, access-request spam.
+4. Retire the shared `ADMIN_TOKEN` + `localStorage` auth → per-user cookie sessions.
+5. Verify Google `id_token` claims/signature.
+6. Hygiene: Turso token scoping/rotation + a gitleaks pre-commit hook; mask email creds in the admin UI.
+7. Before scale: professional pentest + load test (the ~1000-concurrent goal).
+
+**Already solid:** bcrypt (cost 12), parameterized SQL, 32-byte session tokens, timing-safe reviewer token, HttpOnly+Secure cookies, OTP attempt cap, `requireAuth` on every admin route, `.env` git-ignored and not committed.
+
 ---
 
-**Document Version:** 7.4
+**Document Version:** 7.5
 **Last Updated:** May 24, 2026
+
+*v7.5 — Security first-pass audit. Findings doc at `delivery/shared/gto-security-audit-2026-05-24.md`; summary mapped in HANDOVER §14. `npm audit` = 9 vulns (all DEV-only via vitest). Code review: 5 High (no rate limiting on public endpoints; legacy `ADMIN_TOKEN` non-timing-safe + role bypass; OTP via `Math.random`; owner-gate missing on intelligence/omar-phase; `/api/leads` `RETURNING *` leaks internal fields publicly), 6 Medium, several Low/Info. `.env` verified git-ignored + not committed. Remediation order documented; fixes NOT yet applied.*
 
 *v7.4 — Post-deploy housekeeping + planning. Phase 9 (intelligence dashboard) + Phase 10 (Omar phasing/KB) deployed to production; reviewer-link 404 fixed; Intelligence removed from the admin sidebar (soft-hide only — a hard owner-only gate is still pending since more than one admin account exists). Added Section 11 (completed/pending snapshot), Section 12 (compliance & privacy requirements — privacy policy, ToS, cookie notice/consent, Oman PDPL + GDPR, sub-processors, data-rights), and Section 13 (infra + model direction: leaning to stay on Vercel + Pro; leaning to an upgraded chatbot model with Haiku 4.5 a strong candidate, cost TBD; LiteLLM deferred).*
 
