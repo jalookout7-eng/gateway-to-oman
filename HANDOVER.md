@@ -10,6 +10,7 @@
 **Admin URL:** https://gateway-to-oman.vercel.app/admin
 **Repository:** https://github.com/jalookout7-eng/gateway-to-oman (private)
 **Active Branch:** `section-b-marketplace` (master has diverged — see Section 10)
+**Local repo path:** `JALAI-Workspaces/delivery/clients/gateway-to-oman/delivery/stages/04-build/output/gateway-to-oman` (consolidated into the JALAI workspace per ICM on 2026-05-21; was `JA/Gatewaytooman/gateway-to-oman`). Client source files (KB doc, screenshots, env-vars-private) now in the client-root `assets/` folder. Deploy with `vercel deploy --prod --cwd "<this path>"`.
 
 ---
 
