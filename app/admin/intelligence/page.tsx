@@ -10,6 +10,7 @@ import { CalibrationBars } from "@/components/admin/intelligence/CalibrationBars
 import { CoverageCard } from "@/components/admin/intelligence/CoverageCard";
 import { VersionCard } from "@/components/admin/intelligence/VersionCard";
 import { NotesPanel } from "@/components/admin/intelligence/NotesPanel";
+import { OmarRoadmap } from "@/components/admin/intelligence/OmarRoadmap";
 
 function authHeaders() {
   return { Authorization: `Bearer ${typeof window !== "undefined" ? localStorage.getItem("admin_token") ?? "" : ""}`, "Content-Type": "application/json" };
@@ -55,6 +56,7 @@ export default function IntelligencePage() {
         <VersionCard current={data.version.current} changelog={data.version.changelog} />
         <CoverageCard coverage={data.coverage} />
       </div>
+      <OmarRoadmap />
       <NotesPanel />
     </div>
   );
