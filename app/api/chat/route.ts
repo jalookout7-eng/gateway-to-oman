@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { chat, type ChatMessage } from "@/lib/ai/provider";
 import { parseSignals, stripSignals } from "@/lib/ai/signals";
 import { getDb } from "@/lib/db/client";
-import { getSystemPrompt } from "@/lib/ai/prompts";
+import { buildSystemPrompt, type AssembleContext } from "@/lib/ai/prompt-assembler";
+import { getActivePhase } from "@/lib/ai/phase";
+import { buildWhatsAppHandoff } from "@/lib/ai/whatsapp";
 
 function normalizeSource(raw: unknown): "main" | "businesses" {
   return raw === "businesses" ? "businesses" : "main";
@@ -70,15 +72,20 @@ export async function POST(request: NextRequest) {
       args: [conversationId, message],
     });
 
-    let systemPrompt = getSystemPrompt(conversationSource);
+    const phase = await getActivePhase(db);
+    const assembleContext: AssembleContext = {};
     if (context?.intent) {
-      systemPrompt += `\n\n[CONTEXT: visitor clicked '${context.topic ?? context.intent}' — they are interested in ${context.intent === "consultation" ? "booking a consultation with our team" : context.topic}. Open with the right qualifying question for this specific interest.]`;
+      assembleContext.intent = context.intent;
+      assembleContext.topic = context.topic;
     }
     if (context?.intent === "consultation") {
-      const availabilityContext = await getAvailabilityContext();
-      systemPrompt += availabilityContext;
-      systemPrompt += "\n\nFor consultation bookings: after qualifying, ask for preferred day from AVAILABLE_DAYS above, then preferred time from that day's slots. Embed [BOOKING_DAY:YYYY-MM-DD] and [BOOKING_TIME:HH:MM] when visitor confirms.";
+      assembleContext.availability = await getAvailabilityContext();
     }
+    const systemPrompt = buildSystemPrompt({
+      surface: conversationSource,
+      phase,
+      context: assembleContext,
+    });
 
     const messages: ChatMessage[] = [
       { role: "system", content: systemPrompt },
@@ -91,6 +98,16 @@ export async function POST(request: NextRequest) {
 
     const rawResponse = await chat(messages);
     const signals = parseSignals(rawResponse);
+    const whatsappUrl = signals.whatsappHandoff
+      ? buildWhatsAppHandoff({
+          segment: signals.segment,
+          interest: signals.interest,
+          surface: conversationSource,
+        })
+      : null;
+    if (signals.kbGap) {
+      console.warn("[KB_GAP]", { conversationId, message });
+    }
     const cleanResponse = stripSignals(rawResponse);
 
     await db.execute({
@@ -132,7 +149,10 @@ export async function POST(request: NextRequest) {
         closeChat: signals.closeChat,
         bookingDay: signals.bookingDay,
         bookingTime: signals.bookingTime,
+        whatsappHandoff: signals.whatsappHandoff,
+        kbGap: signals.kbGap,
       },
+      whatsappUrl,
       conversationId,
     });
   } catch (error) {
