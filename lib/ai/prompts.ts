@@ -206,3 +206,23 @@ export function getContextualGreeting(section?: string): string {
   };
   return greetings[section ?? "default"] ?? greetings.default;
 }
+
+// The scroll-triggered "hook" teaser bubble — also per-surface so the marketplace
+// pages don't show the generic homepage hook.
+export function getContextualTeaser(section?: string): string {
+  const teasers: Record<string, string> = {
+    default:
+      "Thinking about Oman as an investor, business owner, or planning a move with your family? I can point you in the right direction — takes a minute.",
+    opportunities:
+      "Exploring opportunities in Oman? Tell me what you're after and I'll point you to the right one — takes a minute.",
+    services:
+      "Not sure which service you need to enter Oman smoothly? I can help you figure it out — takes a minute.",
+    contact:
+      "Before you reach out — I can answer the quick questions about Oman right here. Takes a minute.",
+    businesses:
+      "Looking at buying a business in Oman? I can tell you which opportunities fit your budget — and what relocating actually involves. Takes a minute.",
+    "businesses-listings":
+      "Browsing the listings? Tell me your sector and budget and I'll flag the ones worth a closer look — plus the move-to-Oman side. Takes a minute.",
+  };
+  return teasers[section ?? "default"] ?? teasers.default;
+}

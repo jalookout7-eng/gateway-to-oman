@@ -7,7 +7,7 @@ import { ChatMessages, type Message } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
 import { LeadCaptureForm } from "./LeadCaptureForm";
 import { BookingButton } from "./BookingButton";
-import { getContextualGreeting } from "@/lib/ai/prompts";
+import { getContextualGreeting, getContextualTeaser } from "@/lib/ai/prompts";
 import { resolveSurface } from "@/lib/ai/surface";
 import { WhatsAppHandoffButton } from "./WhatsAppHandoffButton";
 
@@ -249,7 +249,7 @@ export function ChatWidget() {
               </div>
 
               <p className="mt-3 text-sm text-gray-700 leading-relaxed">
-                Thinking about Oman as an investor, business owner, or planning a move with your family? I can point you in the right direction — takes a minute.
+                {getContextualTeaser(resolveSurface(pathname ?? "/").page)}
               </p>
 
               <button
