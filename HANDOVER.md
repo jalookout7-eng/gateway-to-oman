@@ -691,11 +691,10 @@ Agreed roadmap after Phase 8. Brainstorm-first (design before code) for items 1 
 **⚠️ KNOWN LIVE ISSUE — Omar 500s on the `/businesses` surface (doesn't reply there).**
 Cause: the KB-heavy businesses system prompt (~7k tokens) exceeds the **Groq free-tier** per-minute token limit; the main surface is smaller, fits, and works fine. Confirmed by live probe (`/api/chat` businesses → 500, main → 200). **Fix:** upgrade Groq to the paid Developer tier (negligible cost — ~$2/1,000 conversations on the 8B model) and/or switch `GROQ_MODEL` to a stronger model. JA upgrading ~2026-05-25/26. A graceful-fallback safeguard (shows "trouble connecting" instead of blank bubbles) is committed (`e729d49`) but **not yet deployed**.
 
-**Committed but NOT yet deployed** (will ship in the next deploy):
-- Chat graceful-fallback safeguard (`e729d49`). (Docs/specs/plans need no deploy.)
-
-**Designed, not yet built:**
-- **Intelligence v2 — outcome attribution + decoupled Omar precision.** Spec + plan committed (`docs/superpowers/specs/2026-05-25-intelligence-v2-outcome-attribution-design.md`, `docs/superpowers/plans/2026-05-25-intelligence-v2-outcome-attribution.md`). 10 TDD tasks, build later (subagent-driven). **Deploy needs `npm run migrate`** (adds `outcome_reason` + `omar_grade_correct` to `leads`). Fixes the attribution flaw where a hot lead lost to poor sales follow-up wrongly counts as Omar being wrong; adds an attribution-adjusted precision card + loss-reasons panel; phase advancement keys off the decoupled precision.
+**Built + merged to `section-b-marketplace`, NOT yet deployed** (Batch 1 — ship together):
+- **Chat graceful-fallback safeguard** (`e729d49`) — "trouble connecting" instead of blank bubbles.
+- **Intelligence v2 — outcome attribution + decoupled Omar precision** (built 2026-05-25, subagent-driven, all 10 plan tasks + review fixes). Adds `outcome_reason` + `omar_grade_correct` columns on `leads`; pure `omarVerdict()` (correct/wrong/excluded) so a hot lead lost to sales execution / external / unresponsive / nurturing is **excluded** from Omar's precision (not counted wrong); attribution-adjusted `getOmarPrecision` + `getLossReasonBreakdown`; `getReGradingMatrix` excludes non-Omar losses; phase advancement keys off the decoupled precision; admin inquiries UI captures reason + "was Omar right?"; dashboard gets an Omar-precision card + loss-reasons panel and the old per-tier precision is relabeled "Sales conversion". **124/124 tests pass; clean build; final review APPROVED — READY TO MERGE.** Spec/plan in `docs/superpowers/`.
+  - ⚠️ **DEPLOY ORDER MATTERS:** run `npm run migrate` (idempotent; adds the two nullable TEXT columns) **BEFORE** `vercel deploy --prod` — the new code SELECTs those columns and would error if the deploy lands first.
 
 **Pending / open:**
 - **Intelligence dashboard hard access-gate** — there is **more than one admin account**; the dashboard is now *hidden* from the nav (deployed) but the page + its APIs (`/api/admin/intelligence*`, `/api/admin/omar-phase`) remain reachable by **any** authenticated admin via direct URL. For true owner-only, add an `is_owner`/`super_admin` check. (Deferred per JA, 2026-05-24.)
@@ -751,8 +750,10 @@ Internal first-pass audit (not a professional pentest). **Full findings + remedi
 
 ---
 
-**Document Version:** 7.7
+**Document Version:** 7.8
 **Last Updated:** May 25, 2026
+
+*v7.8 — Intelligence v2 BUILT (was designed in v7.6). Outcome attribution + decoupled Omar precision implemented subagent-driven on `feat/intelligence-v2` and merged to `section-b-marketplace`: two nullable `leads` columns (`outcome_reason`, `omar_grade_correct`), `omarVerdict()` (correct/wrong/excluded — non-Omar losses excluded from precision), attribution-adjusted precision + loss-reason queries, attribution-aware re-grading matrix, decoupled phase advancement, admin inquiries capture UI, dashboard precision card + loss-reasons panel (+ old per-tier precision relabeled "Sales conversion"). 124/124 tests pass, clean build, final review APPROVED. Bundled with the chat graceful-fallback (`e729d49`) as Batch 1 — NOT yet deployed. **Deploy = `npm run migrate` FIRST, then `vercel deploy --prod` (new code reads the new columns).***
 
 *v7.7 — VPS migration decision captured for later. Expanded `vps-deploy-runbook.md` with a "Decision Summary, Trade-offs & Risk Assessment" section (the runbook previously had only the procedural how, not the should-we) and added a pointer + key-takeaways block to §13. Conclusion unchanged: low-code/high-ops move, zero DB-migration risk (Turso is cloud-hosted), "Flask" in older notes is inaccurate (pure Next.js today), biggest break risk is the `businesses.` subdomain nginx rewrite; recommendation = stay on Vercel + Pro, move to VPS only on a concrete trigger.*
 
