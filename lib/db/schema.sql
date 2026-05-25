@@ -425,3 +425,7 @@ CREATE TABLE IF NOT EXISTS intelligence_notes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_intel_notes_kind ON intelligence_notes(kind, status);
+
+-- Intelligence v2 outcome attribution columns (nullable, backward-compatible)
+ALTER TABLE leads ADD COLUMN outcome_reason TEXT;
+ALTER TABLE leads ADD COLUMN omar_grade_correct TEXT;

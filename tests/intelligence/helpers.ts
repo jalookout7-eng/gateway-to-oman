@@ -19,16 +19,21 @@ export async function makeTestDb(): Promise<Client> {
 /** Insert a lead with the fields the intelligence queries read. */
 export async function seedLead(
   db: Client,
-  opts: { qualification: string; outcome: string; source?: string; createdAt?: string; breakdown?: Record<string, number> },
+  opts: {
+    qualification: string; outcome: string; source?: string; createdAt?: string;
+    breakdown?: Record<string, number>; outcomeReason?: string; omarGradeCorrect?: string;
+  },
 ) {
   await db.execute({
-    sql: `INSERT INTO leads (name, email, qualification, outcome, source, created_at, score_breakdown)
-          VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    sql: `INSERT INTO leads (name, email, qualification, outcome, source, created_at, score_breakdown, outcome_reason, omar_grade_correct)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [
       "Test", "t" + Math.random().toString(36).slice(2) + "@x.com",
       opts.qualification, opts.outcome, opts.source ?? "main",
       opts.createdAt ?? "2026-05-15 10:00:00",
       opts.breakdown ? JSON.stringify(opts.breakdown) : null,
+      opts.outcomeReason ?? null,
+      opts.omarGradeCorrect ?? null,
     ],
   });
 }
