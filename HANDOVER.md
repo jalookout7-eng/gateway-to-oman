@@ -691,15 +691,17 @@ Agreed roadmap after Phase 8. Brainstorm-first (design before code) for items 1 
 **⚠️ KNOWN LIVE ISSUE — Omar 500s on the `/businesses` surface (doesn't reply there).**
 Cause: the KB-heavy businesses system prompt (~7k tokens) exceeds the **Groq free-tier** per-minute token limit; the main surface is smaller, fits, and works fine. Confirmed by live probe (`/api/chat` businesses → 500, main → 200). **Fix:** upgrade Groq to the paid Developer tier (negligible cost — ~$2/1,000 conversations on the 8B model) and/or switch `GROQ_MODEL` to a stronger model. JA upgrading ~2026-05-25/26. A graceful-fallback safeguard (shows "trouble connecting" instead of blank bubbles) is committed (`e729d49`) but **not yet deployed**.
 
-**Built + merged to `section-b-marketplace`, NOT yet deployed** (Batch 1 — ship together):
+**Built on `section-b-marketplace`, NOT yet deployed — ONE bundled deploy (Batch 1 + Batch 2):**
 - **Chat graceful-fallback safeguard** (`e729d49`) — "trouble connecting" instead of blank bubbles.
-- **Intelligence v2 — outcome attribution + decoupled Omar precision** (built 2026-05-25, subagent-driven, all 10 plan tasks + review fixes). Adds `outcome_reason` + `omar_grade_correct` columns on `leads`; pure `omarVerdict()` (correct/wrong/excluded) so a hot lead lost to sales execution / external / unresponsive / nurturing is **excluded** from Omar's precision (not counted wrong); attribution-adjusted `getOmarPrecision` + `getLossReasonBreakdown`; `getReGradingMatrix` excludes non-Omar losses; phase advancement keys off the decoupled precision; admin inquiries UI captures reason + "was Omar right?"; dashboard gets an Omar-precision card + loss-reasons panel and the old per-tier precision is relabeled "Sales conversion". **124/124 tests pass; clean build; final review APPROVED — READY TO MERGE.** Spec/plan in `docs/superpowers/`.
-  - ⚠️ **DEPLOY ORDER MATTERS:** run `npm run migrate` (idempotent; adds the two nullable TEXT columns) **BEFORE** `vercel deploy --prod` — the new code SELECTs those columns and would error if the deploy lands first.
+- **Intelligence v2 — outcome attribution + decoupled Omar precision** (built 2026-05-25, subagent-driven, all 10 plan tasks + review fixes). Adds `outcome_reason` + `omar_grade_correct` columns on `leads`; pure `omarVerdict()` (correct/wrong/excluded) so a hot lead lost to sales execution / external / unresponsive / nurturing is **excluded** from Omar's precision (not counted wrong); attribution-adjusted `getOmarPrecision` + `getLossReasonBreakdown`; `getReGradingMatrix` excludes non-Omar losses; phase advancement keys off the decoupled precision; admin inquiries UI captures reason + "was Omar right?"; dashboard gets an Omar-precision card + loss-reasons panel and the old per-tier precision is relabeled "Sales conversion". Final review APPROVED.
+- **Security batch (audit remediations — see §14)** — quick wins (OTP→`crypto.randomInt`, `/api/leads`→`RETURNING id`, security headers in `next.config.js`, `LIMIT ?` bind, generic email-test error, timing-safe `CRON_SECRET`); **legacy `ADMIN_TOKEN` retired** — admin auth is now cookie-session **only** (21 files; `/api/auth` deleted); **owner-only gate** (`requireOwner`) on `/api/admin/intelligence*` + `/api/admin/omar-phase`; **Turso-backed rate limiting** (chat 20/min, login 5/10min, OTP 10/10min/IP + 1/60s/email, access-request 5/10min) + chat input caps (message ≤1000, history ≤20, role-filtered) + access-request dedupe (24h) & `leadId` no longer leaked. Fails open. Final security review APPROVED — READY TO SHIP.
+- **State:** **127/127 tests pass; clean build.** Both batches are committed on `section-b-marketplace` ahead of origin.
+  - ⚠️ **DEPLOY ORDER MATTERS:** run `npm run migrate` (idempotent) **BEFORE** `vercel deploy --prod`. The migrate adds the two IV2 lead columns **and** creates the `rate_limits` table; the new code reads both, so deploying first would error / leave rate-limiting inert.
+  - ⚠️ **POST-DEPLOY: click-test the admin** (auth changed). Log in fresh (email/password — token field is gone), confirm every admin section loads (not 401), owner-only Intelligence/Omar-phase work for the owner and 403 for non-owners, and admin mutations succeed.
 
 **Pending / open:**
-- **Intelligence dashboard hard access-gate** — there is **more than one admin account**; the dashboard is now *hidden* from the nav (deployed) but the page + its APIs (`/api/admin/intelligence*`, `/api/admin/omar-phase`) remain reachable by **any** authenticated admin via direct URL. For true owner-only, add an `is_owner`/`super_admin` check. (Deferred per JA, 2026-05-24.)
-- **Security audit remediations** — see Section 14 (5 High incl. rate limiting, owner-gate, ADMIN_TOKEN, OTP randomness, `/api/leads` field leak). Documented, not yet fixed.
-- **Compliance & privacy** — not started; see Section 12.
+- **Compliance & privacy** — not started; see Section 12. (Next batch — needs a brief design pass first.)
+- **Remaining security items (lower priority):** M-2 Google `id_token` signature/claims verification (Google OAuth not live yet — needs credentials); `npm audit fix` (dev-only vulns — run separately to avoid lockfile churn in this deploy); L-1 SameSite-strict admin cookie; L-5 mask email creds in admin UI; I-4 `cover_image_url` validation. See §14.
 - **Chatbot model upgrade / Groq paid tier** — Section 13. (Also the fix for the live businesses-500 issue above.)
 - **Cloudflare media uploads** — admin photo/video upload → Cloudflare (R2 for images / Stream for video) → URL stored on the listing → frontend renders at 16:9 with `object-fit: contain` + blurred backdrop (no stretch). Blocked on Cloudflare account + API token; then build the upload UI + API route + listing media field. (The upload option is absent because it isn't built yet — Cloudflare is the chosen storage backend for when it is.)
 - **Multiple-choice / quick-reply answer UI** (Omar "piece F") — deferred to its own spec/plan.
@@ -737,21 +739,25 @@ Internal first-pass audit (not a professional pentest). **Full findings + remedi
 
 **Counts:** `npm audit` = 9 (4 moderate, 5 high) — **all DEV-only** (vitest → vite/ws; not in the prod bundle; clear with `npm audit fix`, *not* `--force`). Code review = **5 High, 6 Medium**, plus Low/Informational.
 
+**✅ STATUS (2026-05-25 — fixed in the bundled section-b deploy, awaiting `npm run migrate` + deploy):** priorities 1–4 below are DONE. Remaining: #5 (Google id_token — OAuth not live yet), `npm audit fix` (dev-only; run separately), and hygiene #6/#7.
+
 **Top priorities (in order):**
-1. **Quick 1–2 line fixes:** OTP → `crypto.randomInt` (was `Math.random`); `/api/leads` → `RETURNING id` not `*` (currently leaks internal lead fields to the public caller); add security headers in `next.config.js`; `timingSafeEqual` for `ADMIN_TOKEN`/`CRON_SECRET`; `npm audit fix`.
-2. **Owner-only role gate** on `/admin/intelligence`, `/api/admin/intelligence*`, `/api/admin/omar-phase` — any admin can reach them today (ties to the pending intelligence hard-gate).
-3. **Rate limiting** on public endpoints — esp. `/api/chat` (Groq cost + DB flood), login/OTP brute-force, access-request spam.
-4. Retire the shared `ADMIN_TOKEN` + `localStorage` auth → per-user cookie sessions.
-5. Verify Google `id_token` claims/signature.
-6. Hygiene: Turso token scoping/rotation + a gitleaks pre-commit hook; mask email creds in the admin UI.
-7. Before scale: professional pentest + load test (the ~1000-concurrent goal).
+1. ✅ **Quick 1–2 line fixes:** OTP → `crypto.randomInt`; `/api/leads` → `RETURNING id`; security headers in `next.config.js` (CSP intentionally deferred); `timingSafeEqual` for `CRON_SECRET`. *(`npm audit fix` deferred — dev-only vulns; run separately to avoid lockfile churn in this deploy.)*
+2. ✅ **Owner-only role gate** — `requireOwner()` on `/api/admin/intelligence*` + `/api/admin/omar-phase` (all methods); intelligence page shows a clean owner-only message on 403.
+3. ✅ **Rate limiting** — Turso-backed (`rate_limits` table + `lib/rate-limit.ts`, fail-open): chat 20/min, login 5/10min, OTP 10/10min/IP + 1/60s/email, access-request 5/10min; + chat input caps (message ≤1000, history ≤20 role-filtered) + access-request 24h dedupe & no `leadId` leak.
+4. ✅ **Retired the shared `ADMIN_TOKEN` + `localStorage` auth** → admin auth is cookie-session **only** (`requireAuth` cookie-only; `validateToken` + `/api/auth` removed; 21 admin files moved to `credentials:"include"`). *(Supersedes the old "intelligence soft-hide" gap — now a hard owner gate.)*
+5. ⬜ Verify Google `id_token` claims/signature (M-2) — Google OAuth not live yet (needs credentials), so lower urgency.
+6. ⬜ Hygiene: Turso token scoping/rotation + a gitleaks pre-commit hook; mask email creds in the admin UI (L-5); SameSite-strict admin cookie (L-1); `cover_image_url` validation (I-4).
+7. ⬜ Before scale: professional pentest + load test (the ~1000-concurrent goal).
 
 **Already solid:** bcrypt (cost 12), parameterized SQL, 32-byte session tokens, timing-safe reviewer token, HttpOnly+Secure cookies, OTP attempt cap, `requireAuth` on every admin route, `.env` git-ignored and not committed.
 
 ---
 
-**Document Version:** 7.8
+**Document Version:** 7.9
 **Last Updated:** May 25, 2026
+
+*v7.9 — Security batch BUILT (audit §14 priorities 1–4). On `section-b-marketplace`, bundled with Batch 1 (IV2 + chat fallback) into ONE deploy: quick wins (OTP CSPRNG, `/api/leads` RETURNING id, security headers, timing-safe CRON_SECRET, LIMIT bind, generic email-test error); **legacy ADMIN_TOKEN retired → cookie-only admin auth** (`requireAuth` cookie-only, `validateToken` + `/api/auth` removed, 21 files to `credentials:"include"`); **owner-only gate** (`requireOwner`) on intelligence + omar-phase; **Turso-backed rate limiting** + chat input caps + access-request dedupe (fail-open). 127/127 tests pass; clean build; final security review APPROVED — READY TO SHIP. ⚠️ Deploy: `npm run migrate` FIRST (creates IV2 columns + `rate_limits` table), THEN `vercel deploy --prod`; then **click-test the admin** (auth changed). Remaining audit items: M-2 Google id_token (OAuth not live), `npm audit fix` (dev-only), L/I hygiene.*
 
 *v7.8 — Intelligence v2 BUILT (was designed in v7.6). Outcome attribution + decoupled Omar precision implemented subagent-driven on `feat/intelligence-v2` and merged to `section-b-marketplace`: two nullable `leads` columns (`outcome_reason`, `omar_grade_correct`), `omarVerdict()` (correct/wrong/excluded — non-Omar losses excluded from precision), attribution-adjusted precision + loss-reason queries, attribution-aware re-grading matrix, decoupled phase advancement, admin inquiries capture UI, dashboard precision card + loss-reasons panel (+ old per-tier precision relabeled "Sales conversion"). 124/124 tests pass, clean build, final review APPROVED. Bundled with the chat graceful-fallback (`e729d49`) as Batch 1 — NOT yet deployed. **Deploy = `npm run migrate` FIRST, then `vercel deploy --prod` (new code reads the new columns).***
 
