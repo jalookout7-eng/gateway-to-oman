@@ -429,3 +429,16 @@ CREATE INDEX IF NOT EXISTS idx_intel_notes_kind ON intelligence_notes(kind, stat
 -- Intelligence v2 outcome attribution columns (nullable, backward-compatible)
 ALTER TABLE leads ADD COLUMN outcome_reason TEXT;
 ALTER TABLE leads ADD COLUMN omar_grade_correct TEXT;
+
+-- ----------------------------------------------------------------------------
+-- 15. Rate limits (fixed-window, backed by Turso)
+-- key = "<bucket>:<identifier>", window_start = unix epoch floored to window.
+-- Pruned opportunistically per key on each request (cheap housekeeping).
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key TEXT NOT NULL,
+  window_start INTEGER NOT NULL,
+  count INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (key, window_start)
+);

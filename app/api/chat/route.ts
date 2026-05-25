@@ -5,6 +5,7 @@ import { getDb } from "@/lib/db/client";
 import { buildSystemPrompt, type AssembleContext } from "@/lib/ai/prompt-assembler";
 import { getActivePhase } from "@/lib/ai/phase";
 import { buildWhatsAppHandoff } from "@/lib/ai/whatsapp";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 function normalizeSource(raw: unknown): "main" | "businesses" {
   return raw === "businesses" ? "businesses" : "main";
@@ -36,7 +37,17 @@ async function getAvailabilityContext(): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, sessionId, history = [], context, source: requestSource } = await request.json();
+    // Rate limit: 20 requests per minute per IP (H-1)
+    const ip = getClientIp(request);
+    const rl = await rateLimit("chat", ip, 20, 60);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please slow down." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+      );
+    }
+
+    const { message, sessionId, history: rawHistory = [], context, source: requestSource } = await request.json();
 
     if (!message || !sessionId) {
       return NextResponse.json(
@@ -44,6 +55,19 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // M-4: input cap — reject messages over 1000 chars
+    if (typeof message === "string" && message.length > 1000) {
+      return NextResponse.json(
+        { error: "Message is too long. Please keep it under 1000 characters." },
+        { status: 400 },
+      );
+    }
+
+    // M-4: history cap — truncate to last 20 entries; strip non-user/assistant roles
+    const history = (Array.isArray(rawHistory) ? rawHistory : [])
+      .filter((m: { role: string; content: string }) => m.role === "user" || m.role === "assistant")
+      .slice(-20);
 
     const source = normalizeSource(requestSource);
     const db = getDb();

@@ -3,8 +3,19 @@ import { cookies } from "next/headers";
 import { getDb } from "@/lib/db/client";
 import { verifyPassword } from "@/lib/auth/password";
 import { createSession, SESSION_COOKIE_NAME, cookieOptions } from "@/lib/auth/sessions";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 attempts per 10 min per IP (H-1)
+  const ip = getClientIp(request);
+  const rl = await rateLimit("login", ip, 5, 600);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+    );
+  }
+
   let body: { email?: string; password?: string };
   try {
     body = await request.json();
@@ -38,9 +49,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
   }
 
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+  // ip already extracted above for rate limiting; coerce "unknown" back to null for storage
+  const ipForSession = ip === "unknown" ? null : ip;
   const userAgent = request.headers.get("user-agent");
-  const token = await createSession(user.id as string, ip, userAgent);
+  const token = await createSession(user.id as string, ipForSession, userAgent);
 
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE_NAME, token, cookieOptions());
@@ -48,7 +60,7 @@ export async function POST(request: NextRequest) {
   await db.execute({
     sql: `INSERT INTO activity_log (actor_type, actor_id, action, target_type, target_id, source, ip, user_agent)
           VALUES ('admin', ?, 'admin_logged_in', 'admin_users', ?, 'main', ?, ?)`,
-    args: [user.id, user.id, ip, userAgent],
+    args: [user.id, user.id, ipForSession, userAgent],
   });
 
   return NextResponse.json({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserPassword, issueOtp } from "@/lib/auth/marketplace";
 import { sendOtpEmail } from "@/lib/email/otp";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
@@ -9,6 +10,23 @@ export async function POST(request: NextRequest) {
 
   if (!email || !password) {
     return NextResponse.json({ error: "Email and password required" }, { status: 400 });
+  }
+
+  // Rate limits on OTP issuance: 10/10min per IP + 1/60s per email (H-1)
+  const ip = getClientIp(request);
+  const rlIp = await rateLimit("otp_ip", ip, 10, 600);
+  if (!rlIp.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(rlIp.retryAfterSec) } },
+    );
+  }
+  const rlEmail = await rateLimit("otp_email:" + email, email, 1, 60);
+  if (!rlEmail.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(rlEmail.retryAfterSec) } },
+    );
   }
 
   const user = await verifyUserPassword(email, password);

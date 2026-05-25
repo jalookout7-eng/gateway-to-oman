@@ -2,8 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { createUser, findUserByEmail, issueOtp } from "@/lib/auth/marketplace";
 import { sendOtpEmail } from "@/lib/email/otp";
 import { getDb } from "@/lib/db/client";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  // Rate limits on OTP issuance: 10/10min per IP + 1/60s per email (H-1)
+  // We apply these early before reading the body so we can check the IP.
+  // Email check is deferred until we have the normalised email below.
+  const ip = getClientIp(request);
+  const rlIp = await rateLimit("otp_ip", ip, 10, 600);
+  if (!rlIp.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(rlIp.retryAfterSec) } },
+    );
+  }
+
   const body = await request.json().catch(() => ({}));
   const fullName = typeof body.full_name === "string" ? body.full_name.trim() : "";
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
@@ -22,6 +35,15 @@ export async function POST(request: NextRequest) {
   }
   if (!phone) {
     return NextResponse.json({ error: "Phone number required" }, { status: 400 });
+  }
+
+  // Per-email OTP rate limit: max 1 issuance per 60s per email (closes "fresh OTP bypass" hole)
+  const rlEmail = await rateLimit("otp_email:" + email, email, 1, 60);
+  if (!rlEmail.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(rlEmail.retryAfterSec) } },
+    );
   }
 
   const existing = await findUserByEmail(email);
