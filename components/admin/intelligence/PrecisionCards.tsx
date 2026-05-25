@@ -6,7 +6,7 @@ export function PrecisionCards({ precision }: { precision: P[] }) {
   const hasData = precision.some((p) => p.resolved > 0);
   return (
     <section>
-      <h2 className="text-xs uppercase tracking-wide font-bold text-gray-500 mb-2">Omar precision · per tier (resolved leads)</h2>
+      <h2 className="text-xs uppercase tracking-wide font-bold text-gray-500 mb-2">Sales conversion by predicted tier (resolved leads)</h2>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {precision.map((p) => (
           <div key={p.tier} className="rounded-xl bg-white ring-1 ring-gray-200 shadow-sm p-4">

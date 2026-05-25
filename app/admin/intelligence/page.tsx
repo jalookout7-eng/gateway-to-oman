@@ -11,6 +11,8 @@ import { CoverageCard } from "@/components/admin/intelligence/CoverageCard";
 import { VersionCard } from "@/components/admin/intelligence/VersionCard";
 import { NotesPanel } from "@/components/admin/intelligence/NotesPanel";
 import { OmarRoadmap } from "@/components/admin/intelligence/OmarRoadmap";
+import { OmarPrecisionCard } from "@/components/admin/intelligence/OmarPrecisionCard";
+import { LossReasonsPanel } from "@/components/admin/intelligence/LossReasonsPanel";
 
 function authHeaders() {
   return { Authorization: `Bearer ${typeof window !== "undefined" ? localStorage.getItem("admin_token") ?? "" : ""}`, "Content-Type": "application/json" };
@@ -44,10 +46,16 @@ export default function IntelligencePage() {
         </Link>
       </div>
 
+      <OmarPrecisionCard data={data.omarPrecision} />
+
       <PrecisionCards precision={data.precision} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ReGradingMatrix matrix={data.regrading.matrix} />
+        <LossReasonsPanel rows={data.lossReasons} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
         <CalibrationBars calibration={data.calibration} />
       </div>
 
