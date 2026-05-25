@@ -725,6 +725,8 @@ Cause: the KB-heavy businesses system prompt (~7k tokens) exceeds the **Groq fre
 
 **Hosting — leaning to STAY ON VERCEL for now.** Reasons: managed Next.js (Vercel builds Next.js), global CDN, auto-HTTPS, instant rollbacks, zero server maintenance — vs. a GoDaddy VPS, which means self-managing OS/Node/nginx/SSL/PM2/CI/monitoring for marginal benefit at current traffic. The **domain stays registered at GoDaddy** with DNS pointed at Vercel (a VPS is not required to use `gatewaytooman.com`). Recommended: upgrade **Hobby → Vercel Pro ($20/mo)** — Hobby is technically non-commercial, and Pro lifts the cron/timeout limits. Revisit a VPS only if cost-at-scale, always-on background workers, or a data-residency requirement appears.
 
+> **VPS migration — full decision summary, trade-offs & risk assessment (2026-05-25):** see `delivery/stages/04-build/references/vps-deploy-runbook.md` → "Decision Summary, Trade-offs & Risk Assessment". Key takeaways: it's a **low-code, high-ops** move — the Next.js app is portable and **Turso (DB) is cloud-hosted so there's zero data-migration risk**; current notes mentioning "Flask" are wrong (the stack is pure Next.js today — Flask only applies if LiteLLM/Section E later ships). Biggest break risk is the **`businesses.` subdomain nginx rewrite** (avoidable by keeping `/businesses` as a path). Other costs: single point of failure, no one-click rollback, you own all security/OS ops. **Recommendation stands: Vercel + Pro now; VPS only on a concrete trigger** (cost-at-scale, always-on workers like the LiteLLM proxy, or a data-residency requirement) — and even then, a small VPS for *just* the LiteLLM proxy with the app staying on Vercel is usually the cleaner split.
+
 **Chatbot model — leaning to the EASIEST path: upgrade the model** (cost is the open concern). Current = Groq Llama 3.1 8B (fast but weak reasoning). Candidates:
 - **Groq Llama 3.3 70B** — cheap + fast, big quality jump, ~1-line change in `lib/ai/provider.ts` + Groq paid dev tier. Lowest cost.
 - **Claude Haiku 4.5** — stronger reasoning + instruction-following at low cost (good balance for Omar's elaborate persona). JA flagged Haiku as a strong option.
@@ -749,8 +751,10 @@ Internal first-pass audit (not a professional pentest). **Full findings + remedi
 
 ---
 
-**Document Version:** 7.6
+**Document Version:** 7.7
 **Last Updated:** May 25, 2026
+
+*v7.7 — VPS migration decision captured for later. Expanded `vps-deploy-runbook.md` with a "Decision Summary, Trade-offs & Risk Assessment" section (the runbook previously had only the procedural how, not the should-we) and added a pointer + key-takeaways block to §13. Conclusion unchanged: low-code/high-ops move, zero DB-migration risk (Turso is cloud-hosted), "Flask" in older notes is inaccurate (pure Next.js today), biggest break risk is the `businesses.` subdomain nginx rewrite; recommendation = stay on Vercel + Pro, move to VPS only on a concrete trigger.*
 
 *v7.6 — Intelligence v2 **designed** (spec + plan committed, NOT built) — outcome attribution + decoupled Omar precision (`outcome_reason` + `omar_grade_correct`; separates Omar's accuracy from sales execution / external factors). Recorded current state in §11: **businesses-surface Omar currently 500s** (KB-heavy prompt exceeds Groq free-tier limit; fix = paid Groq tier / model upgrade, JA ~05-25/26); chat graceful-fallback safeguard committed (`e729d49`) not yet deployed; teaser hook + intelligence nav-hide are deployed. Build of intelligence v2 deferred per JA ("proceed later") — needs `npm run migrate` at deploy.*
 
