@@ -4,6 +4,8 @@ import { getDb } from "@/lib/db/client";
 
 const VALID_OUTCOMES = ["pending", "contacted", "converted", "nurture", "rejected"] as const;
 type Outcome = (typeof VALID_OUTCOMES)[number];
+const VALID_REASONS = ["won", "lost_not_qualified", "lost_execution", "lost_external", "lost_unresponsive", "nurturing"] as const;
+const VALID_GRADE = ["yes", "no", "unsure"] as const;
 
 export async function PATCH(
   request: NextRequest,
@@ -13,7 +15,7 @@ export async function PATCH(
   if (authError) return authError;
 
   const { leadId } = await params;
-  let body: { outcome?: string; admin_notes?: string };
+  let body: { outcome?: string; admin_notes?: string; outcome_reason?: string; omar_grade_correct?: string };
   try {
     body = await request.json();
   } catch {
@@ -27,6 +29,14 @@ export async function PATCH(
       { status: 400 },
     );
   }
+  const outcomeReason = body.outcome_reason as string | undefined;
+  if (outcomeReason && !VALID_REASONS.includes(outcomeReason as (typeof VALID_REASONS)[number])) {
+    return NextResponse.json({ error: `Invalid outcome_reason` }, { status: 400 });
+  }
+  const gradeCorrect = body.omar_grade_correct as string | undefined;
+  if (gradeCorrect && !VALID_GRADE.includes(gradeCorrect as (typeof VALID_GRADE)[number])) {
+    return NextResponse.json({ error: `Invalid omar_grade_correct` }, { status: 400 });
+  }
 
   const db = getDb();
   const sets: string[] = [];
@@ -39,6 +49,8 @@ export async function PATCH(
     sets.push("admin_notes = ?");
     args.push(body.admin_notes);
   }
+  if (outcomeReason) { sets.push("outcome_reason = ?"); args.push(outcomeReason); }
+  if (gradeCorrect) { sets.push("omar_grade_correct = ?"); args.push(gradeCorrect); }
   if (sets.length === 0) {
     return NextResponse.json({ error: "No fields to update" }, { status: 400 });
   }
@@ -56,7 +68,7 @@ export async function PATCH(
     args: [
       user?.id ?? null,
       leadId,
-      JSON.stringify({ outcome: outcome ?? null, admin_notes: body.admin_notes ?? null }),
+      JSON.stringify({ outcome: outcome ?? null, admin_notes: body.admin_notes ?? null, outcome_reason: outcomeReason ?? null, omar_grade_correct: gradeCorrect ?? null }),
     ],
   });
 
