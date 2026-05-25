@@ -1,6 +1,6 @@
 // app/api/admin/intelligence/notes/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/token";
+import { requireOwner } from "@/lib/auth/token";
 import { getDb } from "@/lib/db/client";
 import { listNotes, createNote, updateNote, deleteNote, type NoteKind, type NoteStatus } from "@/lib/intelligence/notes";
 
@@ -8,13 +8,13 @@ const KINDS = ["hypothesis", "learning", "analysis_run"];
 const STATUSES = ["open", "confirmed", "archived"];
 
 export async function GET(request: NextRequest) {
-  const authError = await requireAuth(request);
+  const authError = await requireOwner(request);
   if (authError) return authError;
   return NextResponse.json({ notes: await listNotes(getDb()) });
 }
 
 export async function POST(request: NextRequest) {
-  const authError = await requireAuth(request);
+  const authError = await requireOwner(request);
   if (authError) return authError;
   const body = await request.json().catch(() => ({}));
   if (!KINDS.includes(body.kind) || typeof body.title !== "string" || !body.title.trim()) {
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const authError = await requireAuth(request);
+  const authError = await requireOwner(request);
   if (authError) return authError;
   const body = await request.json().catch(() => ({}));
   if (typeof body.id !== "string") return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -36,7 +36,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const authError = await requireAuth(request);
+  const authError = await requireOwner(request);
   if (authError) return authError;
   const id = request.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });

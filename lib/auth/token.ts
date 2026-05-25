@@ -27,3 +27,20 @@ export async function getRequestUser(request: NextRequest): Promise<SessionUser 
   if (!sessionToken) return null;
   return getSessionUser(sessionToken);
 }
+
+/**
+ * Like requireAuth, but additionally requires the session user's role to be "owner".
+ * Use for owner-only surfaces (intelligence dashboard, Omar phase control) — there is
+ * more than one admin account and these must not be reachable by non-owner admins.
+ *
+ * Returns null if authorized as owner, 401 if unauthenticated, or 403 if authenticated
+ * but not an owner.
+ */
+export async function requireOwner(request: NextRequest): Promise<NextResponse | null> {
+  const user = await getRequestUser(request);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (user.role !== "owner") {
+    return NextResponse.json({ error: "Forbidden — owner only" }, { status: 403 });
+  }
+  return null;
+}

@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/token";
+import { requireOwner } from "@/lib/auth/token";
 import { getDb } from "@/lib/db/client";
 import { PHASES, setActivePhase, getPhaseProgress, type PhaseNumber } from "@/lib/ai/phase";
 
 export async function GET(request: NextRequest) {
-  const authError = await requireAuth(request);
+  const authError = await requireOwner(request);
   if (authError) return authError;
   const progress = await getPhaseProgress(getDb());
   return NextResponse.json({ phases: PHASES, ...progress });
 }
 
 export async function POST(request: NextRequest) {
-  const authError = await requireAuth(request);
+  const authError = await requireOwner(request);
   if (authError) return authError;
 
   const body = await request.json().catch(() => ({}));

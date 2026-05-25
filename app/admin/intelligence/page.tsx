@@ -21,17 +21,20 @@ function authHeaders() {
 export default function IntelligencePage() {
   const [data, setData] = useState<IntelligenceStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [forbidden, setForbidden] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const r = await fetch("/api/admin/intelligence", { headers: authHeaders(), credentials: "include" });
+      if (r.status === 403) { setForbidden(true); return; }
       if (r.ok) setData(await r.json());
     } finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
 
   if (loading) return <div className="flex items-center gap-2 text-gray-400"><Loader2 className="h-4 w-4 animate-spin" />Loading intelligence…</div>;
+  if (forbidden) return <p className="text-gray-500">This dashboard is owner-only. Your admin account doesn&apos;t have access.</p>;
   if (!data) return <p className="text-gray-500">Couldn&apos;t load intelligence data.</p>;
 
   return (
