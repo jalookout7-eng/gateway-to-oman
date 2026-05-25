@@ -22,8 +22,10 @@ export async function POST(request: NextRequest) {
     );
     return NextResponse.json({ sent: true });
   } catch (error) {
+    // M-5: log full error server-side; return generic message to avoid leaking SMTP/infra detail
+    console.error("Email test failed:", error);
     return NextResponse.json(
-      { error: "Failed to send test email", details: String(error) },
+      { error: "Email test failed. Check server logs for details." },
       { status: 500 }
     );
   }

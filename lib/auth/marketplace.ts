@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { randomBytes, randomInt } from "crypto";
 import { getDb } from "@/lib/db/client";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 
@@ -24,8 +24,8 @@ function generateToken(): string {
 }
 
 function generateOtpCode(): string {
-  // 6 digits, leading zeroes allowed
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  // 6 digits, cryptographically secure (H-3)
+  return randomInt(100000, 1000000).toString();
 }
 
 export async function findUserByEmail(email: string): Promise<MarketplaceUser | null> {

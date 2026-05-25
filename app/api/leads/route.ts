@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
 
     const result = await db.execute({
       sql: `INSERT INTO leads (name, email, phone, country_code, conversation_id, segment, interests)
-            VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+            VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
       args: [
         name,
         email,
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
       console.error("Booking linkage failed (lead was still created):", bookingErr);
     }
 
-    return NextResponse.json(result.rows[0], { status: 201 });
+    return NextResponse.json({ success: true, id: leadId }, { status: 201 });
   } catch (error) {
     console.error("Lead creation error:", error);
     return NextResponse.json({ error: "Failed to create lead" }, { status: 500 });

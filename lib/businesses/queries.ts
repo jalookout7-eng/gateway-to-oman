@@ -97,7 +97,11 @@ export async function listListings(filters: ListingFilters = {}): Promise<Listin
   if (filters.sort === "price-asc") orderBy = "l.selling_price_omr ASC NULLS LAST, l.created_at DESC";
   else if (filters.sort === "price-desc") orderBy = "l.selling_price_omr DESC NULLS LAST, l.created_at DESC";
 
-  const limitClause = filters.limit ? `LIMIT ${Math.max(1, Math.floor(filters.limit))}` : "";
+  // M-3: use a bound parameter for LIMIT instead of string interpolation
+  const limitClause = filters.limit ? "LIMIT ?" : "";
+  const limitArgs: (string | number)[] = filters.limit
+    ? [Math.max(1, Math.floor(filters.limit))]
+    : [];
 
   const sql = `
     SELECT l.*, c.slug AS category_slug, c.name AS category_name
@@ -107,7 +111,7 @@ export async function listListings(filters: ListingFilters = {}): Promise<Listin
     ORDER BY ${orderBy}
     ${limitClause}
   `;
-  const result = await db.execute({ sql, args });
+  const result = await db.execute({ sql, args: [...args, ...limitArgs] });
   return result.rows.map((row) => rowToListing(row as Record<string, unknown>));
 }
 

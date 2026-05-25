@@ -1,13 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { getDb } from "@/lib/db/client";
 import { sendPushNotification } from "@/lib/push/notify";
 
 export const dynamic = "force-dynamic";
 
+// I-3: timing-safe string comparison to prevent timing-attack on CRON_SECRET
+function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false; // timingSafeEqual throws on length mismatch
+  return timingSafeEqual(ab, bb);
+}
+
 export async function GET(request: NextRequest) {
   // Verify this is called by Vercel Cron (not public)
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!authHeader || !cronSecret || !safeEqual(authHeader, `Bearer ${cronSecret}`)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
