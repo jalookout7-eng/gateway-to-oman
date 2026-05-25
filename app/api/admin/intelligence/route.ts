@@ -5,6 +5,7 @@ import { getDb } from "@/lib/db/client";
 import {
   getTierPrecision, getReGradingMatrix, getCategoryCalibration,
   getDataCoverage, getConversionStats, getTopSource,
+  getOmarPrecision, getLossReasonBreakdown,
 } from "@/lib/intelligence/queries";
 import { OMAR_VERSION, OMAR_CHANGELOG } from "@/lib/ai/version";
 import type { IntelligenceStats } from "@/lib/intelligence/api-types";
@@ -22,9 +23,10 @@ export async function GET(request: NextRequest) {
   const db = getDb();
   const month = request.nextUrl.searchParams.get("month") || undefined;
 
-  const [precision, regrading, calibration, coverage, conversionCurrent, topSource] = await Promise.all([
+  const [precision, regrading, calibration, coverage, conversionCurrent, topSource, omarPrecision, lossReasons] = await Promise.all([
     getTierPrecision(db, month), getReGradingMatrix(db, month), getCategoryCalibration(db, month),
     getDataCoverage(db, month), getConversionStats(db, month), getTopSource(db, month),
+    getOmarPrecision(db, month), getLossReasonBreakdown(db, month),
   ]);
   const conversionPrevious = month ? await getConversionStats(db, prevMonth(month)) : null;
 
@@ -33,6 +35,7 @@ export async function GET(request: NextRequest) {
     precision, regrading, calibration, coverage, topSource,
     conversion: { current: conversionCurrent, previous: conversionPrevious },
     version: { current: OMAR_VERSION, changelog: OMAR_CHANGELOG },
+    omarPrecision, lossReasons,
   };
   return NextResponse.json(payload);
 }

@@ -13,4 +13,9 @@ export interface IntelligenceStats {
   topSource: TopSource | null;
   conversion: { current: ConversionStats; previous: ConversionStats | null };
   version: { current: string; changelog: ChangelogEntry[] };
+  omarPrecision: {
+    overall: { correct: number; wrong: number; excluded: number; precisionPct: number | null };
+    byTier: Record<"hot" | "warm" | "cold", { correct: number; wrong: number; excluded: number; precisionPct: number | null }>;
+  };
+  lossReasons: { reason: string; count: number }[];
 }
