@@ -1,5 +1,5 @@
 import type { Client } from "@libsql/client";
-import { getTierPrecision, getDataCoverage } from "@/lib/intelligence/queries";
+import { getOmarPrecision } from "@/lib/intelligence/queries";
 
 export type PhaseNumber = 1 | 2 | 3;
 export const DEFAULT_PHASE: PhaseNumber = 1;
@@ -101,21 +101,19 @@ export async function setActivePhase(db: Client, phase: PhaseNumber): Promise<vo
 
 export interface PhaseProgress {
   activePhase: PhaseNumber;
-  resolvedLeads: number;
-  hotPrecisionPct: number | null;
+  resolvedLeads: number;     // correct + wrong (verdict-eligible)
+  precisionPct: number | null;
   nextTarget: number | null;
 }
 
 export async function getPhaseProgress(db: Client): Promise<PhaseProgress> {
   const activePhase = await getActivePhase(db);
-  const coverage = await getDataCoverage(db);
-  const tiers = await getTierPrecision(db);
-  const hot = tiers.find((t) => t.tier === "hot");
+  const { overall } = await getOmarPrecision(db);
   const next = PHASES.find((p) => p.phase > activePhase);
   return {
     activePhase,
-    resolvedLeads: coverage.resolved,
-    hotPrecisionPct: hot?.convertedPct ?? null,
+    resolvedLeads: overall.correct + overall.wrong,
+    precisionPct: overall.precisionPct,
     nextTarget: next?.unlock.precisionTarget ?? null,
   };
 }

@@ -37,13 +37,14 @@ describe("active phase (settings-backed)", () => {
 });
 
 describe("getPhaseProgress", () => {
-  it("reports active phase, resolved leads, and hot precision", async () => {
+  it("reports active phase + decoupled Omar precision (excludes non-Omar losses)", async () => {
     const db = await makeTestDb();
-    await seedLead(db, { qualification: "hot", outcome: "converted" });
-    await seedLead(db, { qualification: "hot", outcome: "rejected" });
+    await seedLead(db, { qualification: "hot", outcome: "converted", outcomeReason: "won" });            // correct
+    await seedLead(db, { qualification: "hot", outcome: "rejected", outcomeReason: "lost_not_qualified" }); // wrong
+    await seedLead(db, { qualification: "hot", outcome: "rejected", outcomeReason: "lost_execution" });   // excluded
     const prog = await getPhaseProgress(db);
     expect(prog.activePhase).toBe(1);
-    expect(prog.resolvedLeads).toBe(2);
-    expect(prog.hotPrecisionPct).toBe(50);
+    expect(prog.resolvedLeads).toBe(2);   // correct + wrong (excluded not counted)
+    expect(prog.precisionPct).toBe(50);   // 1 / (1+1)
   });
 });

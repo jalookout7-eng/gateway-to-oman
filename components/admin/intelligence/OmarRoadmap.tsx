@@ -15,7 +15,7 @@ interface RoadmapState {
   phases: PhaseDef[];
   activePhase: 1 | 2 | 3;
   resolvedLeads: number;
-  hotPrecisionPct: number | null;
+  precisionPct: number | null;
   nextTarget: number | null;
 }
 
@@ -87,8 +87,8 @@ export function OmarRoadmap() {
         <div>
           <h2 className="font-heading text-base font-semibold text-navy">Omar Roadmap</h2>
           <p className="text-xs text-gray-500 mt-0.5">
-            {state.resolvedLeads} resolved leads · hot precision{" "}
-            {state.hotPrecisionPct === null ? "—" : `${state.hotPrecisionPct}%`}
+            {state.resolvedLeads} resolved leads · Omar precision{" "}
+            {state.precisionPct === null ? "—" : `${state.precisionPct}%`}
             {state.nextTarget !== null ? ` (target ${state.nextTarget}%)` : ""}
           </p>
         </div>
