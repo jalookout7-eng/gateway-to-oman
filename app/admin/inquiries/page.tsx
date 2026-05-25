@@ -25,6 +25,8 @@ type Inquiry = {
   admin_notes: string | null;
   submitted_at: string;
   outcome_updated_at: string | null;
+  outcome_reason: string | null;
+  omar_grade_correct: string | null;
   inquiry_id: string | null;
   listing: {
     id: string;
@@ -85,20 +87,27 @@ export default function AdminInquiriesPage() {
     fetchInquiries();
   }, [fetchInquiries]);
 
-  async function updateOutcome(leadId: string, outcome: Inquiry["outcome"]) {
+  async function updateAttribution(
+    leadId: string,
+    patch: { outcome?: Inquiry["outcome"]; outcome_reason?: string; omar_grade_correct?: string },
+  ) {
     setInquiries((prev) =>
-      prev.map((i) => (i.lead_id === leadId ? { ...i, outcome, outcome_updated_at: new Date().toISOString() } : i)),
+      prev.map((i) => (i.lead_id === leadId ? { ...i, ...patch, outcome_updated_at: new Date().toISOString() } : i)),
     );
     try {
       await fetch(`/api/admin/inquiries/${leadId}/outcome`, {
         method: "PATCH",
-        headers: authHeaders(),
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ outcome }),
+        body: JSON.stringify(patch),
       });
     } catch {
-      fetchInquiries();
+      // optimistic update already applied; a reload re-syncs
     }
+  }
+
+  async function updateOutcome(leadId: string, outcome: Inquiry["outcome"]) {
+    await updateAttribution(leadId, { outcome });
   }
 
   async function approveAccess(leadId: string) {
@@ -215,6 +224,7 @@ export default function AdminInquiriesPage() {
                 key={i.lead_id}
                 inquiry={i}
                 onUpdateOutcome={updateOutcome}
+                onUpdateAttribution={updateAttribution}
                 onApprove={approveAccess}
               />
             ))}
@@ -228,10 +238,12 @@ export default function AdminInquiriesPage() {
 function InquiryRow({
   inquiry: i,
   onUpdateOutcome,
+  onUpdateAttribution,
   onApprove,
 }: {
   inquiry: Inquiry;
   onUpdateOutcome: (leadId: string, outcome: Inquiry["outcome"]) => void;
+  onUpdateAttribution: (leadId: string, patch: { outcome?: Inquiry["outcome"]; outcome_reason?: string; omar_grade_correct?: string }) => void;
   onApprove: (leadId: string) => void;
 }) {
   return (
@@ -319,6 +331,40 @@ function InquiryRow({
               {OUTCOME_LABEL[o]}
             </button>
           ))}
+
+          {/* Loss/won reason — shown when the lead is resolved */}
+          {i.outcome !== "pending" && (
+            <select
+              value={i.outcome_reason ?? ""}
+              onChange={(e) => onUpdateAttribution(i.lead_id, { outcome_reason: e.target.value })}
+              className="mt-2 rounded-md border border-gray-200 text-xs px-2 py-1"
+            >
+              <option value="">Reason…</option>
+              {(i.outcome === "converted"
+                ? ["won"]
+                : i.outcome === "rejected"
+                  ? ["lost_not_qualified", "lost_execution", "lost_external", "lost_unresponsive"]
+                  : ["nurturing"]
+              ).map((r) => (
+                <option key={r} value={r}>{r.replace(/_/g, " ")}</option>
+              ))}
+            </select>
+          )}
+
+          {/* Was Omar's grade right? — independent of the deal result */}
+          {i.outcome !== "pending" && (
+            <select
+              value={i.omar_grade_correct ?? ""}
+              onChange={(e) => onUpdateAttribution(i.lead_id, { omar_grade_correct: e.target.value })}
+              className="mt-2 ml-2 rounded-md border border-gray-200 text-xs px-2 py-1"
+              title="Was Omar's hot/warm/cold read correct?"
+            >
+              <option value="">Omar right?…</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+              <option value="unsure">Unsure</option>
+            </select>
+          )}
         </div>
       </div>
     </div>
