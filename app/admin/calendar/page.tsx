@@ -51,16 +51,10 @@ export default function CalendarPage() {
   const [blockTime, setBlockTime] = useState("");
   const [blockReason, setBlockReason] = useState("");
 
-  function getAuthHeader() {
-    const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") ?? "" : "";
-    return { Authorization: `Bearer ${token}` };
-  }
-
   const fetchData = useCallback(async () => {
-    const authHeader = getAuthHeader();
     const [bookingsRes, blockedRes] = await Promise.all([
-      fetch("/api/bookings", { headers: authHeader }),
-      fetch("/api/admin/blocked-slots", { headers: authHeader }),
+      fetch("/api/bookings", { credentials: "include" }),
+      fetch("/api/admin/blocked-slots", { credentials: "include" }),
     ]);
     if (bookingsRes.ok) setBookings(await bookingsRes.json());
     if (blockedRes.ok) setBlockedSlots(await blockedRes.json());
@@ -74,7 +68,8 @@ export default function CalendarPage() {
     if (!blockDate) return;
     await fetch("/api/admin/blocked-slots", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeader() },
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ date: blockDate, timeSlot: blockTime || null, reason: blockReason || null }),
     });
     setShowBlockModal(false);
@@ -87,7 +82,8 @@ export default function CalendarPage() {
   async function unblock(id: string) {
     await fetch("/api/admin/blocked-slots", {
       method: "DELETE",
-      headers: { "Content-Type": "application/json", ...getAuthHeader() },
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ id }),
     });
     fetchData();

@@ -23,7 +23,7 @@ interface Lead {
 }
 
 function authHeaders() {
-  return { Authorization: `Bearer ${localStorage.getItem("admin_token")}` };
+  return { "Content-Type": "application/json" };
 }
 
 export default function LeadsPage() {
@@ -48,8 +48,8 @@ export default function LeadsPage() {
     if (filterSource) params.set("source", filterSource);
 
     const [leadsRes, emailsRes] = await Promise.all([
-      fetch(`/api/leads?${params}`, { headers: authHeaders() }),
-      fetch(`/api/admin/emails?status=draft`, { headers: authHeaders() }),
+      fetch(`/api/leads?${params}`, { headers: authHeaders(), credentials: "include" }),
+      fetch(`/api/admin/emails?status=draft`, { headers: authHeaders(), credentials: "include" }),
     ]);
 
     if (leadsRes.ok) {
@@ -74,7 +74,7 @@ export default function LeadsPage() {
     }
     setExpandedId(lead.id);
     if (lead.conversation_id) {
-      const res = await fetch(`/api/conversations/${lead.conversation_id}`, { headers: authHeaders() });
+      const res = await fetch(`/api/conversations/${lead.conversation_id}`, { headers: authHeaders(), credentials: "include" });
       if (res.ok) setConversation(await res.json());
     } else {
       setConversation(null);
@@ -82,10 +82,10 @@ export default function LeadsPage() {
   }
 
   async function sendDraftEmail(emailId: string, leadId: string) {
-    const token = localStorage.getItem("admin_token") ?? "";
     const res = await fetch(`/api/admin/emails/${emailId}/send`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: authHeaders(),
+      credentials: "include",
     });
     if (!res.ok) {
       alert("Failed to send email. Please try again.");
@@ -99,10 +99,10 @@ export default function LeadsPage() {
   async function regenerateSummary(leadId: string) {
     setRegenerating(leadId);
     try {
-      const token = localStorage.getItem("admin_token") ?? "";
       const res = await fetch(`/api/admin/leads/${leadId}/summarize`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: authHeaders(),
+        credentials: "include",
       });
       const data = await res.json();
       setLeads((prev) =>
@@ -361,6 +361,7 @@ function AddLeadModal({ isOpen, onClose, onAdded }: { isOpen: boolean; onClose: 
     await fetch("/api/leads", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ name, email, phone }),
     });
     setSubmitting(false);
@@ -398,7 +399,7 @@ function UploadCSVModal({ isOpen, onClose, onUploaded }: { isOpen: boolean; onCl
 
     const res = await fetch("/api/leads/upload", {
       method: "POST",
-      headers: authHeaders(),
+      credentials: "include",
       body: formData,
     });
 

@@ -20,10 +20,7 @@ const ROLE_BADGE: Record<AdminUser["role"], string> = {
 };
 
 function authHeaders() {
-  return {
-    Authorization: `Bearer ${typeof window !== "undefined" ? localStorage.getItem("admin_token") ?? "" : ""}`,
-    "Content-Type": "application/json",
-  };
+  return { "Content-Type": "application/json" };
 }
 
 export function AdminUsersSection() {

@@ -54,10 +54,7 @@ const OUTCOME_STYLES: Record<Inquiry["outcome"], string> = {
 };
 
 function authHeaders() {
-  return {
-    Authorization: `Bearer ${localStorage.getItem("admin_token") ?? ""}`,
-    "Content-Type": "application/json",
-  };
+  return { "Content-Type": "application/json" };
 }
 
 export default function AdminInquiriesPage() {

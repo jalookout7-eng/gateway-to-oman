@@ -1,26 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-
-beforeEach(() => {
-  vi.resetModules();
-  vi.unstubAllEnvs();
-});
+import { describe, it, expect } from "vitest";
 
 describe("Token auth", () => {
-  it("returns true for valid token", async () => {
-    vi.stubEnv("ADMIN_TOKEN", "secret123");
-    const { validateToken } = await import("@/lib/auth/token");
-    expect(validateToken("secret123")).toBe(true);
-  });
-
-  it("returns false for invalid token", async () => {
-    vi.stubEnv("ADMIN_TOKEN", "secret123");
-    const { validateToken } = await import("@/lib/auth/token");
-    expect(validateToken("wrong")).toBe(false);
-  });
-
-  it("returns false when ADMIN_TOKEN is not set", async () => {
-    vi.stubEnv("ADMIN_TOKEN", "");
-    const { validateToken } = await import("@/lib/auth/token");
-    expect(validateToken("anything")).toBe(false);
+  it("validateToken is no longer exported from lib/auth/token", async () => {
+    const mod = await import("@/lib/auth/token");
+    expect((mod as Record<string, unknown>).validateToken).toBeUndefined();
   });
 });

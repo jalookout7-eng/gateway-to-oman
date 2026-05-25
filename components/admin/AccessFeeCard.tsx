@@ -4,10 +4,7 @@ import { useEffect, useState } from "react";
 import { Check, Loader2, Banknote } from "lucide-react";
 
 function authHeaders() {
-  return {
-    Authorization: `Bearer ${localStorage.getItem("admin_token")}`,
-    "Content-Type": "application/json",
-  };
+  return { "Content-Type": "application/json" };
 }
 
 export function AccessFeeCard() {
@@ -17,7 +14,7 @@ export function AccessFeeCard() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    fetch("/api/admin/settings/marketplace", { headers: authHeaders() })
+    fetch("/api/admin/settings/marketplace", { headers: authHeaders(), credentials: "include" })
       .then((r) => r.json())
       .then((data) => {
         if (typeof data.marketplace_access_fee_omr === "number") {
@@ -38,6 +35,7 @@ export function AccessFeeCard() {
       const res = await fetch("/api/admin/settings/marketplace", {
         method: "PUT",
         headers: authHeaders(),
+        credentials: "include",
         body: JSON.stringify({ marketplace_access_fee_omr: amount }),
       });
       if (res.ok) {

@@ -16,7 +16,7 @@ interface ConversationDetail extends Conversation {
 }
 
 function authHeaders() {
-  return { Authorization: `Bearer ${localStorage.getItem("admin_token")}` };
+  return { "Content-Type": "application/json" };
 }
 
 export default function ConversationsPage() {
@@ -32,7 +32,7 @@ export default function ConversationsPage() {
       if (filterOutcome) params.set("outcome", filterOutcome);
       if (filterSource) params.set("source", filterSource);
       const qs = params.toString();
-      const res = await fetch(`/api/conversations${qs ? `?${qs}` : ""}`, { headers: authHeaders() });
+      const res = await fetch(`/api/conversations${qs ? `?${qs}` : ""}`, { headers: authHeaders(), credentials: "include" });
       if (res.ok) setConversations(await res.json());
       setLoading(false);
     }
@@ -40,7 +40,7 @@ export default function ConversationsPage() {
   }, [filterOutcome, filterSource]);
 
   async function selectConversation(conv: Conversation) {
-    const res = await fetch(`/api/conversations/${conv.id}`, { headers: authHeaders() });
+    const res = await fetch(`/api/conversations/${conv.id}`, { headers: authHeaders(), credentials: "include" });
     if (res.ok) setSelected(await res.json());
   }
 

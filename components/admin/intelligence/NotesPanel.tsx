@@ -4,7 +4,7 @@ import { Plus, Check, Archive, Trash2 } from "lucide-react";
 
 type Note = { id: string; kind: string; title: string; body: string | null; status: string };
 function authHeaders() {
-  return { Authorization: `Bearer ${typeof window !== "undefined" ? localStorage.getItem("admin_token") ?? "" : ""}`, "Content-Type": "application/json" };
+  return { "Content-Type": "application/json" };
 }
 
 export function NotesPanel() {

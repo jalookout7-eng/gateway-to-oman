@@ -52,7 +52,7 @@ const STATUS_PILL: Record<AdminListing["status"], string> = {
 };
 
 function authHeaders() {
-  return { Authorization: `Bearer ${localStorage.getItem("admin_token")}` };
+  return { "Content-Type": "application/json" };
 }
 
 type CategoryOption = { slug: string; name: string };
@@ -70,7 +70,7 @@ export default function AdminListingsPage() {
   const fetchListings = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/listings", { headers: authHeaders() });
+      const res = await fetch("/api/admin/listings", { headers: authHeaders(), credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
       setListings(data.listings);
@@ -112,7 +112,7 @@ export default function AdminListingsPage() {
   async function updateListing(id: string, body: Record<string, unknown>) {
     const res = await fetch(`/api/admin/listings/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: authHeaders(),
       credentials: "include",
       body: JSON.stringify(body),
     });
@@ -166,6 +166,7 @@ export default function AdminListingsPage() {
       const res = await fetch(`/api/admin/listings/${id}/featured`, {
         method: "PATCH",
         headers: authHeaders(),
+        credentials: "include",
         body: JSON.stringify({ featured: nextFeatured }),
       });
       if (!res.ok) throw new Error("Failed to update featured state");
@@ -482,7 +483,7 @@ function ListingFormModal({
       const method = mode === "create" ? "POST" : "PATCH";
       const res = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json", ...authHeaders() },
+        headers: authHeaders(),
         credentials: "include",
         body: JSON.stringify(payload),
       });

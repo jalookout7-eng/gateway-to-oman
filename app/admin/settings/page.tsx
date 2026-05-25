@@ -8,10 +8,7 @@ import { CollapsibleSection } from "@/components/admin/CollapsibleSection";
 import { AdminUsersSection } from "@/components/admin/AdminUsersSection";
 
 function authHeaders() {
-  return {
-    Authorization: `Bearer ${localStorage.getItem("admin_token")}`,
-    "Content-Type": "application/json",
-  };
+  return { "Content-Type": "application/json" };
 }
 
 const PROVIDERS = [
@@ -44,7 +41,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     async function loadConfig() {
-      const res = await fetch("/api/email/config", { headers: authHeaders() });
+      const res = await fetch("/api/email/config", { headers: authHeaders(), credentials: "include" });
       if (res.ok) {
         const config = await res.json();
         if (config.email_provider) setProvider(config.email_provider);
@@ -92,6 +89,7 @@ export default function SettingsPage() {
     const res = await fetch("/api/email/config", {
       method: "POST",
       headers: authHeaders(),
+      credentials: "include",
       body: JSON.stringify(settings),
     });
 
@@ -104,6 +102,7 @@ export default function SettingsPage() {
     await fetch("/api/email/config", {
       method: "POST",
       headers: authHeaders(),
+      credentials: "include",
       body: JSON.stringify({
         chatbot_greeting: greeting,
         chatbot_auto_open_delay: autoOpenDelay,
@@ -121,6 +120,7 @@ export default function SettingsPage() {
     const res = await fetch("/api/email/test", {
       method: "POST",
       headers: authHeaders(),
+      credentials: "include",
       body: JSON.stringify({ to: testEmail }),
     });
 

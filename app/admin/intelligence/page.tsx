@@ -15,7 +15,7 @@ import { OmarPrecisionCard } from "@/components/admin/intelligence/OmarPrecision
 import { LossReasonsPanel } from "@/components/admin/intelligence/LossReasonsPanel";
 
 function authHeaders() {
-  return { Authorization: `Bearer ${typeof window !== "undefined" ? localStorage.getItem("admin_token") ?? "" : ""}`, "Content-Type": "application/json" };
+  return { "Content-Type": "application/json" };
 }
 
 export default function IntelligencePage() {

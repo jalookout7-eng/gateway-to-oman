@@ -8,7 +8,7 @@ import { ChevronLeft, Printer, Copy, Check } from "lucide-react";
 import { renderOnePagerMarkdown } from "@/lib/intelligence/one-pager";
 
 function authHeaders() {
-  return { Authorization: `Bearer ${typeof window !== "undefined" ? localStorage.getItem("admin_token") ?? "" : ""}`, "Content-Type": "application/json" };
+  return { "Content-Type": "application/json" };
 }
 function periodLabel(month: string | null) {
   if (!month) return "All time";

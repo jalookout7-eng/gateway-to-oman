@@ -34,20 +34,16 @@ type SessionUser = {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [authenticated, setAuthenticated] = useState(false);
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
-  const [token, setToken] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showToken, setShowToken] = useState(false);
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
-  const [mode, setMode] = useState<"email" | "token">("email");
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
-    // Prefer session cookie via /api/auth/me; fall back to localStorage admin_token.
     (async () => {
       try {
         const meRes = await fetch("/api/auth/me", { credentials: "include" });
@@ -56,19 +52,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           if (data.user) {
             setSessionUser(data.user);
             setAuthenticated(true);
-            setChecking(false);
-            return;
           }
         }
       } catch {
-        // fall through to token check
+        // ignore
       }
-      const saved = localStorage.getItem("admin_token");
-      if (saved) {
-        verifyToken(saved);
-      } else {
-        setChecking(false);
-      }
+      setChecking(false);
     })();
   }, []);
 
@@ -91,13 +80,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           applicationServerKey: vapidKey,
         });
 
-        const savedToken = localStorage.getItem("admin_token") ?? "";
         await fetch("/api/admin/push/subscribe", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${savedToken}`,
-          },
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(sub.toJSON()),
         });
       } catch (err) {
@@ -107,35 +93,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     registerPush();
   }, [authenticated]);
-
-  async function verifyToken(t: string) {
-    try {
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: t }),
-      });
-      if (res.ok) {
-        localStorage.setItem("admin_token", t);
-        setAuthenticated(true);
-      } else {
-        localStorage.removeItem("admin_token");
-        setError("Invalid token");
-      }
-    } catch {
-      setError("Connection error");
-    } finally {
-      setChecking(false);
-    }
-  }
-
-  async function handleTokenLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setSigningIn(true);
-    await verifyToken(token);
-    setSigningIn(false);
-  }
 
   async function handleEmailLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -171,10 +128,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         // ignore
       }
     }
-    localStorage.removeItem("admin_token");
     setSessionUser(null);
     setAuthenticated(false);
-    setToken("");
     setEmail("");
     setPassword("");
     router.push("/admin");
@@ -203,95 +158,52 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             />
           </div>
           <h1 className="text-xl font-bold text-navy text-center mt-2">Admin Sign-in</h1>
-          <p className="text-sm text-gray-500 text-center mt-1">
-            {mode === "email" ? "Sign in with your admin account." : "Use the legacy admin token."}
-          </p>
+          <p className="text-sm text-gray-500 text-center mt-1">Sign in with your admin account.</p>
 
-          {mode === "email" ? (
-            <form onSubmit={handleEmailLogin} className="mt-6 space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Email</label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="username"
-                  placeholder="you@example.com"
-                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Password</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="current-password"
-                    placeholder="••••••••"
-                    className="w-full px-4 py-2.5 pr-11 rounded-lg border border-gray-200 text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-navy transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-              {error && <p className="text-red-500 text-sm">{error}</p>}
-              <button
-                type="submit"
-                disabled={signingIn}
-                className="w-full py-3 rounded-lg gold-gradient text-white font-semibold text-sm hover:shadow-lg transition-shadow disabled:opacity-60"
-              >
-                {signingIn ? "Signing in…" : "Sign In"}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleTokenLogin} className="mt-6 space-y-3">
+          <form onSubmit={handleEmailLogin} className="mt-6 space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Email</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="username"
+                placeholder="you@example.com"
+                className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Password</label>
               <div className="relative">
                 <input
-                  type={showToken ? "text" : "password"}
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  placeholder="Admin token"
-                  className="w-full px-4 py-3 pr-11 rounded-lg border border-gray-200 text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  className="w-full px-4 py-2.5 pr-11 rounded-lg border border-gray-200 text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowToken((v) => !v)}
-                  aria-label={showToken ? "Hide token" : "Show token"}
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-navy transition-colors"
                 >
-                  {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {error && <p className="text-red-500 text-sm">{error}</p>}
-              <button
-                type="submit"
-                disabled={signingIn}
-                className="w-full py-3 rounded-lg gold-gradient text-white font-semibold text-sm hover:shadow-lg transition-shadow disabled:opacity-60"
-              >
-                {signingIn ? "Verifying…" : "Sign In with Token"}
-              </button>
-            </form>
-          )}
-
-          <button
-            type="button"
-            onClick={() => {
-              setError("");
-              setMode((m) => (m === "email" ? "token" : "email"));
-            }}
-            className="block mx-auto mt-5 text-xs text-gray-500 hover:text-gold transition-colors"
-          >
-            {mode === "email" ? "Use legacy admin token instead" : "Sign in with email and password"}
-          </button>
+            </div>
+            {error && <p className="text-red-500 text-sm">{error}</p>}
+            <button
+              type="submit"
+              disabled={signingIn}
+              className="w-full py-3 rounded-lg gold-gradient text-white font-semibold text-sm hover:shadow-lg transition-shadow disabled:opacity-60"
+            >
+              {signingIn ? "Signing in…" : "Sign In"}
+            </button>
+          </form>
         </div>
       </div>
     );
