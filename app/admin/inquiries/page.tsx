@@ -92,12 +92,16 @@ export default function AdminInquiriesPage() {
     patch: { outcome?: Inquiry["outcome"]; outcome_reason?: string; omar_grade_correct?: string },
   ) {
     setInquiries((prev) =>
-      prev.map((i) => (i.lead_id === leadId ? { ...i, ...patch, outcome_updated_at: new Date().toISOString() } : i)),
+      prev.map((i) =>
+        i.lead_id === leadId
+          ? { ...i, ...patch, ...(patch.outcome ? { outcome_updated_at: new Date().toISOString() } : {}) }
+          : i,
+      ),
     );
     try {
       await fetch(`/api/admin/inquiries/${leadId}/outcome`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         credentials: "include",
         body: JSON.stringify(patch),
       });
@@ -332,38 +336,45 @@ function InquiryRow({
             </button>
           ))}
 
-          {/* Loss/won reason — shown when the lead is resolved */}
+          {/* Attribution controls — shown once the lead is resolved. The blank
+              placeholder is display-only; selecting it is a no-op (the outcome
+              API does not support clearing a set value via empty string). */}
           {i.outcome !== "pending" && (
-            <select
-              value={i.outcome_reason ?? ""}
-              onChange={(e) => onUpdateAttribution(i.lead_id, { outcome_reason: e.target.value })}
-              className="mt-2 rounded-md border border-gray-200 text-xs px-2 py-1"
-            >
-              <option value="">Reason…</option>
-              {(i.outcome === "converted"
-                ? ["won"]
-                : i.outcome === "rejected"
-                  ? ["lost_not_qualified", "lost_execution", "lost_external", "lost_unresponsive"]
-                  : ["nurturing"]
-              ).map((r) => (
-                <option key={r} value={r}>{r.replace(/_/g, " ")}</option>
-              ))}
-            </select>
-          )}
+            <div className="mt-2 flex flex-wrap gap-2">
+              {/* Loss/won reason */}
+              <select
+                value={i.outcome_reason ?? ""}
+                onChange={(e) => {
+                  if (e.target.value) onUpdateAttribution(i.lead_id, { outcome_reason: e.target.value });
+                }}
+                className="rounded-md border border-gray-200 text-xs px-2 py-1"
+              >
+                <option value="">Reason…</option>
+                {(i.outcome === "converted"
+                  ? ["won"]
+                  : i.outcome === "rejected"
+                    ? ["lost_not_qualified", "lost_execution", "lost_external", "lost_unresponsive"]
+                    : ["nurturing"]
+                ).map((r) => (
+                  <option key={r} value={r}>{r.replace(/_/g, " ")}</option>
+                ))}
+              </select>
 
-          {/* Was Omar's grade right? — independent of the deal result */}
-          {i.outcome !== "pending" && (
-            <select
-              value={i.omar_grade_correct ?? ""}
-              onChange={(e) => onUpdateAttribution(i.lead_id, { omar_grade_correct: e.target.value })}
-              className="mt-2 ml-2 rounded-md border border-gray-200 text-xs px-2 py-1"
-              title="Was Omar's hot/warm/cold read correct?"
-            >
-              <option value="">Omar right?…</option>
-              <option value="yes">Yes</option>
-              <option value="no">No</option>
-              <option value="unsure">Unsure</option>
-            </select>
+              {/* Was Omar's grade right? — independent of the deal result */}
+              <select
+                value={i.omar_grade_correct ?? ""}
+                onChange={(e) => {
+                  if (e.target.value) onUpdateAttribution(i.lead_id, { omar_grade_correct: e.target.value });
+                }}
+                className="rounded-md border border-gray-200 text-xs px-2 py-1"
+                title="Was Omar's hot/warm/cold read correct?"
+              >
+                <option value="">Omar right?…</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+                <option value="unsure">Unsure</option>
+              </select>
+            </div>
           )}
         </div>
       </div>
