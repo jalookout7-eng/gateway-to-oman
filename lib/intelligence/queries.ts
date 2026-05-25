@@ -1,5 +1,5 @@
 import type { Client } from "@libsql/client";
-import { type Tier, outcomeToEffectiveTier, isResolved, movementOf } from "./effective-tier";
+import { type Tier, outcomeToEffectiveTier, isResolved, movementOf, omarVerdict } from "./effective-tier";
 
 const TIERS: Tier[] = ["hot", "warm", "cold"];
 const ENGAGED = new Set(["converted", "contacted"]);
@@ -150,4 +150,55 @@ export async function getTopSource(db: Client, month?: string): Promise<TopSourc
   });
   if (res.rows.length === 0) return null;
   return { source: String(res.rows[0].source), count: Number(res.rows[0].c) };
+}
+
+// ---------------------------------------------------------------------------
+// Omar Precision (attribution-adjusted)
+// ---------------------------------------------------------------------------
+
+export interface OmarPrecision { correct: number; wrong: number; excluded: number; precisionPct: number | null; }
+export interface OmarPrecisionResult { overall: OmarPrecision; byTier: Record<Tier, OmarPrecision>; }
+
+function emptyPrecision(): OmarPrecision { return { correct: 0, wrong: 0, excluded: 0, precisionPct: null }; }
+function pct(p: OmarPrecision): number | null {
+  const denom = p.correct + p.wrong;
+  return denom === 0 ? null : Math.round((p.correct / denom) * 100);
+}
+
+export async function getOmarPrecision(db: Client, month?: string): Promise<OmarPrecisionResult> {
+  const { where, args } = monthClause(month);
+  const res = await db.execute({
+    sql: `SELECT qualification, outcome, outcome_reason, omar_grade_correct FROM leads${where}`,
+    args,
+  });
+  const overall = emptyPrecision();
+  const byTier: Record<Tier, OmarPrecision> = { hot: emptyPrecision(), warm: emptyPrecision(), cold: emptyPrecision() };
+  for (const r of res.rows) {
+    const predicted = String(r.qualification);
+    if (!(TIERS as string[]).includes(predicted)) continue;
+    const tier = predicted as Tier;
+    const verdict = omarVerdict({
+      predicted: tier,
+      outcome: String(r.outcome),
+      outcomeReason: r.outcome_reason as string | null,
+      omarGradeCorrect: r.omar_grade_correct as string | null,
+    });
+    overall[verdict] += 1;
+    byTier[tier][verdict] += 1;
+  }
+  overall.precisionPct = pct(overall);
+  for (const t of TIERS) byTier[t].precisionPct = pct(byTier[t]);
+  return { overall, byTier };
+}
+
+export interface LossReasonCount { reason: string; count: number; }
+
+export async function getLossReasonBreakdown(db: Client, month?: string): Promise<LossReasonCount[]> {
+  const { where, args } = monthClause(month);
+  const clause = where ? `${where} AND outcome_reason IS NOT NULL` : " WHERE outcome_reason IS NOT NULL";
+  const res = await db.execute({
+    sql: `SELECT outcome_reason AS reason, COUNT(*) AS c FROM leads${clause} GROUP BY outcome_reason ORDER BY c DESC`,
+    args,
+  });
+  return res.rows.map((r) => ({ reason: String(r.reason), count: Number(r.c) }));
 }
