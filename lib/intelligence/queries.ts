@@ -53,7 +53,7 @@ function emptyCounts(): TierCounts { return { hot: 0, warm: 0, cold: 0 }; }
 
 export async function getReGradingMatrix(db: Client, month?: string): Promise<ReGrading> {
   const { where, args } = monthClause(month);
-  const res = await db.execute({ sql: `SELECT qualification, outcome FROM leads${where}`, args });
+  const res = await db.execute({ sql: `SELECT qualification, outcome, outcome_reason, omar_grade_correct FROM leads${where}`, args });
   const matrix: Record<Tier, TierCounts> = { hot: emptyCounts(), warm: emptyCounts(), cold: emptyCounts() };
   const summary: ReGrading["summary"] = {
     hot: { promoted: 0, held: 0, demoted: 0, total: 0 },
@@ -64,6 +64,13 @@ export async function getReGradingMatrix(db: Client, month?: string): Promise<Re
     const predicted = String(r.qualification);
     if (!(TIERS as string[]).includes(predicted)) continue;
     const tier = predicted as Tier;
+    const verdict = omarVerdict({
+      predicted: tier,
+      outcome: String(r.outcome),
+      outcomeReason: r.outcome_reason as string | null,
+      omarGradeCorrect: r.omar_grade_correct as string | null,
+    });
+    if (verdict === "excluded") continue; // non-Omar loss / unsure / pending — not a re-grade
     const effective = outcomeToEffectiveTier(String(r.outcome));
     if (!effective) continue; // pending excluded
     matrix[tier][effective] += 1;
