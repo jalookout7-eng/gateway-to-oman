@@ -151,14 +151,15 @@ describe("provider — Anthropic branch", () => {
   });
 });
 
-describe("provider — Groq default (regression guard)", () => {
+describe("provider — Groq explicit routing (regression guard)", () => {
   const originalEnv = { ...process.env };
 
   beforeEach(() => {
     vi.resetModules();
     mockCreate.mockReset();
-    // Ensure Anthropic path is NOT triggered
-    delete process.env.AI_PROVIDER;
+    // Explicitly set Groq as primary so Anthropic path is NOT triggered
+    process.env.AI_PROVIDER = "groq";
+    process.env.AI_PROVIDER_FALLBACK = "";
     delete process.env.ANTHROPIC_API_KEY;
   });
 
@@ -166,7 +167,7 @@ describe("provider — Groq default (regression guard)", () => {
     process.env = { ...originalEnv };
   });
 
-  it("does NOT call Anthropic when AI_PROVIDER is unset (defaults to groq)", async () => {
+  it("does NOT call Anthropic when AI_PROVIDER=groq", async () => {
     // Import the module — if it tries to use Anthropic without a key it would
     // throw. Groq will fail too (no real key), but the test is about routing.
     const { chat } = await import("@/lib/ai/provider");

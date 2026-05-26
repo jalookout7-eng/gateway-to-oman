@@ -109,18 +109,57 @@ async function chatViaAnthropic(messages: ChatMessage[]): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------
+// Failover helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns true for transient errors that warrant a provider failover:
+ * - Network/connection errors (APIConnectionError, ECONNRESET, etc.)
+ * - HTTP 429 (rate-limited), 500–599 (server errors), 529 (Anthropic overloaded)
+ *
+ * Non-transient errors (400, 401, 403, 404) return false — rethrow as-is.
+ */
+function isRetriable(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as { name?: string; code?: string; status?: number; message?: string };
+  if (e.name === "APIConnectionError") return true;
+  if (e.code && ["ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND", "EAI_AGAIN"].includes(e.code)) return true;
+  if (typeof e.message === "string" && /fetch failed|network|timeout/i.test(e.message)) return true;
+  const s = e.status;
+  if (typeof s === "number" && (s === 429 || s === 529 || (s >= 500 && s < 600))) return true;
+  return false;
+}
+
+/**
+ * Routes a chat call to the named provider. Groq path respects AI_BACKEND_MODE.
+ */
+async function callProvider(name: string, messages: ChatMessage[]): Promise<string> {
+  if (name === "anthropic") return chatViaAnthropic(messages);
+  if (name === "groq") {
+    const mode = getBackendMode();
+    if (mode === "groq-direct") return chatViaGroq(messages);
+    return chatViaLiteLLM(messages);
+  }
+  throw new Error(`Unknown AI provider: ${name}`);
+}
+
+// ---------------------------------------------------------------------------
 // Public entry point (unchanged signature)
 // ---------------------------------------------------------------------------
 
 export async function chat(messages: ChatMessage[]): Promise<string> {
-  const provider = process.env.AI_PROVIDER ?? "groq";
-
-  if (provider === "anthropic") {
-    return chatViaAnthropic(messages);
+  const primary = process.env.AI_PROVIDER ?? "anthropic";
+  const fallback = process.env.AI_PROVIDER_FALLBACK ?? "groq";
+  try {
+    return await callProvider(primary, messages);
+  } catch (err) {
+    if (fallback && fallback !== primary && isRetriable(err)) {
+      const e = err as { name?: string; status?: number; message?: string };
+      console.warn(
+        `[ai] primary "${primary}" failed (${e?.status ?? e?.name ?? "unknown"}: ${e?.message ?? ""}); failing over to "${fallback}"`,
+      );
+      return await callProvider(fallback, messages);
+    }
+    throw err;
   }
-
-  // Default: Groq (groq-direct or litellm-proxy)
-  const mode = getBackendMode();
-  if (mode === "groq-direct") return chatViaGroq(messages);
-  return chatViaLiteLLM(messages);
 }
