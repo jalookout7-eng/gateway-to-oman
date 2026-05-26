@@ -2,7 +2,7 @@
 
 **Prepared by:** JA (Developer)
 **Prepared for:** Ahmed Al-Azizi — Al Azizi Group
-**Last Updated:** May 24, 2026
+**Last Updated:** May 26, 2026
 **Live URL:** https://gateway-to-oman.vercel.app
 **Marketplace landing:** https://gateway-to-oman.vercel.app/businesses
 **Marketplace grid:** https://gateway-to-oman.vercel.app/businesses/listings
@@ -700,7 +700,7 @@ Cause: the KB-heavy businesses system prompt (~7k tokens) exceeds the **Groq fre
   - ⚠️ **POST-DEPLOY: click-test the admin** (auth changed). Log in fresh (email/password — token field is gone), confirm every admin section loads (not 401), owner-only Intelligence/Omar-phase work for the owner and 403 for non-owners, and admin mutations succeed.
 
 **Pending / open:**
-- **Compliance & privacy** — not started; see Section 12. (Next batch — needs a brief design pass first.)
+- **Compliance & privacy (Batch 3)** — design APPROVED 2026-05-26. Scope locked: 3 pages (`/privacy`, `/terms`, `/cookies`) + footer links (main + `/businesses`) + required sign-up consent checkbox + passive consent line on lead/access/contact forms + data-rights email contact. **Complete wording** (no DRAFT watermark — JA + Ahmed + lawyer will review). Cookie *banner* and marketing-consent **deferred** (only session-only cookies; no newsletter yet). No DB/migration. Bundles onto `section-b-marketplace`. Build pending. See §12. **Awaiting from Ahmed/JA:** legal entity name + CR number + registered Oman address + official privacy contact email (otherwise inserted as `[bracketed]` fill-ins for lawyer to drop in).
 - **Remaining security items (lower priority):** M-2 Google `id_token` signature/claims verification (Google OAuth not live yet — needs credentials); `npm audit fix` (dev-only vulns — run separately to avoid lockfile churn in this deploy); L-1 SameSite-strict admin cookie; L-5 mask email creds in admin UI; I-4 `cover_image_url` validation. See §14.
 - **Chatbot model upgrade / Groq paid tier** — Section 13. (Also the fix for the live businesses-500 issue above.)
 - **Cloudflare media uploads** — admin photo/video upload → Cloudflare (R2 for images / Stream for video) → URL stored on the listing → frontend renders at 16:9 with `object-fit: contain` + blurred backdrop (no stretch). Blocked on Cloudflare account + API token; then build the upload UI + API route + listing media field. (The upload option is absent because it isn't built yet — Cloudflare is the chosen storage backend for when it is.)
@@ -709,7 +709,36 @@ Cause: the KB-heavy businesses system prompt (~7k tokens) exceeds the **Groq fre
 - **Meeting-notes audit** (Thread 2 item 3) — not started.
 - **Repo hygiene:** `master` is ~57 commits behind `section-b-marketplace`; production deploys from the local `section-b` checkout (not `master`), so this is cosmetic — left as-is.
 
-## 12. Compliance & Privacy Requirements (pending)
+## 12. Compliance & Privacy Requirements
+
+**✅ DESIGN APPROVED 2026-05-26 — build pending (Batch 3).** Scope locked to the "standard set" (full design below). Wording will be **complete and final-form** (no DRAFT watermark) — JA / Ahmed / lawyer will run final review. Only company-specific facts are left as `[bracketed]` fill-ins.
+
+### Approved scope (build target)
+**Three new top-level pages** (shared clean legal-page styling, each carrying an effective date):
+- **`/privacy` — Privacy Policy** — controller identity; what data we collect (names, emails, phones, messages, chat transcripts, lead/marketplace data, IP); how & why (consent / contract / legitimate interest); **sub-processors named**: Vercel (hosting), Turso (database, Tokyo region), **Groq (AI — receives chat content)**, Google (OAuth), email provider; honest "the team can see what you submit" disclosure; international transfers; retention; security (bcrypt, HttpOnly cookies, HTTPS); **rights** under **Oman PDPL + GDPR** (access / correction / deletion / objection / withdraw consent / complain); contact for rights requests; children; cookies link; changes; contact.
+- **`/terms` — Terms of Service** — acceptance; service description; eligibility; accounts; acceptable use; **marketplace disclaimer** (GTO facilitates, isn't party to sales, buyer due diligence, access-fee terms); **AI chatbot disclaimer** (general info, not professional advice); IP; liability limits; indemnity; **governing law = Oman**; changes; contact.
+- **`/cookies` — Cookie Notice** — strictly-necessary session cookies only (admin session, marketplace session, OAuth state); what each does; no banner needed today; browser-controls + disabling breaks login; statement that a banner will be added if analytics/marketing cookies are introduced later.
+
+**Wiring:**
+- **Footer links** (Privacy · Terms · Cookies) on the main site AND `/businesses`.
+- **Required consent checkbox** on the marketplace **sign-up** form (unticked by default; links Privacy + Terms; submit blocked until checked).
+- **Passive consent line** ("By submitting, you agree to our Privacy Policy and Terms.") on the lead-capture, access-request, and contact forms.
+- **Data-rights path:** stated contact email in the Privacy Policy (minimum PDPL/GDPR requirement) — no automated tooling.
+
+### Out of scope this pass (intentional — revisit when triggers appear)
+- **Cookie consent banner** — only needed if non-essential cookies (analytics/marketing) are introduced; current cookies are strictly necessary.
+- **Marketing-consent + unsubscribe wiring** — only needed when the cold-lead newsletter goes live.
+
+### Fill-ins needed from Ahmed / JA (for finished, non-bracketed copy)
+1. **Legal entity name** (e.g. "Al Azizi Group LLC" — exact registered form)
+2. **Commercial Registration (CR) number**
+3. **Registered Oman address**
+4. **Official privacy/legal contact email** (use `gatewaytooman@gmail.com` or a dedicated alias?)
+
+If not supplied at build time, those exact spots get clear `[bracketed]` placeholders for the lawyer/client to drop in; everything else is final-form.
+
+### Reference (still applies — moved below the design)
+
 
 **Password assurance (already true in code):** marketplace passwords are **bcrypt-hashed (cost 12)**; plaintext is never stored. No one — admins or anyone with a DB dump — can read or recover a password; the system only verifies a login. Google sign-in users have no password at all.
 
@@ -754,8 +783,10 @@ Internal first-pass audit (not a professional pentest). **Full findings + remedi
 
 ---
 
-**Document Version:** 7.9
-**Last Updated:** May 25, 2026
+**Document Version:** 7.10
+**Last Updated:** May 26, 2026
+
+*v7.10 — Compliance (Batch 3) design APPROVED. Scope: 3 legal pages (`/privacy`, `/terms`, `/cookies`) + footer links on main + `/businesses` + required marketplace sign-up consent checkbox + passive consent lines on lead/access/contact forms + data-rights email contact (Oman PDPL + GDPR, sub-processors incl. Groq). Wording will be **complete (no DRAFT watermark)** — JA + Ahmed + lawyer review. Cookie banner + marketing-consent deferred (only session-only cookies; no newsletter live). No DB/migration; bundles onto `section-b-marketplace`. Build pending — see §12. Awaiting from Ahmed/JA: legal entity name + CR + registered Oman address + privacy contact email (otherwise inserted as `[bracketed]` fill-ins).*
 
 *v7.9 — Security batch BUILT (audit §14 priorities 1–4). On `section-b-marketplace`, bundled with Batch 1 (IV2 + chat fallback) into ONE deploy: quick wins (OTP CSPRNG, `/api/leads` RETURNING id, security headers, timing-safe CRON_SECRET, LIMIT bind, generic email-test error); **legacy ADMIN_TOKEN retired → cookie-only admin auth** (`requireAuth` cookie-only, `validateToken` + `/api/auth` removed, 21 files to `credentials:"include"`); **owner-only gate** (`requireOwner`) on intelligence + omar-phase; **Turso-backed rate limiting** + chat input caps + access-request dedupe (fail-open). 127/127 tests pass; clean build; final security review APPROVED — READY TO SHIP. ⚠️ Deploy: `npm run migrate` FIRST (creates IV2 columns + `rate_limits` table), THEN `vercel deploy --prod`; then **click-test the admin** (auth changed). Remaining audit items: M-2 Google id_token (OAuth not live), `npm audit fix` (dev-only), L/I hygiene.*
 
