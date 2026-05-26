@@ -12,6 +12,7 @@
     "migrate": "tsx scripts/migrate.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.98.0",
     "@libsql/client": "^0.17.2",
     "bcryptjs": "^3.0.3",
     "framer-motion": "^12.38.0",
