@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { getListingBySlug } from "@/lib/businesses/queries";
 import { getCurrentMarketplaceUser } from "@/lib/auth/marketplace-server";
@@ -62,14 +63,31 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
 
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8">
         <div className="space-y-6">
-          <div className={`relative aspect-[16/9] overflow-hidden rounded-xl bg-gradient-to-br ${gradient}`}>
+          {/* Cover image — blurred backdrop + contained foreground */}
+          <div
+            className={`relative aspect-[16/9] overflow-hidden rounded-xl bg-gradient-to-br ${gradient}`}
+          >
             {listing.cover_image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={listing.cover_image_url}
-                alt={listing.title}
-                className="h-full w-full object-cover"
-              />
+              <>
+                {/* Blurred backdrop fills the container */}
+                <Image
+                  src={listing.cover_image_url}
+                  alt=""
+                  fill
+                  className="object-cover blur-2xl scale-110 opacity-60"
+                  aria-hidden="true"
+                  sizes="(max-width: 1024px) 100vw, 60vw"
+                />
+                {/* Actual image contained (no cropping) */}
+                <Image
+                  src={listing.cover_image_url}
+                  alt={listing.title}
+                  fill
+                  className="object-contain relative"
+                  sizes="(max-width: 1024px) 100vw, 60vw"
+                  priority
+                />
+              </>
             ) : (
               <div className="flex h-full items-center justify-center">
                 <Briefcase className="h-24 w-24 text-gray-400/40" strokeWidth={1.25} />
@@ -79,6 +97,44 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               <StatusBadge status={listing.status} />
             </div>
           </div>
+
+          {/* Video player */}
+          {listing.video_url && (
+            <div className="relative aspect-[16/9] overflow-hidden rounded-xl bg-black">
+              <video
+                src={listing.video_url}
+                controls
+                preload="metadata"
+                className="h-full w-full object-contain"
+              />
+            </div>
+          )}
+
+          {/* Gallery strip */}
+          {listing.gallery_urls && listing.gallery_urls.length > 0 && (
+            <div>
+              <h2 className="font-heading text-lg font-semibold text-navy mb-3">Gallery</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {listing.gallery_urls.map((imgUrl, i) => (
+                  <a
+                    key={imgUrl}
+                    href={imgUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="relative aspect-square overflow-hidden rounded-lg bg-gray-100 ring-1 ring-gray-200 hover:ring-gold transition-all"
+                  >
+                    <Image
+                      src={imgUrl}
+                      alt={`${listing.title} — photo ${i + 1}`}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 640px) 50vw, 25vw"
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div>
             <span className="inline-flex items-center gap-1.5 rounded-md bg-gold/10 px-2.5 py-1 text-xs font-semibold text-gold-dark">

@@ -1,6 +1,17 @@
 import { getDb } from "@/lib/db/client";
 import type { Category, Listing, ListingFilters } from "./types";
 
+function parseGalleryJson(raw: string | null): string[] | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed as string[];
+  } catch {
+    // malformed JSON — treat as empty
+  }
+  return null;
+}
+
 function rowToListing(row: Record<string, unknown>): Listing {
   return {
     id: row.id as string,
@@ -27,6 +38,7 @@ function rowToListing(row: Record<string, unknown>): Listing {
     full_detail_text: (row.full_detail_text as string | null) ?? null,
     cover_image_url: (row.cover_image_url as string | null) ?? null,
     gallery_json: (row.gallery_json as string | null) ?? null,
+    gallery_urls: parseGalleryJson((row.gallery_json as string | null) ?? null),
     video_url: (row.video_url as string | null) ?? null,
     status: row.status as Listing["status"],
     published: Number(row.published) === 1,

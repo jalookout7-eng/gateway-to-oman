@@ -25,6 +25,8 @@ export type Listing = {
   full_detail_text: string | null;
   cover_image_url: string | null;
   gallery_json: string | null;
+  /** Parsed from gallery_json. Populated by rowToListing mapper. */
+  gallery_urls: string[] | null;
   video_url: string | null;
   status: ListingStatus;
   published: boolean;

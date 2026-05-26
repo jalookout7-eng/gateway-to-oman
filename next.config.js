@@ -6,6 +6,23 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'images.pexels.com',
       },
+      // Cloudflare R2 direct endpoint (server-side uploads; requires auth in browser
+      // unless bucket is public — set R2_PUBLIC_BASE_URL in production).
+      {
+        protocol: 'https',
+        hostname: '*.r2.cloudflarestorage.com',
+      },
+      // Cloudflare R2.dev public subdomain (enabled in R2 bucket settings).
+      {
+        protocol: 'https',
+        hostname: '*.r2.dev',
+      },
+      // TODO: add custom domain entry when Ahmed binds media.gatewaytooman.com.
+      // Example:
+      // {
+      //   protocol: 'https',
+      //   hostname: 'media.gatewaytooman.com',
+      // },
     ],
   },
   // I-5: Security headers applied to all routes.

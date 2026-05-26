@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Search,
   Plus,
@@ -18,6 +19,9 @@ import {
   CheckCircle2,
   Pause,
   Pencil,
+  Upload,
+  Video,
+  Images,
 } from "lucide-react";
 import { formatOMR, formatPriceRange } from "@/lib/businesses/format";
 import { AccessFeeCard } from "@/components/admin/AccessFeeCard";
@@ -43,6 +47,9 @@ type AdminListing = {
   category_slug: string;
   category_name: string;
   inquiry_count: number;
+  cover_image_url?: string | null;
+  gallery_urls?: string[] | null;
+  video_url?: string | null;
 };
 
 const STATUS_PILL: Record<AdminListing["status"], string> = {
@@ -448,6 +455,63 @@ function ListingFormModal({
   const [error, setError] = useState("");
   const firstFieldRef = useRef<HTMLInputElement>(null);
 
+  // Media state (edit mode only)
+  const [coverUrl, setCoverUrl] = useState<string | null>(initial?.cover_image_url ?? null);
+  const [galleryUrls, setGalleryUrls] = useState<string[]>(initial?.gallery_urls ?? []);
+  const [videoUrl, setVideoUrl] = useState<string | null>(initial?.video_url ?? null);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [galleryUploading, setGalleryUploading] = useState(false);
+  const [videoUploading, setVideoUploading] = useState(false);
+  const [coverError, setCoverError] = useState("");
+  const [galleryError, setGalleryError] = useState("");
+  const [videoError, setVideoError] = useState("");
+
+  async function uploadMedia(files: FileList | null, kind: "cover" | "gallery" | "video") {
+    if (!files || files.length === 0 || !initial?.id) return;
+    const setUploading = kind === "cover" ? setCoverUploading : kind === "gallery" ? setGalleryUploading : setVideoUploading;
+    const setErr = kind === "cover" ? setCoverError : kind === "gallery" ? setGalleryError : setVideoError;
+    setUploading(true);
+    setErr("");
+    try {
+      const fd = new FormData();
+      fd.append("kind", kind);
+      for (let i = 0; i < files.length; i++) fd.append("file", files[i]);
+      const res = await fetch(`/api/admin/listings/${initial.id}/media`, {
+        method: "POST",
+        credentials: "include",
+        body: fd,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setErr(data.error ?? "Upload failed"); return; }
+      setCoverUrl(data.cover_image_url ?? null);
+      setGalleryUrls(data.gallery_urls ?? []);
+      setVideoUrl(data.video_url ?? null);
+    } catch {
+      setErr("Connection error");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function removeMedia(urlOrKey: string, kind: "cover" | "gallery" | "video") {
+    if (!initial?.id) return;
+    const setErr = kind === "cover" ? setCoverError : kind === "gallery" ? setGalleryError : setVideoError;
+    setErr("");
+    try {
+      const res = await fetch(
+        `/api/admin/listings/${initial.id}/media?key=${encodeURIComponent(urlOrKey)}&kind=${kind}`,
+        { method: "DELETE", credentials: "include" },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setErr(data.error ?? "Remove failed"); return; }
+      setCoverUrl(data.cover_image_url ?? null);
+      setGalleryUrls(data.gallery_urls ?? []);
+      setVideoUrl(data.video_url ?? null);
+    } catch {
+      setErr("Connection error");
+    }
+  }
+
   useEffect(() => {
     firstFieldRef.current?.focus();
     if (!categorySlug && categories.length > 0) setCategorySlug(categories[0].slug);
@@ -635,6 +699,130 @@ function ListingFormModal({
               className="input resize-none"
             />
           </Field>
+
+          {/* ----------------------------------------------------------------
+              Media upload — edit mode only (listing must exist to have an id)
+          ---------------------------------------------------------------- */}
+          {mode === "edit" ? (
+            <div className="space-y-4 border-t border-gray-100 pt-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                <Upload className="h-3.5 w-3.5" />
+                Media
+              </p>
+
+              {/* Cover image */}
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-gray-600 block">Cover image</span>
+                {coverUrl && (
+                  <div className="flex items-start gap-3">
+                    <div className="relative h-20 w-32 rounded-lg overflow-hidden ring-1 ring-gray-200 bg-gray-50 flex-shrink-0">
+                      <Image src={coverUrl} alt="Cover" fill className="object-cover" sizes="128px" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeMedia(coverUrl, "cover")}
+                      className="rounded-md px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 border border-red-200 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+                <label className="inline-flex items-center gap-2 cursor-pointer rounded-md border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-600 hover:border-gold hover:text-gold transition-colors">
+                  <Upload className="h-3.5 w-3.5" />
+                  {coverUrl ? "Replace cover" : "Upload cover"}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    disabled={coverUploading}
+                    onChange={(e) => uploadMedia(e.target.files, "cover")}
+                  />
+                </label>
+                {coverUploading && <p className="text-xs text-gray-500 animate-pulse">Uploading…</p>}
+                {coverError && <p className="text-xs text-red-500">{coverError}</p>}
+              </div>
+
+              {/* Gallery */}
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
+                  <Images className="h-3.5 w-3.5" />
+                  Gallery ({galleryUrls.length}/10)
+                </span>
+                {galleryUrls.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {galleryUrls.map((url) => (
+                      <div key={url} className="relative group">
+                        <div className="relative h-16 w-16 rounded-lg overflow-hidden ring-1 ring-gray-200 bg-gray-50">
+                          <Image src={url} alt="" fill className="object-cover" sizes="64px" />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeMedia(url, "gallery")}
+                          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                          title="Remove"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {galleryUrls.length < 10 && (
+                  <label className="inline-flex items-center gap-2 cursor-pointer rounded-md border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-600 hover:border-gold hover:text-gold transition-colors">
+                    <Upload className="h-3.5 w-3.5" />
+                    Add images
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      multiple
+                      className="sr-only"
+                      disabled={galleryUploading}
+                      onChange={(e) => uploadMedia(e.target.files, "gallery")}
+                    />
+                  </label>
+                )}
+                {galleryUploading && <p className="text-xs text-gray-500 animate-pulse">Uploading…</p>}
+                {galleryError && <p className="text-xs text-red-500">{galleryError}</p>}
+              </div>
+
+              {/* Video */}
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
+                  <Video className="h-3.5 w-3.5" />
+                  Video
+                </span>
+                {videoUrl && (
+                  <div className="space-y-2">
+                    <video src={videoUrl} controls preload="metadata" className="w-full max-h-40 rounded-lg bg-black" />
+                    <button
+                      type="button"
+                      onClick={() => removeMedia(videoUrl, "video")}
+                      className="rounded-md px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 border border-red-200 transition-colors"
+                    >
+                      Remove video
+                    </button>
+                  </div>
+                )}
+                <label className="inline-flex items-center gap-2 cursor-pointer rounded-md border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-600 hover:border-gold hover:text-gold transition-colors">
+                  <Upload className="h-3.5 w-3.5" />
+                  {videoUrl ? "Replace video" : "Upload video (MP4/WebM, max 50 MB)"}
+                  <input
+                    type="file"
+                    accept="video/mp4,video/webm"
+                    className="sr-only"
+                    disabled={videoUploading}
+                    onChange={(e) => uploadMedia(e.target.files, "video")}
+                  />
+                </label>
+                {videoUploading && <p className="text-xs text-gray-500 animate-pulse">Uploading…</p>}
+                {videoError && <p className="text-xs text-red-500">{videoError}</p>}
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400 border-t border-gray-100 pt-4">
+              Save the listing first, then add media from Edit.
+            </p>
+          )}
 
           {error && <p className="text-sm text-red-500">{error}</p>}
         </div>
