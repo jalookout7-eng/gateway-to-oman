@@ -143,6 +143,7 @@ function SignUpForm({
   const [password, setPassword] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
   const [showPw, setShowPw] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -278,9 +279,30 @@ function SignUpForm({
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 
+      <label className="flex items-start gap-2 text-xs text-gray-600 leading-snug">
+        <input
+          type="checkbox"
+          required
+          checked={agreed}
+          onChange={(e) => setAgreed(e.target.checked)}
+          className="mt-0.5 h-4 w-4 rounded border-gray-300 text-gold focus:ring-gold/30"
+        />
+        <span>
+          I agree to the{" "}
+          <Link href="/privacy" className="text-gold underline">
+            Privacy Policy
+          </Link>{" "}
+          and{" "}
+          <Link href="/terms" className="text-gold underline">
+            Terms of Service
+          </Link>.{" "}
+          <span className="text-gray-400">Required.</span>
+        </span>
+      </label>
+
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || !agreed}
         className="w-full rounded-lg gold-gradient px-5 py-3 text-base font-semibold text-white shadow-sm hover:shadow-lg transition-shadow disabled:opacity-60"
       >
         {submitting ? "Sending code…" : "Create account"}
