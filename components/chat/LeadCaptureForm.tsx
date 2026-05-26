@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -106,6 +107,11 @@ export function LeadCaptureForm({
       >
         {submitting ? "Connecting..." : "Get in touch"}
       </Button>
+      <p className="mt-3 text-[11px] text-gray-400 leading-snug">
+        By submitting, you agree to our{" "}
+        <Link href="/privacy" className="underline hover:text-navy">Privacy Policy</Link> and{" "}
+        <Link href="/terms" className="underline hover:text-navy">Terms</Link>.
+      </p>
     </motion.form>
   );
 }

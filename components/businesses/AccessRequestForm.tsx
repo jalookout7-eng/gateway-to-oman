@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { CheckCircle2, Loader2 } from "lucide-react";
 
 export function AccessRequestForm({ referredListingSlug }: { referredListingSlug?: string }) {
@@ -121,8 +122,10 @@ export function AccessRequestForm({ referredListingSlug }: { referredListingSlug
         )}
       </button>
 
-      <p className="text-xs text-gray-500 text-center">
-        By submitting, you agree to be contacted by Gateway to Oman regarding marketplace access.
+      <p className="mt-3 text-[11px] text-gray-400 leading-snug">
+        By submitting, you agree to our{" "}
+        <Link href="/privacy" className="underline hover:text-navy">Privacy Policy</Link> and{" "}
+        <Link href="/terms" className="underline hover:text-navy">Terms</Link>.
       </p>
     </form>
   );
