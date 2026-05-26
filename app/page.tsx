@@ -9,21 +9,25 @@ import { Opportunities } from "@/components/landing/Opportunities";
 import { WhyWorkWithUs } from "@/components/landing/WhyWorkWithUs";
 import { FounderMission } from "@/components/landing/FounderMission";
 import { ContactCTA } from "@/components/landing/ContactCTA";
+import { Footer } from "@/components/landing/Footer";
 
 export default function Home() {
   return (
-    <main>
-      <Navbar />
-      <Hero />
-      <WhyOman />
-      <Sectors />
-      <TrackRecord />
-      <WhoWeHelp />
-      <CoreServices />
-      <Opportunities />
-      <WhyWorkWithUs />
-      <FounderMission />
-      <ContactCTA />
-    </main>
+    <>
+      <main>
+        <Navbar />
+        <Hero />
+        <WhyOman />
+        <Sectors />
+        <TrackRecord />
+        <WhoWeHelp />
+        <CoreServices />
+        <Opportunities />
+        <WhyWorkWithUs />
+        <FounderMission />
+        <ContactCTA />
+      </main>
+      <Footer />
+    </>
   );
 }

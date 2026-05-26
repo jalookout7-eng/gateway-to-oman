@@ -22,6 +22,11 @@ export default function BusinessesLayout({ children }: { children: React.ReactNo
             </a>{" "}
             for immigration and investment advisory.
           </p>
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+            <a href="/privacy" className="hover:text-gold transition-colors">Privacy Policy</a>
+            <a href="/terms" className="hover:text-gold transition-colors">Terms of Service</a>
+            <a href="/cookies" className="hover:text-gold transition-colors">Cookie Notice</a>
+          </div>
         </div>
       </footer>
     </div>
