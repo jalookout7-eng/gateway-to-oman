@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
@@ -16,6 +15,7 @@ interface Lead {
   interests: string | null;
   qualification: string | null;
   status: string | null;
+  admin_notes: string | null;
   conversation_id: string | null;
   created_at: string;
   ai_summary?: string | null;
@@ -24,6 +24,25 @@ interface Lead {
 
 function authHeaders() {
   return { "Content-Type": "application/json" };
+}
+
+async function updateLead(
+  leadId: string,
+  patch: Partial<Pick<Lead, "status" | "qualification" | "segment" | "admin_notes">>,
+  setLeads: React.Dispatch<React.SetStateAction<Lead[]>>,
+) {
+  // Optimistic update
+  setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, ...patch } : l)));
+  try {
+    await fetch(`/api/admin/leads/${leadId}`, {
+      method: "PATCH",
+      headers: authHeaders(),
+      credentials: "include",
+      body: JSON.stringify(patch),
+    });
+  } catch {
+    // optimistic update already applied; a reload re-syncs
+  }
 }
 
 export default function LeadsPage() {
@@ -228,27 +247,54 @@ export default function LeadsPage() {
                     <td className="px-4 py-3 text-gray-600">
                       {lead.country_code && lead.phone ? `${lead.country_code} ${lead.phone}` : lead.phone ?? "—"}
                     </td>
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      {lead.segment ? (
-                        <Badge variant={lead.segment as "entrepreneur" | "investor" | "professional" | "retiree"}>
-                          {lead.segment}
-                        </Badge>
-                      ) : "—"}
+                    <td className="px-4 py-3 hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
+                      <select
+                        value={lead.segment ?? ""}
+                        onChange={(e) => {
+                          const val = e.target.value as Lead["segment"];
+                          if (val !== lead.segment) updateLead(lead.id, { segment: val }, setLeads);
+                        }}
+                        className="text-xs rounded border border-gray-200 bg-white px-1.5 py-1"
+                      >
+                        <option value="">—</option>
+                        <option value="entrepreneur">entrepreneur</option>
+                        <option value="investor">investor</option>
+                        <option value="professional">professional</option>
+                        <option value="retiree">retiree</option>
+                      </select>
                     </td>
                     <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{lead.interests ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      {lead.qualification ? (
-                        <Badge variant={lead.qualification as "hot" | "warm" | "cold"}>
-                          {lead.qualification}
-                        </Badge>
-                      ) : "—"}
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <select
+                        value={lead.qualification ?? ""}
+                        onChange={(e) => {
+                          const val = e.target.value as Lead["qualification"];
+                          if (val !== lead.qualification) updateLead(lead.id, { qualification: val }, setLeads);
+                        }}
+                        className="text-xs rounded border border-gray-200 bg-white px-1.5 py-1"
+                      >
+                        <option value="">—</option>
+                        <option value="hot">hot</option>
+                        <option value="warm">warm</option>
+                        <option value="cold">cold</option>
+                      </select>
                     </td>
-                    <td className="px-4 py-3">
-                      {lead.status ? (
-                        <Badge variant={lead.status as "new" | "contacted" | "converted" | "closed" | "in_progress"}>
-                          {lead.status}
-                        </Badge>
-                      ) : "—"}
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <select
+                        value={lead.status ?? ""}
+                        onChange={(e) => {
+                          const val = e.target.value as Lead["status"];
+                          if (val !== lead.status) updateLead(lead.id, { status: val }, setLeads);
+                        }}
+                        className="text-xs rounded border border-gray-200 bg-white px-1.5 py-1"
+                      >
+                        <option value="">—</option>
+                        <option value="new">new</option>
+                        <option value="contacted">contacted</option>
+                        <option value="in_progress">in_progress</option>
+                        <option value="converted">converted</option>
+                        <option value="closed">closed</option>
+                      </select>
                     </td>
                     <td className="px-4 py-3 text-gray-500">
                       {new Date(lead.created_at).toLocaleDateString()}
@@ -287,6 +333,11 @@ export default function LeadsPage() {
                           ) : (
                             <p className="text-sm text-gray-400 italic">No summary yet.</p>
                           )}
+                          <AdminNotesField
+                            leadId={lead.id}
+                            initialValue={lead.admin_notes ?? ""}
+                            setLeads={setLeads}
+                          />
                           {lead.pendingEmail && (
                             <div className="mt-4 border-t border-gray-100 pt-4">
                               <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">Email Pending Approval</p>
@@ -344,6 +395,38 @@ export default function LeadsPage() {
         isOpen={showUploadModal}
         onClose={() => setShowUploadModal(false)}
         onUploaded={fetchLeads}
+      />
+    </div>
+  );
+}
+
+function AdminNotesField({
+  leadId,
+  initialValue,
+  setLeads,
+}: {
+  leadId: string;
+  initialValue: string;
+  setLeads: React.Dispatch<React.SetStateAction<Lead[]>>;
+}) {
+  const [value, setValue] = useState(initialValue);
+
+  function handleBlur() {
+    if (value !== initialValue) {
+      updateLead(leadId, { admin_notes: value }, setLeads);
+    }
+  }
+
+  return (
+    <div className="mt-4 border-t border-gray-100 pt-4">
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Admin Notes</p>
+      <textarea
+        rows={2}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={handleBlur}
+        placeholder="Add private notes…"
+        className="w-full text-xs rounded border border-gray-200 bg-white px-2 py-1.5 resize-none focus:outline-none focus:border-gold"
       />
     </div>
   );
