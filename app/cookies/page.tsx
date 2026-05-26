@@ -38,12 +38,6 @@ export default function CookieNoticePage() {
           </thead>
           <tbody>
             <tr>
-              <td><code>gto_admin_session</code></td>
-              <td>Authenticates admin users after sign-in</td>
-              <td>Strictly necessary</td>
-              <td>7 days</td>
-            </tr>
-            <tr>
               <td><code>gto_marketplace_session</code></td>
               <td>Authenticates marketplace users after sign-in</td>
               <td>Strictly necessary</td>

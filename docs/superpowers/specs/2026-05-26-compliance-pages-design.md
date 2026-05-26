@@ -186,9 +186,10 @@ Email: `{COMPANY.privacyContact}`
 
 | Name | Purpose | Type | Lifetime |
 |------|---------|------|----------|
-| `gto_admin_session` | Authenticates admin users after sign-in | Strictly necessary | 7 days |
 | `gto_marketplace_session` | Authenticates marketplace users after sign-in | Strictly necessary | 7 days |
 | Sign-in OAuth state cookie (set briefly during a Google sign-in flow) | Protects against cross-site request forgery during sign-in | Strictly necessary | Minutes — cleared after sign-in completes |
+
+> *Note: the admin session cookie is intentionally not listed — it only applies to internal admin staff who are not the audience of this public notice.*
 
 We do **not** use cookies for advertising, third-party tracking, profiling, or cross-site analytics.
 
