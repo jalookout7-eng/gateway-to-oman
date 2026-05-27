@@ -154,16 +154,24 @@ async function run() {
   }
   console.log(`  ✓ Column list matches live table (${LEADS_COLUMNS.length} columns).`);
 
-  // 4. Wrap rebuild in a transaction.
+  // 4. Run the rebuild as a single libsql batch.
   //
-  // FK enforcement must be OFF for the duration of the rebuild — child tables
-  // (emails, bookings, sellers, inquiries, marketplace_users) have FOREIGN KEY
-  // references to leads(id); dropping the leads table while those references
-  // exist would fail. We preserve every id value, so the child pointers stay
-  // valid after the rebuild — but the DROP itself must not be enforced.
+  // Why a batch instead of separate execute() calls + BEGIN/COMMIT strings:
+  // in libsql HTTP mode, each client.execute() is a stateless HTTP request.
+  // `execute("BEGIN")` opens a transaction on one request; `execute("COMMIT")`
+  // arrives on a different request and finds no active transaction
+  // ("cannot commit - no transaction is active"). client.batch() wraps every
+  // statement in the array into a single server-side transaction so atomicity
+  // actually works.
   //
-  // SQLite hard rule: PRAGMA foreign_keys cannot change inside a transaction —
-  // must be set before BEGIN and restored after COMMIT/ROLLBACK.
+  // FK enforcement: child tables (emails, bookings, sellers, inquiries,
+  // marketplace_users) FK-reference leads(id). Dropping leads while those
+  // references exist would fail FK validation. The rebuild preserves every
+  // id value so child pointers stay valid — we just need to suspend FK
+  // enforcement around the DROP. PRAGMA foreign_keys is allowed only when
+  // not inside an active transaction, so we set it via standalone execute()
+  // calls (which auto-commit, leaving PRAGMA state set for the subsequent
+  // batch).
   const columnNames = LEADS_COLUMNS.join(", ");
 
   console.log("  Disabling FK enforcement for the rebuild window...");
@@ -171,47 +179,33 @@ async function run() {
 
   let rebuildFailed = false;
   try {
-    console.log("  Beginning transaction...");
-    await client.execute("BEGIN");
-    try {
-      // Drop any leftover from a previous failed run
-      await client.execute("DROP TABLE IF EXISTS leads_rebuild");
-
-      await client.execute(newTableSql);
-      console.log("  ✓ Created leads_rebuild (no CHECK constraints).");
-
-      await client.execute(`INSERT INTO leads_rebuild (${columnNames}) SELECT ${columnNames} FROM leads`);
-      const countResult = await client.execute("SELECT COUNT(*) AS n FROM leads_rebuild");
-      const n = Number(countResult.rows[0]?.n ?? 0);
-      console.log(`  ✓ Copied ${n} rows.`);
-
-      await client.execute("DROP TABLE leads");
-      await client.execute("ALTER TABLE leads_rebuild RENAME TO leads");
-      console.log("  ✓ Swapped tables.");
-
-      // Recreate indexes on the new leads table (DROP TABLE removes its indexes)
-      const indexes = [
+    console.log("  Running rebuild as an atomic batch...");
+    await client.batch(
+      [
+        "DROP TABLE IF EXISTS leads_rebuild",
+        newTableSql,
+        `INSERT INTO leads_rebuild (${columnNames}) SELECT ${columnNames} FROM leads`,
+        "DROP TABLE leads",
+        "ALTER TABLE leads_rebuild RENAME TO leads",
         "CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status)",
         "CREATE INDEX IF NOT EXISTS idx_leads_qualification ON leads(qualification)",
         "CREATE INDEX IF NOT EXISTS idx_leads_segment ON leads(segment)",
         "CREATE INDEX IF NOT EXISTS idx_leads_source ON leads(source)",
         "CREATE INDEX IF NOT EXISTS idx_leads_outcome ON leads(outcome)",
         "CREATE INDEX IF NOT EXISTS idx_leads_lead_score ON leads(lead_score)",
-      ];
-      for (const idx of indexes) {
-        await client.execute(idx);
-      }
-      console.log(`  ✓ Recreated ${indexes.length} indexes.`);
+      ],
+      "write",
+    );
+    console.log("  ✓ Batch committed (table rebuilt + indexes recreated).");
 
-      await client.execute("COMMIT");
-    } catch (err) {
-      console.error("  ✗ Rebuild failed — rolling back:", err);
-      await client.execute("ROLLBACK").catch(() => {});
-      rebuildFailed = true;
-    }
+    const countResult = await client.execute("SELECT COUNT(*) AS n FROM leads");
+    const n = Number(countResult.rows[0]?.n ?? 0);
+    console.log(`  ✓ leads now has ${n} rows.`);
+  } catch (err) {
+    console.error("  ✗ Rebuild batch failed:", err);
+    rebuildFailed = true;
   } finally {
-    // Restore FK enforcement no matter what happened above. Must run outside
-    // any transaction (it's outside the try/BEGIN block already).
+    // Restore FK enforcement no matter what happened above.
     await client.execute("PRAGMA foreign_keys = ON").catch((e) => {
       console.error("  ⚠ Failed to re-enable FK enforcement:", e);
     });
