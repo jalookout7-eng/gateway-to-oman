@@ -60,47 +60,102 @@ async function run() {
   console.log(`  qualification CHECK: ${hasQualCheck}`);
   console.log(`  segment CHECK:       ${hasSegmentCheck}`);
 
-  // 2. Discover the live column list from the existing table so the rebuild
-  //    captures any columns added by later ALTER statements (lead_score,
-  //    referrer_*, outcome_*, admin_notes, etc.) without us having to keep
-  //    this script in sync with schema.sql by hand.
-  const colsResult = await client.execute("PRAGMA table_info('leads')");
-  const columns = colsResult.rows.map((row) => ({
-    name: row.name as string,
-    type: row.type as string,
-    notnull: Number(row.notnull) === 1,
-    dflt_value: row.dflt_value as string | null,
-    pk: Number(row.pk) === 1,
-  }));
+  // 2. Hardcode the rebuild DDL — mirrors lib/db/schema.sql for the leads
+  //    table BUT drops the three CHECK constraints we want gone
+  //    (status/qualification/segment). Other CHECK constraints
+  //    (special_filter_triggered, outcome) are intentionally KEPT — those
+  //    are not admin-editable.
+  //
+  //    PRAGMA-introspection was attempted first but proved unreliable on
+  //    libsql/Turso (some `dflt_value` cells came back as the literal
+  //    string "None", which breaks the regenerated DDL). A hand-mirrored
+  //    schema is brittle to maintain but predictable.
+  //
+  //    REFERENCES clauses on conversation_id are dropped intentionally —
+  //    Turso/libsql defaults to foreign_keys=OFF, app code does the
+  //    referential work, and dropping them simplifies the rebuild.
+  const LEADS_COLUMNS = [
+    "id",
+    "conversation_id",
+    "name",
+    "email",
+    "phone",
+    "country_code",
+    "segment",
+    "interests",
+    "qualification",
+    "status",
+    "created_at",
+    "updated_at",
+    "ai_summary",
+    "booking_id",
+    "source",
+    "lead_score",
+    "referrer_name",
+    "referrer_url",
+    "qualification_path",
+    "chatbot_responses",
+    "special_filter_triggered",
+    "score_breakdown",
+    "outcome",
+    "outcome_updated_at",
+    "admin_notes",
+    "session_duration_seconds",
+    "device_type",
+    "outcome_reason",
+    "omar_grade_correct",
+  ];
 
-  console.log(`  Found ${columns.length} columns to preserve.`);
+  const newTableSql = `CREATE TABLE leads_rebuild (
+    id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+    conversation_id TEXT,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    phone TEXT,
+    country_code TEXT,
+    segment TEXT,
+    interests TEXT,
+    qualification TEXT NOT NULL DEFAULT 'warm',
+    status TEXT NOT NULL DEFAULT 'new',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    ai_summary TEXT,
+    booking_id TEXT,
+    source TEXT NOT NULL DEFAULT 'main',
+    lead_score INTEGER,
+    referrer_name TEXT,
+    referrer_url TEXT,
+    qualification_path TEXT,
+    chatbot_responses TEXT,
+    special_filter_triggered INTEGER NOT NULL DEFAULT 0 CHECK (special_filter_triggered IN (0, 1)),
+    score_breakdown TEXT,
+    outcome TEXT NOT NULL DEFAULT 'pending' CHECK (outcome IN ('pending', 'contacted', 'converted', 'nurture', 'rejected')),
+    outcome_updated_at TEXT,
+    admin_notes TEXT,
+    session_duration_seconds INTEGER,
+    device_type TEXT,
+    outcome_reason TEXT,
+    omar_grade_correct TEXT
+  )`;
 
-  // 3. Build new column definitions:
-  //    - Keep all types and defaults as-is
-  //    - DROP CHECK clauses for status/qualification/segment by re-declaring
-  //      those three columns with TEXT NOT NULL DEFAULT '<value>' / TEXT
-  //      (matching the original NOT NULL and default but with NO CHECK)
-  //    - For other columns, reuse the PRAGMA-reported metadata verbatim
-  const columnDefs = columns.map((c) => {
-    let def = `${c.name} ${c.type}`;
-    if (c.pk) def += " PRIMARY KEY";
-    if (c.notnull) def += " NOT NULL";
-    if (c.dflt_value !== null && c.dflt_value !== undefined) {
-      def += ` DEFAULT ${c.dflt_value}`;
-    }
-    return def;
-  });
+  // Verify column-count parity with PRAGMA — the script bails if the live
+  // table doesn't match this hardcoded list (extra columns added by a later
+  // migration would otherwise silently lose data).
+  const pragmaResult = await client.execute("PRAGMA table_info('leads')");
+  const liveColumns = pragmaResult.rows.map((row) => String(row.name));
+  const missingInLive = LEADS_COLUMNS.filter((c) => !liveColumns.includes(c));
+  const extraInLive = liveColumns.filter((c) => !LEADS_COLUMNS.includes(c));
+  if (missingInLive.length > 0 || extraInLive.length > 0) {
+    console.error("✗ Column-list mismatch between this script and the live leads table:");
+    if (missingInLive.length > 0) console.error(`    missing in live: ${missingInLive.join(", ")}`);
+    if (extraInLive.length > 0) console.error(`    extra in live:   ${extraInLive.join(", ")}`);
+    console.error("  Update the LEADS_COLUMNS list and the CREATE TABLE in this script and try again.");
+    process.exit(1);
+  }
+  console.log(`  ✓ Column list matches live table (${LEADS_COLUMNS.length} columns).`);
 
-  // No FOREIGN KEY declarations included — SQLite enforces FK only when
-  // PRAGMA foreign_keys=ON. The original table's REFERENCES clauses are
-  // preserved by the original definition, but a rebuild can drop them
-  // safely (Turso/libsql default is foreign_keys=OFF; app code does the
-  // referential work). We keep the rebuild minimal.
-
-  const newTableSql = `CREATE TABLE leads_rebuild (\n  ${columnDefs.join(",\n  ")}\n)`;
-
-  // 4. Wrap rebuild in a transaction. Using executeMultiple for atomicity.
-  const columnNames = columns.map((c) => c.name).join(", ");
+  // 4. Wrap rebuild in a transaction.
+  const columnNames = LEADS_COLUMNS.join(", ");
 
   console.log("  Beginning transaction...");
   await client.execute("BEGIN");
