@@ -79,3 +79,32 @@ export function keyFromUrl(url: string): string {
   // Fallback: treat the whole value as a raw key (caller already extracted it)
   return url;
 }
+
+/**
+ * Defensive read-time URL rewriter.
+ *
+ * Some rows may have been saved when R2_PUBLIC_BASE_URL was not yet set — those
+ * stored URLs point at the authenticated R2 endpoint (`*.r2.cloudflarestorage.com`)
+ * which returns 403 to browsers. If R2_PUBLIC_BASE_URL is configured at read
+ * time, rewrite endpoint URLs into public-CDN URLs so <Image> can render them.
+ *
+ * - If publicBase is not set, returns the URL unchanged (best we can do).
+ * - If the URL is already a publicBase URL, returns it unchanged.
+ * - If the URL is an endpoint URL we recognise, rewrites it to publicBase + key.
+ * - Otherwise (foreign domain, e.g. images.pexels.com), returns unchanged.
+ */
+export function toPublicUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const publicBase = (process.env.R2_PUBLIC_BASE_URL ?? "").replace(/\/$/, "");
+  if (!publicBase) return url;
+  if (url.startsWith(publicBase + "/")) return url;
+  const endpoint = (process.env.R2_ENDPOINT ?? "").replace(/\/$/, "");
+  const bucket = process.env.R2_BUCKET ?? "";
+  if (endpoint && bucket) {
+    const endpointPrefix = `${endpoint}/${bucket}/`;
+    if (url.startsWith(endpointPrefix)) {
+      return `${publicBase}/${url.slice(endpointPrefix.length)}`;
+    }
+  }
+  return url;
+}

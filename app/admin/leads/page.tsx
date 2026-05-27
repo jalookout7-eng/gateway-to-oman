@@ -45,6 +45,19 @@ async function updateLead(
   }
 }
 
+interface LeadOption {
+  slug: string;
+  label: string;
+}
+
+type LeadOptionsByKind = {
+  status: LeadOption[];
+  qualification: LeadOption[];
+  segment: LeadOption[];
+};
+
+const EMPTY_LEAD_OPTIONS: LeadOptionsByKind = { status: [], qualification: [], segment: [] };
+
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,6 +71,32 @@ export default function LeadsPage() {
   const [conversation, setConversation] = useState<{ messages: { role: string; content: string }[] } | null>(null);
   const [expandedLead, setExpandedLead] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState<string | null>(null);
+  // Admin-editable lookups — loaded once, fall back to empty list if endpoint
+  // is unreachable (the dropdown still shows the current value + "—").
+  const [leadOptions, setLeadOptions] = useState<LeadOptionsByKind>(EMPTY_LEAD_OPTIONS);
+
+  useEffect(() => {
+    async function loadLeadOptions() {
+      try {
+        const res = await fetch("/api/admin/lead-options", {
+          headers: authHeaders(),
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          options: { kind: "status" | "qualification" | "segment"; slug: string; label: string }[];
+        };
+        const grouped: LeadOptionsByKind = { status: [], qualification: [], segment: [] };
+        for (const o of data.options) {
+          if (o.kind in grouped) grouped[o.kind].push({ slug: o.slug, label: o.label });
+        }
+        setLeadOptions(grouped);
+      } catch {
+        // network error — keep EMPTY_LEAD_OPTIONS; user can still edit notes
+      }
+    }
+    loadLeadOptions();
+  }, []);
 
   const fetchLeads = useCallback(async () => {
     const params = new URLSearchParams();
@@ -174,10 +213,9 @@ export default function LeadsPage() {
           className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
         >
           <option value="">All Segments</option>
-          <option value="entrepreneur">Entrepreneur</option>
-          <option value="investor">Investor</option>
-          <option value="professional">Professional</option>
-          <option value="retiree">Retiree</option>
+          {leadOptions.segment.map((o) => (
+            <option key={o.slug} value={o.slug}>{o.label}</option>
+          ))}
         </select>
         <select
           value={filterQualification}
@@ -185,9 +223,9 @@ export default function LeadsPage() {
           className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
         >
           <option value="">All Qualifications</option>
-          <option value="hot">Hot</option>
-          <option value="warm">Warm</option>
-          <option value="cold">Cold</option>
+          {leadOptions.qualification.map((o) => (
+            <option key={o.slug} value={o.slug}>{o.label}</option>
+          ))}
         </select>
         <select
           value={filterStatus}
@@ -195,11 +233,9 @@ export default function LeadsPage() {
           className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
         >
           <option value="">All Statuses</option>
-          <option value="new">New</option>
-          <option value="contacted">Contacted</option>
-          <option value="in_progress">In Progress</option>
-          <option value="converted">Converted</option>
-          <option value="closed">Closed</option>
+          {leadOptions.status.map((o) => (
+            <option key={o.slug} value={o.slug}>{o.label}</option>
+          ))}
         </select>
         <select
           value={filterSource}
@@ -257,10 +293,9 @@ export default function LeadsPage() {
                         className="text-xs rounded border border-gray-200 bg-white px-1.5 py-1"
                       >
                         <option value="">—</option>
-                        <option value="entrepreneur">entrepreneur</option>
-                        <option value="investor">investor</option>
-                        <option value="professional">professional</option>
-                        <option value="retiree">retiree</option>
+                        {leadOptions.segment.map((o) => (
+                          <option key={o.slug} value={o.slug}>{o.label}</option>
+                        ))}
                       </select>
                     </td>
                     <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{lead.interests ?? "—"}</td>
@@ -274,9 +309,9 @@ export default function LeadsPage() {
                         className="text-xs rounded border border-gray-200 bg-white px-1.5 py-1"
                       >
                         <option value="">—</option>
-                        <option value="hot">hot</option>
-                        <option value="warm">warm</option>
-                        <option value="cold">cold</option>
+                        {leadOptions.qualification.map((o) => (
+                          <option key={o.slug} value={o.slug}>{o.label}</option>
+                        ))}
                       </select>
                     </td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
@@ -289,11 +324,9 @@ export default function LeadsPage() {
                         className="text-xs rounded border border-gray-200 bg-white px-1.5 py-1"
                       >
                         <option value="">—</option>
-                        <option value="new">new</option>
-                        <option value="contacted">contacted</option>
-                        <option value="in_progress">in_progress</option>
-                        <option value="converted">converted</option>
-                        <option value="closed">closed</option>
+                        {leadOptions.status.map((o) => (
+                          <option key={o.slug} value={o.slug}>{o.label}</option>
+                        ))}
                       </select>
                     </td>
                     <td className="px-4 py-3 text-gray-500">

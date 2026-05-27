@@ -2,10 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, getRequestUser } from "@/lib/auth/token";
 import { getDb } from "@/lib/db/client";
 
-// Allowlisted editable fields and their validators
-const VALID_STATUS = ["new", "contacted", "in_progress", "converted", "closed"] as const;
-const VALID_QUALIFICATION = ["hot", "warm", "cold"] as const;
-const VALID_SEGMENT = ["entrepreneur", "investor", "professional", "retiree"] as const;
+/**
+ * Validate that a candidate value exists as an active slug in the lead_options
+ * lookup for the given kind. Replaces the previous hardcoded enum allowlist.
+ */
+async function isValidOption(kind: "status" | "qualification" | "segment", slug: string): Promise<boolean> {
+  const db = getDb();
+  const r = await db.execute({
+    sql: "SELECT 1 FROM lead_options WHERE kind = ? AND slug = ? AND active = 1 LIMIT 1",
+    args: [kind, slug],
+  });
+  return r.rows.length > 0;
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -23,35 +31,29 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // --- Validate each allowed field ---
+  // --- Validate each allowed field against the lead_options lookup ---
   const status = body.status as string | undefined;
-  if (status !== undefined) {
-    if (!VALID_STATUS.includes(status as (typeof VALID_STATUS)[number])) {
-      return NextResponse.json(
-        { error: `Invalid status. Must be one of: ${VALID_STATUS.join(", ")}` },
-        { status: 400 },
-      );
-    }
+  if (status !== undefined && !(await isValidOption("status", status))) {
+    return NextResponse.json(
+      { error: `Invalid status '${status}'. Manage allowed values in Settings → Lead options.` },
+      { status: 400 },
+    );
   }
 
   const qualification = body.qualification as string | undefined;
-  if (qualification !== undefined) {
-    if (!VALID_QUALIFICATION.includes(qualification as (typeof VALID_QUALIFICATION)[number])) {
-      return NextResponse.json(
-        { error: `Invalid qualification. Must be one of: ${VALID_QUALIFICATION.join(", ")}` },
-        { status: 400 },
-      );
-    }
+  if (qualification !== undefined && !(await isValidOption("qualification", qualification))) {
+    return NextResponse.json(
+      { error: `Invalid qualification '${qualification}'. Manage allowed values in Settings → Lead options.` },
+      { status: 400 },
+    );
   }
 
   const segment = body.segment as string | undefined;
-  if (segment !== undefined) {
-    if (!VALID_SEGMENT.includes(segment as (typeof VALID_SEGMENT)[number])) {
-      return NextResponse.json(
-        { error: `Invalid segment. Must be one of: ${VALID_SEGMENT.join(", ")}` },
-        { status: 400 },
-      );
-    }
+  if (segment !== undefined && !(await isValidOption("segment", segment))) {
+    return NextResponse.json(
+      { error: `Invalid segment '${segment}'. Manage allowed values in Settings → Lead options.` },
+      { status: 400 },
+    );
   }
 
   const admin_notes = body.admin_notes as string | undefined;

@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/db/client";
+import { toPublicUrl } from "@/lib/r2";
 import type { Category, Listing, ListingFilters } from "./types";
 
 function parseGalleryJson(raw: string | null): string[] | null {
@@ -13,6 +14,7 @@ function parseGalleryJson(raw: string | null): string[] | null {
 }
 
 function rowToListing(row: Record<string, unknown>): Listing {
+  const rawGallery = parseGalleryJson((row.gallery_json as string | null) ?? null);
   return {
     id: row.id as string,
     seller_id: (row.seller_id as string | null) ?? null,
@@ -36,10 +38,13 @@ function rowToListing(row: Record<string, unknown>): Listing {
     pros_text: (row.pros_text as string | null) ?? null,
     cons_text: (row.cons_text as string | null) ?? null,
     full_detail_text: (row.full_detail_text as string | null) ?? null,
-    cover_image_url: (row.cover_image_url as string | null) ?? null,
+    // Read-time URL rewriting: any rows saved before R2_PUBLIC_BASE_URL was set
+    // would otherwise return the auth-required endpoint URL (403 in browser).
+    // toPublicUrl rewrites endpoint URLs → r2.dev (or custom-domain) URLs.
+    cover_image_url: toPublicUrl((row.cover_image_url as string | null) ?? null),
     gallery_json: (row.gallery_json as string | null) ?? null,
-    gallery_urls: parseGalleryJson((row.gallery_json as string | null) ?? null),
-    video_url: (row.video_url as string | null) ?? null,
+    gallery_urls: rawGallery ? rawGallery.map((u) => toPublicUrl(u) ?? u) : null,
+    video_url: toPublicUrl((row.video_url as string | null) ?? null),
     status: row.status as Listing["status"],
     published: Number(row.published) === 1,
     featured: Number(row.featured ?? 0) === 1,

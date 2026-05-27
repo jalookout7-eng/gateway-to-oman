@@ -442,3 +442,49 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   count INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (key, window_start)
 );
+
+-- ----------------------------------------------------------------------------
+-- 16. Lead options (admin-editable enums for status/qualification/segment)
+-- Replaces the hardcoded CHECK constraints on leads.status / .qualification /
+-- .segment. Admin adds new options via /admin/settings -- leads UI reads from
+-- here. CHECK-constraint removal on the leads table is handled by the one-shot
+-- script scripts/migrate-lead-options.ts (idempotent -- detects + rebuilds
+-- only when needed).
+--
+-- kind:       'status' | 'qualification' | 'segment'
+-- slug:       machine value stored in leads.status etc (lowercase, snake)
+-- label:      human-readable label rendered in dropdowns
+-- color:      optional tailwind colour token (e.g. 'amber', 'emerald') for chips
+-- sort_order: display order in dropdowns (ASC)
+-- active:     soft-delete flag (admin can deactivate without losing references)
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS lead_options (
+  kind TEXT NOT NULL CHECK (kind IN ('status', 'qualification', 'segment')),
+  slug TEXT NOT NULL,
+  label TEXT NOT NULL,
+  color TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (kind, slug)
+);
+
+CREATE INDEX IF NOT EXISTS idx_lead_options_kind_active ON lead_options(kind, active, sort_order);
+
+-- Seed the current enum values so dropdowns are populated from day one.
+INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('status', 'new', 'New', 'blue', 10);
+INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('status', 'contacted', 'Contacted', 'amber', 20);
+INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('status', 'in_progress', 'In progress', 'indigo', 30);
+INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('status', 'converted', 'Converted', 'emerald', 40);
+INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('status', 'closed', 'Closed', 'slate', 50);
+
+INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('qualification', 'hot', 'Hot', 'red', 10);
+INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('qualification', 'warm', 'Warm', 'amber', 20);
+INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('qualification', 'cold', 'Cold', 'blue', 30);
+
+INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('segment', 'entrepreneur', 'Entrepreneur', 'amber', 10);
+INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('segment', 'investor', 'Investor', 'emerald', 20);
+INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('segment', 'professional', 'Professional', 'indigo', 30);
+INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('segment', 'retiree', 'Retiree', 'slate', 40);

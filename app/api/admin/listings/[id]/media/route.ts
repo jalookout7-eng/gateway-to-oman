@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, getRequestUser } from "@/lib/auth/token";
 import { getDb } from "@/lib/db/client";
-import { uploadToR2, deleteFromR2, keyFromUrl } from "@/lib/r2";
+import { uploadToR2, deleteFromR2, keyFromUrl, toPublicUrl } from "@/lib/r2";
 
 type MediaKind = "cover" | "gallery" | "video";
 type RouteContext = { params: Promise<{ id: string }> };
@@ -30,10 +30,14 @@ async function getMediaState(id: string) {
   });
   if (row.rows.length === 0) return null;
   const r = row.rows[0];
+  // Read-time URL rewriting — see lib/r2.ts:toPublicUrl. Defends against rows
+  // saved before R2_PUBLIC_BASE_URL was configured (endpoint URLs that 403 in
+  // a browser). Newly-uploaded URLs are already correct; this is a safety net.
+  const gallery = parseGalleryJson(r.gallery_json as string | null);
   return {
-    cover_image_url: (r.cover_image_url as string | null) ?? null,
-    gallery_urls: parseGalleryJson(r.gallery_json as string | null),
-    video_url: (r.video_url as string | null) ?? null,
+    cover_image_url: toPublicUrl((r.cover_image_url as string | null) ?? null),
+    gallery_urls: gallery.map((u) => toPublicUrl(u) ?? u),
+    video_url: toPublicUrl((r.video_url as string | null) ?? null),
   };
 }
 

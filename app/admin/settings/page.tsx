@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Mail, MessageSquare, Users } from "lucide-react";
+import { Mail, MessageSquare, Users, Tags } from "lucide-react";
 import { CollapsibleSection } from "@/components/admin/CollapsibleSection";
 import { AdminUsersSection } from "@/components/admin/AdminUsersSection";
+import { LeadOptionsSection } from "@/components/admin/LeadOptionsSection";
 
 function authHeaders() {
   return { "Content-Type": "application/json" };
@@ -268,6 +269,15 @@ export default function SettingsPage() {
           </Button>
           {saved && <span className="text-sm text-green-600 ml-3">Saved!</span>}
         </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Lead options"
+        subtitle="Admin-editable status, qualification, and segment values"
+        icon={<Tags className="h-4 w-4" />}
+        defaultOpen={false}
+      >
+        <LeadOptionsSection />
       </CollapsibleSection>
 
       <CollapsibleSection

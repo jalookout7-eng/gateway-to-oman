@@ -268,6 +268,36 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
+      {/* Mobile top bar — shows identity + logout (desktop sidebar handles this on md+) */}
+      <header className="md:hidden sticky top-0 z-30 bg-navy text-white flex items-center justify-between px-4 py-2 border-b border-white/10">
+        <Image
+          src="/gto-logo.png"
+          alt="Gateway to Oman"
+          width={120}
+          height={36}
+          priority
+          className="h-8 w-auto"
+        />
+        <div className="flex items-center gap-3">
+          {sessionUser && (
+            <span className="text-xs text-white/70 truncate max-w-[110px]" title={sessionUser.email}>
+              {sessionUser.full_name ?? sessionUser.email.split("@")[0]}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={handleLogout}
+            aria-label="Sign out"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Sign out
+          </button>
+        </div>
+      </header>
+
       {/* Main content */}
       <main className="md:ml-60 pb-20 md:pb-0 min-h-screen"><div className="p-4 md:p-8">{children}</div></main>
 
