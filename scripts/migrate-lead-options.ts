@@ -155,47 +155,85 @@ async function run() {
   console.log(`  ✓ Column list matches live table (${LEADS_COLUMNS.length} columns).`);
 
   // 4. Wrap rebuild in a transaction.
+  //
+  // FK enforcement must be OFF for the duration of the rebuild — child tables
+  // (emails, bookings, sellers, inquiries, marketplace_users) have FOREIGN KEY
+  // references to leads(id); dropping the leads table while those references
+  // exist would fail. We preserve every id value, so the child pointers stay
+  // valid after the rebuild — but the DROP itself must not be enforced.
+  //
+  // SQLite hard rule: PRAGMA foreign_keys cannot change inside a transaction —
+  // must be set before BEGIN and restored after COMMIT/ROLLBACK.
   const columnNames = LEADS_COLUMNS.join(", ");
 
-  console.log("  Beginning transaction...");
-  await client.execute("BEGIN");
+  console.log("  Disabling FK enforcement for the rebuild window...");
+  await client.execute("PRAGMA foreign_keys = OFF");
+
+  let rebuildFailed = false;
   try {
-    // Drop any leftover from a previous failed run
-    await client.execute("DROP TABLE IF EXISTS leads_rebuild");
+    console.log("  Beginning transaction...");
+    await client.execute("BEGIN");
+    try {
+      // Drop any leftover from a previous failed run
+      await client.execute("DROP TABLE IF EXISTS leads_rebuild");
 
-    await client.execute(newTableSql);
-    console.log("  ✓ Created leads_rebuild (no CHECK constraints).");
+      await client.execute(newTableSql);
+      console.log("  ✓ Created leads_rebuild (no CHECK constraints).");
 
-    await client.execute(`INSERT INTO leads_rebuild (${columnNames}) SELECT ${columnNames} FROM leads`);
-    const countResult = await client.execute("SELECT COUNT(*) AS n FROM leads_rebuild");
-    const n = Number(countResult.rows[0]?.n ?? 0);
-    console.log(`  ✓ Copied ${n} rows.`);
+      await client.execute(`INSERT INTO leads_rebuild (${columnNames}) SELECT ${columnNames} FROM leads`);
+      const countResult = await client.execute("SELECT COUNT(*) AS n FROM leads_rebuild");
+      const n = Number(countResult.rows[0]?.n ?? 0);
+      console.log(`  ✓ Copied ${n} rows.`);
 
-    await client.execute("DROP TABLE leads");
-    await client.execute("ALTER TABLE leads_rebuild RENAME TO leads");
-    console.log("  ✓ Swapped tables.");
+      await client.execute("DROP TABLE leads");
+      await client.execute("ALTER TABLE leads_rebuild RENAME TO leads");
+      console.log("  ✓ Swapped tables.");
 
-    // Recreate indexes on the new leads table (DROP TABLE removes its indexes)
-    const indexes = [
-      "CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status)",
-      "CREATE INDEX IF NOT EXISTS idx_leads_qualification ON leads(qualification)",
-      "CREATE INDEX IF NOT EXISTS idx_leads_segment ON leads(segment)",
-      "CREATE INDEX IF NOT EXISTS idx_leads_source ON leads(source)",
-      "CREATE INDEX IF NOT EXISTS idx_leads_outcome ON leads(outcome)",
-      "CREATE INDEX IF NOT EXISTS idx_leads_lead_score ON leads(lead_score)",
-    ];
-    for (const idx of indexes) {
-      await client.execute(idx);
+      // Recreate indexes on the new leads table (DROP TABLE removes its indexes)
+      const indexes = [
+        "CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status)",
+        "CREATE INDEX IF NOT EXISTS idx_leads_qualification ON leads(qualification)",
+        "CREATE INDEX IF NOT EXISTS idx_leads_segment ON leads(segment)",
+        "CREATE INDEX IF NOT EXISTS idx_leads_source ON leads(source)",
+        "CREATE INDEX IF NOT EXISTS idx_leads_outcome ON leads(outcome)",
+        "CREATE INDEX IF NOT EXISTS idx_leads_lead_score ON leads(lead_score)",
+      ];
+      for (const idx of indexes) {
+        await client.execute(idx);
+      }
+      console.log(`  ✓ Recreated ${indexes.length} indexes.`);
+
+      await client.execute("COMMIT");
+    } catch (err) {
+      console.error("  ✗ Rebuild failed — rolling back:", err);
+      await client.execute("ROLLBACK").catch(() => {});
+      rebuildFailed = true;
     }
-    console.log(`  ✓ Recreated ${indexes.length} indexes.`);
+  } finally {
+    // Restore FK enforcement no matter what happened above. Must run outside
+    // any transaction (it's outside the try/BEGIN block already).
+    await client.execute("PRAGMA foreign_keys = ON").catch((e) => {
+      console.error("  ⚠ Failed to re-enable FK enforcement:", e);
+    });
+    console.log("  FK enforcement restored.");
+  }
 
-    await client.execute("COMMIT");
-    console.log("✓ Lead CHECK constraints removed.");
-  } catch (err) {
-    console.error("  ✗ Rebuild failed — rolling back:", err);
-    await client.execute("ROLLBACK").catch(() => {});
+  if (rebuildFailed) {
     process.exit(1);
   }
+
+  // Sanity check — confirm no FK violations were introduced. Returns rows
+  // ONLY when something is broken; empty = healthy.
+  const fkCheck = await client.execute("PRAGMA foreign_key_check");
+  if (fkCheck.rows.length > 0) {
+    console.error("  ⚠ FK check found violations (data inspection needed):");
+    for (const row of fkCheck.rows) {
+      console.error(`    ${JSON.stringify(row)}`);
+    }
+    process.exit(1);
+  }
+  console.log("  ✓ FK check clean — child-table pointers remain valid.");
+  console.log("✓ Lead CHECK constraints removed.");
 
   process.exit(0);
 }
