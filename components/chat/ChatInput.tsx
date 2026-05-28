@@ -21,7 +21,11 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex items-center gap-2 px-3 py-2 border-t border-gray-100 bg-white"
+      // flex-shrink-0 so the input is never squeezed out of view when the
+      // parent flex column runs out of vertical space (Notes 3 item 5 — the
+      // ChatModal input was vanishing on shorter viewports because the
+      // messages area's flex-1 was winning the layout fight).
+      className="flex items-center gap-2 px-3 py-2 border-t border-gray-100 bg-white flex-shrink-0"
     >
       <input
         type="text"

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   ShieldCheck,
@@ -435,6 +436,7 @@ function OtpStep({
   onSuccess: () => void;
   onBack: () => void;
 }) {
+  const router = useRouter();
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -461,6 +463,12 @@ function OtpStep({
       }
       sessionStorage.removeItem("gto_pending_email");
       sessionStorage.removeItem("gto_pending_purpose");
+      // Re-render the server-rendered marketplace header so it picks up the
+      // newly-set session cookie and swaps "Sign in" for the profile chip
+      // (Notes 3 items 3 + 6). The router.refresh() runs in parallel with the
+      // success-state UI flip; the chip will appear before the visitor leaves
+      // this page.
+      router.refresh();
       onSuccess();
     } catch {
       setError("Connection error");

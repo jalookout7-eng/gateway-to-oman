@@ -128,10 +128,16 @@ export function ChatModal() {
           />
 
           <motion.div
+            // Height fix (Notes 3 item 5): cap desktop height at the viewport
+            // (minus a 2rem gutter) instead of a flat 600px. The previous
+            // h-[600px] could extend past the bottom of a short viewport,
+            // hiding the input form below the fold. min-h-0 isn't needed on
+            // the wrapper itself; it's applied to the messages-scroll child
+            // below so its flex-1 plays nicely with overflow-y-auto.
             className="fixed z-[70] bg-white flex flex-col overflow-hidden
               bottom-0 left-0 right-0 h-[90dvh] rounded-t-2xl
               sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2
-              sm:w-[480px] sm:h-[600px] sm:rounded-2xl sm:shadow-2xl"
+              sm:w-[480px] sm:h-[600px] sm:max-h-[calc(100vh-2rem)] sm:rounded-2xl sm:shadow-2xl"
             initial={{ opacity: 0, y: 60 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 60 }}
@@ -153,7 +159,11 @@ export function ChatModal() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
+            {/* min-h-0 lets this flex child actually shrink so overflow-y-auto
+                kicks in instead of pushing the input form out of the modal
+                (Notes 3 item 5 — root cause of the missing-input bug on
+                shorter viewports). */}
+            <div className="flex-1 min-h-0 overflow-y-auto">
               <ChatMessages messages={messages} isTyping={isTyping} />
               <div ref={messagesEndRef} />
             </div>

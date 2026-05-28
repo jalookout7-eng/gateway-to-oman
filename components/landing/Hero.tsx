@@ -47,6 +47,14 @@ const trustBadges = [
 ];
 
 export function Hero() {
+  // Smooth-scroll the Opportunities section into view. Replaces the dead
+  // Button onClick the hero shipped with (Notes 3 item 5 — the CTA literally
+  // had no handler before this).
+  function scrollToOpportunities() {
+    const el = document.getElementById("opportunities");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
     <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background photo — Sultan Qaboos Grand Mosque */}
@@ -108,7 +116,7 @@ export function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.8 }}
         >
-          <Button size="lg" variant="gold">
+          <Button size="lg" variant="gold" onClick={scrollToOpportunities}>
             Explore Your Opportunity
           </Button>
           {/* Direct Calendly link — bypasses Omar so the visitor lands straight

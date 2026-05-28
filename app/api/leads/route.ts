@@ -14,6 +14,16 @@ async function scoreLeadFromConversation(
 ) {
   if (!conversationId) return;
   try {
+    // Surface is read from the conversation row so scoring can branch on
+    // the path the visitor came in through (Notes 3 item 4). Default 'main'
+    // matches the column default if the column is somehow null.
+    const convRow = await db.execute({
+      sql: "SELECT source FROM conversations WHERE id = ?",
+      args: [conversationId],
+    });
+    const source = String(convRow.rows[0]?.source ?? "main");
+    const surface = source === "businesses" ? "businesses" : "main";
+
     const msgs = await db.execute({
       sql: "SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at ASC",
       args: [conversationId],
@@ -32,6 +42,7 @@ async function scoreLeadFromConversation(
       visitorMessages,
       segment,
       interests,
+      surface,
     });
 
     await db.execute({

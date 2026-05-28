@@ -75,16 +75,24 @@ export function ListingCard({ listing, unlocked = false }: { listing: Listing; u
 
         <p className="mt-3 text-base font-semibold text-gold">{priceLine}</p>
 
-        <div className="mt-4 flex items-center gap-4 text-xs text-gray-600">
-          <span className="inline-flex items-center gap-1">
+        {/* Age + staff chips MUST fit on a single line on the narrow xl:grid-cols-5
+            "Editor's picks" row (Notes 3 item 7). Previously the invisible
+            "Request access" hover hint sat in this flex row and stole layout
+            space, forcing "2 years" and "2 staff" to wrap. The hint is now
+            its own row (mt-2) so the chips always get the full width, with
+            whitespace-nowrap belt-and-braces against narrow cards. */}
+        <div className="mt-4 flex items-center gap-5 text-xs text-gray-600">
+          <span className="inline-flex items-center gap-1 whitespace-nowrap">
             <Calendar className="h-3.5 w-3.5" />
             {ageLabel(listing.age_years)}
           </span>
-          <span className="inline-flex items-center gap-1">
+          <span className="inline-flex items-center gap-1 whitespace-nowrap">
             <Users className="h-3.5 w-3.5" />
             {listing.employee_count !== null ? `${listing.employee_count} staff` : "—"}
           </span>
-          <span className="ml-auto inline-flex items-center gap-1 text-gold opacity-0 transition-opacity group-hover:opacity-100">
+        </div>
+        <div className="mt-2 h-4 text-xs">
+          <span className="inline-flex items-center gap-1 text-gold opacity-0 transition-opacity group-hover:opacity-100">
             {unlocked ? "View details" : "Request access"} <ArrowRight className="h-3.5 w-3.5" />
           </span>
         </div>

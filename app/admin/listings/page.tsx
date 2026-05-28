@@ -472,6 +472,25 @@ function ListingFormModal({
     const setErr = kind === "cover" ? setCoverError : kind === "gallery" ? setGalleryError : setVideoError;
     setUploading(true);
     setErr("");
+
+    // Pre-flight size guard for videos — Vercel serverless functions on the
+    // Hobby plan cap request bodies at ~4.5MB, so any upload bigger than that
+    // is rejected by the platform BEFORE it reaches our handler (which is
+    // why the user sees a bare "Upload failed" with no JSON body). Warn
+    // before the round-trip so the user knows what to do (Notes 3 item 2).
+    const VERCEL_HOBBY_BODY_LIMIT_MB = 4.5;
+    if (kind === "video") {
+      const totalMb = Array.from(files).reduce((sum, f) => sum + f.size, 0) / (1024 * 1024);
+      if (totalMb > VERCEL_HOBBY_BODY_LIMIT_MB) {
+        setErr(
+          `Video is ${totalMb.toFixed(1)} MB — over the ${VERCEL_HOBBY_BODY_LIMIT_MB} MB upload limit on our current Vercel plan. ` +
+          `Compress to under ${VERCEL_HOBBY_BODY_LIMIT_MB} MB (handbrake / ffmpeg preset "Web Optimized") or upgrade Vercel to Pro for larger uploads.`,
+        );
+        setUploading(false);
+        return;
+      }
+    }
+
     try {
       const fd = new FormData();
       fd.append("kind", kind);
@@ -481,13 +500,40 @@ function ListingFormModal({
         credentials: "include",
         body: fd,
       });
+      // Detailed error surfacing (Notes 3 item 2). The old code just showed
+      // "Upload failed" for everything, which masked whether the failure was:
+      //   - our 400 with a JSON error (e.g. wrong MIME)
+      //   - a Vercel-level 413 with no JSON body (request body too large)
+      //   - a 401 (admin session expired)
+      //   - a network error
+      // Now we surface status code + the most informative body we can read.
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        let parsedError: string | null = null;
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && typeof parsed.error === "string") parsedError = parsed.error;
+        } catch {
+          // not JSON
+        }
+        const fileSummary = Array.from(files)
+          .map((f) => `${f.name} (${(f.size / (1024 * 1024)).toFixed(1)} MB, ${f.type || "unknown type"})`)
+          .join(", ");
+        const reason =
+          parsedError ??
+          (res.status === 413
+            ? `Vercel rejected the upload (HTTP 413) — body too large. The Hobby plan caps each upload at ${VERCEL_HOBBY_BODY_LIMIT_MB} MB.`
+            : text.trim().slice(0, 200) || `Upload failed (HTTP ${res.status})`);
+        setErr(`${reason} — files: ${fileSummary}`);
+        return;
+      }
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) { setErr(data.error ?? "Upload failed"); return; }
       setCoverUrl(data.cover_image_url ?? null);
       setGalleryUrls(data.gallery_urls ?? []);
       setVideoUrl(data.video_url ?? null);
-    } catch {
-      setErr("Connection error");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Connection error";
+      setErr(msg);
     } finally {
       setUploading(false);
     }
@@ -805,7 +851,7 @@ function ListingFormModal({
                 )}
                 <label className="inline-flex items-center gap-2 cursor-pointer rounded-md border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-600 hover:border-gold hover:text-gold transition-colors">
                   <Upload className="h-3.5 w-3.5" />
-                  {videoUrl ? "Replace video" : "Upload video (MP4/WebM, max 50 MB)"}
+                  {videoUrl ? "Replace video" : "Upload video (MP4/WebM, max 4.5 MB on Hobby tier)"}
                   <input
                     type="file"
                     accept="video/mp4,video/webm"

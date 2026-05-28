@@ -71,12 +71,21 @@ export default async function BusinessesLandingPage() {
                 Browse all listings
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
-              <Link
-                href="/businesses/list-your-business"
+              {/* Hero secondary CTA — Calendly direct (Notes 3 item 1).
+                  Previously linked to /businesses/list-your-business which
+                  was a Coming Soon stub; visitors who want to talk to the
+                  team are better served by jumping straight to Ahmed's
+                  calendar. The seller-side flow still exists at that path
+                  for anyone who navigates there directly, but it's no
+                  longer promoted on the marketplace hero. */}
+              <a
+                href="https://calendly.com/alazizi/30min"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center justify-center rounded-lg border-2 border-white/70 bg-white/10 backdrop-blur-sm px-8 py-3.5 text-base font-semibold text-white hover:bg-white hover:text-navy transition-all"
               >
-                List your business
-              </Link>
+                Book a consultation
+              </a>
             </div>
           </div>
 
@@ -129,8 +138,8 @@ export default async function BusinessesLandingPage() {
         </section>
       )}
 
-      {/* Why GTO */}
-      <section className="bg-warm-white mt-20">
+      {/* Why GTO — anchored as #why-us for the nav "Why us" link (Notes 3 item 1). */}
+      <section id="why-us" className="bg-warm-white mt-20 scroll-mt-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
           <div className="text-center max-w-3xl mx-auto">
             <p className="text-xs font-semibold uppercase tracking-wider text-gold">

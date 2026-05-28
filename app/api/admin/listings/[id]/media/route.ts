@@ -16,7 +16,13 @@ const VIDEO_TYPES: Record<string, string> = {
   "video/webm": "webm",
 };
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;  // 5 MB
-const MAX_VIDEO_BYTES = 50 * 1024 * 1024; // 50 MB
+// MAX_VIDEO_BYTES guards against runaway uploads inside our handler — but
+// the practical cap is Vercel's platform-level request body limit (~4.5 MB
+// on Hobby), which rejects oversized uploads before they reach us. The
+// admin UI pre-flights for this and shows a friendly "compress and retry"
+// message (Notes 3 item 2). When the project moves to Vercel Pro or to a
+// direct-to-R2 presigned-URL upload pattern, raise this to match.
+const MAX_VIDEO_BYTES = 50 * 1024 * 1024; // 50 MB (platform limits to ~4.5 MB on Hobby)
 const MAX_GALLERY = 10;
 
 // ---------------------------------------------------------------------------
@@ -74,7 +80,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
   let formData: FormData;
   try {
     formData = await request.formData();
-  } catch {
+  } catch (parseErr) {
+    // Notes 3 item 2 — log the raw failure so the Vercel logs can tell us
+    // whether the platform rejected the body before our handler ran (413
+    // body-too-large) vs a genuine malformed multipart. The 400 we return
+    // stays generic so we don't leak parser internals to the client.
+    console.error("[media/upload] formData() failed:", {
+      listingId,
+      contentLength: request.headers.get("content-length"),
+      contentType: request.headers.get("content-type"),
+      error: parseErr instanceof Error ? parseErr.message : String(parseErr),
+    });
     return NextResponse.json({ error: "Invalid multipart/form-data" }, { status: 400 });
   }
 

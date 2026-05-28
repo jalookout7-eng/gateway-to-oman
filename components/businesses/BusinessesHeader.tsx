@@ -41,18 +41,14 @@ export async function BusinessesHeader() {
           <Link href="/businesses" className="hover:text-gold transition-colors">
             Browse
           </Link>
-          {/* Calendly direct — replaces the previous "List a business" link.
-              Seller-side flow still exists at /businesses/list-your-business
-              for users who navigate there directly, but it's no longer
-              promoted in the header (per JA Notes 2). */}
-          <a
-            href="https://calendly.com/alazizi/30min"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-gold transition-colors"
-          >
-            Book a consultation
-          </a>
+          {/* Why us anchor — scrolls to the "What makes us different" section
+              on the marketplace landing page (Notes 3 item 1). Replaces the
+              Calendly link from Notes 2; the Calendly CTA is now on the hero
+              and the final-CTA section, so the nav slot is used for in-page
+              navigation that helps a browsing visitor self-educate. */}
+          <Link href="/businesses#why-us" className="hover:text-gold transition-colors">
+            Why us
+          </Link>
           <Link href="/businesses/about" className="hover:text-gold transition-colors">
             How it works
           </Link>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Clock } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { ScrollAnimationWrapper } from "./ScrollAnimationWrapper";
 import { useChatModal } from "@/lib/context/ChatModalContext";
 
@@ -87,7 +87,7 @@ const opportunities: Opportunity[] = [
 
 export function Opportunities() {
   return (
-    <section id="opportunities" className="py-24 px-6 bg-white">
+    <section id="opportunities" className="py-24 px-6 bg-white scroll-mt-20">
       <div className="max-w-6xl mx-auto">
         <ScrollAnimationWrapper animation="fadeUp">
           <h2 className="text-4xl md:text-5xl font-bold text-navy text-center mb-4">
@@ -154,7 +154,12 @@ function OpportunityCardButton({
 
 function OpportunityCardInner({ opportunity: o }: { opportunity: Opportunity }) {
   const isLive = o.routing.kind === "subdomain";
-  const isComingSoon = o.routing.kind === "comingSoon";
+  // Notes 3 item 5: "Coming Soon" is gone — every non-marketplace card now
+  // invites the visitor to start a conversation with Omar, which is the
+  // intended first sign of intent. The card click still passes the title
+  // to Omar as topic context (see OpportunityCardButton above), so Omar
+  // opens with the right qualifying question for that vertical.
+  const showChatPill = o.routing.kind === "modal" || o.routing.kind === "comingSoon";
   return (
     <>
       <div className="relative h-44 w-full flex-shrink-0">
@@ -175,18 +180,18 @@ function OpportunityCardInner({ opportunity: o }: { opportunity: Opportunity }) 
             Live
           </span>
         )}
-        {isComingSoon && (
-          <span className="absolute top-3 right-3 inline-flex items-center gap-1 px-2.5 py-1 bg-navy/85 text-white text-xs font-semibold rounded-full shadow backdrop-blur-sm">
-            <Clock className="h-3 w-3" />
-            Coming Soon
-          </span>
-        )}
       </div>
 
       <div className="p-6 flex-1">
         <h3 className="text-lg font-bold text-navy mb-1">{o.title}</h3>
         <p className="text-sm text-gray-500 mb-4">{o.location}</p>
         <p className="text-2xl font-bold text-gold">{o.price}</p>
+        {showChatPill && (
+          <p className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-gold">
+            Click for more details
+            <ArrowRight className="h-3 w-3" />
+          </p>
+        )}
       </div>
     </>
   );

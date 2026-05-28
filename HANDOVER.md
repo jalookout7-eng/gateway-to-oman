@@ -3,7 +3,7 @@
 **Prepared by:** JA (Developer)
 **Prepared for:** Ahmed Al-Azizi — Al Azizi Group
 **Last Updated:** May 28, 2026
-**Doc Version:** 7.19 (see footer changelog)
+**Doc Version:** 7.20 (see footer changelog)
 **Live URL:** https://gateway-to-oman.vercel.app (aliased to `www.gatewaytooman.com` — apex `gatewaytooman.com` still points at old developer's cPanel host pending DNS swap, see §11 pending item D)
 **Marketplace landing:** /businesses
 **Marketplace grid:** /businesses/listings
@@ -11,8 +11,8 @@
 **Admin URL:** /admin
 **Repository:** https://github.com/jalookout7-eng/gateway-to-oman (private)
 **Active Branch:** `section-b-marketplace` (master diverged ~80 commits — production deploys from `section-b`)
-**Latest production deploy (2026-05-28):** `dpl_4RFUi3MuaRy1F41aauiLxrx4XVF7` — Batch 7d (all 14 JA review notes + Notes 2 follow-ups closed)
-**Latest commit on `section-b-marketplace`:** `584ed49`
+**Latest production deploy (2026-05-28):** `dpl_4RFUi3MuaRy1F41aauiLxrx4XVF7` — Batch 7d (all 14 JA review notes + Notes 2 follow-ups closed). **Batch 8 (Notes 3) committed locally — awaiting your deploy.**
+**Latest commit on `section-b-marketplace`:** `584ed49` (Batch 8 commit pending push by JA)
 **Local repo path:** `JALAI-Workspaces/delivery/clients/gateway-to-oman/delivery/stages/04-build/output/gateway-to-oman` (consolidated into the JALAI workspace per ICM on 2026-05-21; was `JA/Gatewaytooman/gateway-to-oman`). Client source files (KB doc, screenshots, env-vars-private, payments tracker, Notes/Notes 2) live in the client-root `assets/` folder — NOT committed to git. Deploy with `vercel deploy --prod --cwd "<this path>"`.
 
 ---
@@ -1164,12 +1164,35 @@ Settings keys (in the `settings` table):
 
 Used everywhere for "Book a consultation" CTAs: `https://calendly.com/alazizi/30min`
 
-Locations: Hero, ContactCTA, marketplace landing final CTA section, BusinessesHeader nav, Omar's HOT-lead inline CTA.
+Locations: Hero, ContactCTA, marketplace landing hero + final CTA section, BusinessesHeader (was nav before Batch 8 — now reachable from the hero CTA instead), Omar's HOT-lead inline CTA.
+
+### 15.11 Vercel Hobby plan — practical limits we hit
+
+We are on **Vercel Hobby** (free tier). Limits that matter for this project:
+
+| Limit | Hobby | Pro | Where it bites |
+|---|---|---|---|
+| **Serverless function request body** | **~4.5 MB** | up to 100 MB (configurable) | **Video uploads** in `/admin/listings → Edit → Upload video` — the platform 413s the request BEFORE our handler runs, so the client just sees "Upload failed" with no JSON body. Batch 8 added a pre-flight check that warns before the round-trip. The proper unblock is presigned direct-to-R2 uploads (deferred — see below). |
+| **Serverless function memory** | 1024 MB | up to 3008 MB | Not yet a problem; the heavy paths (AI summary, lead scoring) all stay well under this. |
+| **Serverless function duration** | 60s (default) | 300s | Not yet a problem; longest path is AI summarisation which usually finishes <10s. |
+| **Cron jobs** | 1 cron / max daily | unlimited / any schedule | Why `/api/cron/reminders` runs once daily at 09:00 UTC instead of every 30 minutes (originally designed for 30-min cadence — re-tighten when Pro). |
+| **Bandwidth** | 100 GB/month | 1 TB/month | Currently nowhere close — landing page is fast, images are R2-hosted. Monitor when traffic ramps. |
+| **Deployments per day** | 100 | unlimited | Comfortable headroom — we deploy ~5-10/day in heavy sessions. |
+| **Team members** | 1 owner | unlimited | Only `jalookout7-eng` is on the project today; Ahmed not yet added. |
+
+**The 4.5 MB body limit is the most consequential one right now.** When/if videos become important for the marketplace experience, the fix is either:
+
+1. **Upgrade Vercel to Pro** ($20/month/member) — simplest unblock; raises the body limit to a configurable value up to 100 MB via `maxDuration` / `bodySizeLimit` route config. Also unlocks the multi-cron and the longer function duration.
+2. **Presigned direct-to-R2 uploads** — new API endpoint `GET /api/admin/listings/[id]/media/presign` returns a one-shot presigned PUT URL for R2; the browser uploads the file directly to R2 (bypasses Vercel entirely); a follow-up `POST .../media/confirm` saves the resulting URL on the listing row. ~150 lines of new code, no infra cost change, R2's per-object limit is 5 GB. Recommended path for the marketplace MVP — keeps the platform spend at zero.
+
+Both have been considered; for Batch 8 we shipped only the pre-flight error path so the failure mode is clear, and documented this trade-off so the next session can pick up cleanly.
 
 ---
 
-**Document Version:** 7.19
+**Document Version:** 7.20
 **Last Updated:** May 28, 2026
+
+*v7.20 — Batch 8 (JA Notes 3 — 2026-05-28). Seven items closed; awaiting your deploy. Touched files: `app/businesses/page.tsx` (hero CTA "List your business" → Calendly "Book a consultation"; `id="why-us"` anchor on the "What makes us different" section), `components/businesses/BusinessesHeader.tsx` (nav "Book a consultation" → "Why us" anchor link), `app/businesses/sign-in/page.tsx` (added `useRouter` + `router.refresh()` on OTP success so the server-rendered marketplace header re-reads the new session cookie and swaps "Sign in" for the profile chip — root cause of Notes 3 items 3 + 6), `components/landing/Hero.tsx` (dead "Explore Your Opportunity" button now wired to a `scrollToOpportunities()` smooth-scroll handler), `components/landing/Opportunities.tsx` (removed the "Coming Soon" pill on non-marketplace cards; replaced with an in-card "Click for more details →" gold pill that signals chat-on-click; switched `Clock` import to `ArrowRight`; added `scroll-mt-20` to the section), `components/chat/ChatInput.tsx` (added `flex-shrink-0` so the input form is never squeezed out), `components/chat/ChatModal.tsx` (added `sm:max-h-[calc(100vh-2rem)]` so the 600px modal never extends past the viewport, and `min-h-0` on the flex-1 messages-scroll container — root cause of "input field not visible" on short viewports), `components/businesses/ListingCard.tsx` (chip row tightened — `whitespace-nowrap` on age + staff spans, hover "Request access" hint moved to its own row so it doesn't steal layout space), `lib/ai/scoring.ts` (full v2 recalibration: budget uniform across surfaces ≥20K=30 / ≥5K=25 / any concrete=15 / none=0; objective clarity bumped 15→20 for clear sector+plan and 8→12 for general intent; DM-unclear floor 8→10; early-price penalty retired entirely [kept on wire format as 0 for backwards compat]; thresholds eased hot 75→70 and warm 45→40; surface param added and now flows through to the breakdown), `app/api/leads/route.ts` (reads `conversations.source` and passes `surface: "main" | "businesses"` into `scoreLead()`), `app/admin/listings/page.tsx` (video upload pre-flight check against the 4.5 MB Vercel Hobby body limit + detailed error surfacing showing status code, parsed body, and per-file size+type when uploads fail — root cause of Notes 3 item 2 was that the platform was rejecting 4.5MB+ bodies before they reached our handler, so the UI just saw "Upload failed" with no JSON body; label updated to "Upload video (MP4/WebM, max 4.5 MB on Hobby tier)"), `app/api/admin/listings/[id]/media/route.ts` (added structured `console.error` for `formData()` parse failures so the Vercel logs distinguish a 413-body-too-large from a malformed multipart). 177/177 tests pass; zero new TypeScript errors. The pre-existing 3 TS errors in `tests/admin/lead-update.test.ts` + `tests/api/chat.test.ts` are unchanged (undici Response/Request vs Next.js wrappers — runtime-fine). No DB migration required.*
 
 *v7.19 — Pre-compact comprehensive HANDOVER update (2026-05-28). Goal: every architecture decision, current-state pointer, and pending item is captured in this file so a fresh context post-compact can pick up cleanly. Restructured §11 as canonical-current-state with alphabet-labeled pending items (A-K) replacing the old numbered list — easier to reference. Updated §4 env vars table to match current Vercel state (Anthropic + R2 + Resend now documented; legacy EMAIL_* and ADMIN_TOKEN marked deprecated). Updated §9 schema table with all new tables (lead_options, lead_notes, hook_variant_id, rate_limits, intelligence_notes) + columns added since the original 18-table list. Added NEW §15 Architecture Reference covering: chat-flow state machine (Batch 7c+7d), hook A/B variant scheme, email path routing (3 functions, all settings-DB now), new API endpoints (8 added across Batches 4-7), new shared helpers (lib/ai/lead-summary.ts, lib/r2.ts:toPublicUrl, pickTeaserVariant), new components, domain decision (path-based, not subdomain), known fragile areas (schema-comment-semicolon, libsql HTTP transactions, PRAGMA quirks, R2 trailing space, JSX entity rules), external services one-line state, Calendly URL. Older per-batch detail preserved verbatim under the new §11 as "Historical batch detail" since it's still useful for debugging.*
 
