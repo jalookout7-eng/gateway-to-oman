@@ -198,7 +198,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           />
           <p className="text-xs text-white/60 mt-1">Admin Dashboard</p>
         </div>
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        {/* min-h-0 + overflow-y-auto so the nav scrolls when it can't fit
+            on a short viewport, instead of pushing the identity + Notif
+            + Sign Out block off-screen (Notes 6 follow-up — Sign Out
+            and the notification chip were vanishing on shorter Windows
+            Chrome windows). */}
+        <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-1">
           {NAV_ITEMS.map((item) => {
             const active = pathname === item.href;
             return (
@@ -219,7 +224,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             );
           })}
         </nav>
-        <div className="px-3 py-4 border-t border-white/10">
+        {/* flex-shrink-0 pins this block to the bottom — without it, the
+            nav's flex-1 would steal vertical space on short viewports
+            and the Sign Out button would slide off-screen (Notes 6
+            follow-up). */}
+        <div className="flex-shrink-0 px-3 py-4 border-t border-white/10">
           {sessionUser && (
             <div className="px-3 pb-3 text-xs">
               <p className="text-white/90 font-medium truncate">

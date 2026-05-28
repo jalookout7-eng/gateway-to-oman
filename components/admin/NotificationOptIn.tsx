@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bell, BellOff, BellRing, Smartphone } from "lucide-react";
+import { Bell, BellOff, BellRing, Smartphone, Check } from "lucide-react";
 
 /**
  * Browser-push opt-in chip for the admin shell.
@@ -127,8 +127,23 @@ export function NotificationOptIn() {
   }, [subscribe, working]);
 
   // Hidden states — nothing useful to show
-  if (state === "loading" || state === "unsupported" || state === "subscribed") {
+  if (state === "loading" || state === "unsupported") {
     return null;
+  }
+
+  // Success state — show a confirmation so the user can SEE that push is
+  // active (previously this state returned null and JA was confused about
+  // whether the chip was working on Chrome — Notes 6 follow-up).
+  if (state === "subscribed") {
+    return (
+      <div
+        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200"
+        title="This device will receive push notifications for new leads and meeting reminders."
+      >
+        <Check className="h-3.5 w-3.5" />
+        Notifications on
+      </div>
+    );
   }
 
   if (state === "ios-needs-pwa") {
