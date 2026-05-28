@@ -2,15 +2,18 @@
 
 **Prepared by:** JA (Developer)
 **Prepared for:** Ahmed Al-Azizi — Al Azizi Group
-**Last Updated:** May 26, 2026
-**Live URL:** https://gateway-to-oman.vercel.app
-**Marketplace landing:** https://gateway-to-oman.vercel.app/businesses
-**Marketplace grid:** https://gateway-to-oman.vercel.app/businesses/listings
-**Subscriber sign-in / sign-up:** https://gateway-to-oman.vercel.app/businesses/sign-in
-**Admin URL:** https://gateway-to-oman.vercel.app/admin
+**Last Updated:** May 28, 2026
+**Doc Version:** 7.19 (see footer changelog)
+**Live URL:** https://gateway-to-oman.vercel.app (aliased to `www.gatewaytooman.com` — apex `gatewaytooman.com` still points at old developer's cPanel host pending DNS swap, see §11 pending item D)
+**Marketplace landing:** /businesses
+**Marketplace grid:** /businesses/listings
+**Subscriber sign-in / sign-up:** /businesses/sign-in
+**Admin URL:** /admin
 **Repository:** https://github.com/jalookout7-eng/gateway-to-oman (private)
-**Active Branch:** `section-b-marketplace` (master has diverged — see Section 10)
-**Local repo path:** `JALAI-Workspaces/delivery/clients/gateway-to-oman/delivery/stages/04-build/output/gateway-to-oman` (consolidated into the JALAI workspace per ICM on 2026-05-21; was `JA/Gatewaytooman/gateway-to-oman`). Client source files (KB doc, screenshots, env-vars-private) now in the client-root `assets/` folder. Deploy with `vercel deploy --prod --cwd "<this path>"`.
+**Active Branch:** `section-b-marketplace` (master diverged ~80 commits — production deploys from `section-b`)
+**Latest production deploy (2026-05-28):** `dpl_4RFUi3MuaRy1F41aauiLxrx4XVF7` — Batch 7d (all 14 JA review notes + Notes 2 follow-ups closed)
+**Latest commit on `section-b-marketplace`:** `584ed49`
+**Local repo path:** `JALAI-Workspaces/delivery/clients/gateway-to-oman/delivery/stages/04-build/output/gateway-to-oman` (consolidated into the JALAI workspace per ICM on 2026-05-21; was `JA/Gatewaytooman/gateway-to-oman`). Client source files (KB doc, screenshots, env-vars-private, payments tracker, Notes/Notes 2) live in the client-root `assets/` folder — NOT committed to git. Deploy with `vercel deploy --prod --cwd "<this path>"`.
 
 ---
 
@@ -99,33 +102,68 @@ Gateway to Oman is a lead-generation platform with an AI-powered chatbot ("Omar"
 
 ---
 
-## 4. Environment Variables (Vercel)
+## 4. Environment Variables (Vercel) — current state as of 2026-05-28
 
-Configured in Vercel → Project Settings → Environment Variables:
+Configured in Vercel → Project Settings → Environment Variables. **All required values live in `assets/env-vars-private.md` (workspace-level, git-ignored).** Never regenerate VAPID keys (would reset all push subscriptions).
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `TURSO_DATABASE_URL` | Turso database connection URL | Yes |
-| `TURSO_AUTH_TOKEN` | Turso authentication token | Yes |
-| `AI_PROVIDER` | AI provider (`groq`) | Yes |
-| `GROQ_API_KEY` | Groq API key for chat | Yes |
-| `ADMIN_TOKEN` | Token for admin dashboard login | Yes |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID (marketplace "Continue with Google") | For Google sign-in |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | For Google sign-in |
-| `VAPID_PUBLIC_KEY` | Web Push public key (generated, see env-vars-private.md) | Yes |
-| `VAPID_PRIVATE_KEY` | Web Push private key | Yes |
-| `VAPID_EMAIL` | Contact email for push service (`mailto:you@gmail.com`) | Yes |
-| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Same as VAPID_PUBLIC_KEY — exposed to browser | Yes |
-| `CRON_SECRET` | Secret token to authenticate Vercel Cron calls | Yes |
-| `EMAIL_HOST` | SMTP server hostname (e.g. `smtp.gmail.com`) | Yes (for email) |
-| `EMAIL_PORT` | SMTP port (usually `587`) | Yes (for email) |
-| `EMAIL_SECURE` | `true` for port 465, omit/`false` for 587 | Optional |
-| `EMAIL_USER` | SMTP username / email address | Yes (for email) |
-| `EMAIL_PASS` | SMTP password or app password | Yes (for email) |
-| `EMAIL_FROM_ADDRESS` | From address for outbound emails to leads | Yes (for email) |
+### Core platform
 
-> **Actual key values** are stored in `env-vars-private.md` in the project folder (not committed to git).
-> Never regenerate VAPID keys unless you want to reset all push subscriptions on all devices.
+| Variable | Description | Status |
+|----------|-------------|--------|
+| `TURSO_DATABASE_URL` | Turso database connection (Tokyo `ap-northeast-1`, Ahmed's account) | ✅ Set; rotated 2026-05-26 |
+| `TURSO_AUTH_TOKEN` | Turso auth token | ✅ Set; rotated 2026-05-26 |
+| `CRON_SECRET` | Secret for Vercel Cron `/api/cron/reminders` calls | ✅ Set; timing-safe-compared since Batch 2 |
+
+### AI providers (Anthropic primary, Groq failover)
+
+| Variable | Description | Status |
+|----------|-------------|--------|
+| `ANTHROPIC_API_KEY` | Anthropic Claude API key (`sk-ant-...`) | ✅ Set 2026-05-27 (Ahmed's account, billing card added) |
+| `ANTHROPIC_MODEL` | Claude model id (default: `claude-haiku-4-5-20251001`) | ✅ Set |
+| `AI_PROVIDER` | **DELETED — code defaults to `anthropic`.** Add back as `groq` only if Anthropic outage needs a manual override. | (unset = correct) |
+| `AI_PROVIDER_FALLBACK` | Failover provider when primary throws a retriable error (default: `groq`) | ✅ Set |
+| `GROQ_API_KEY` | Groq API key (Ahmed's gatewaytooman account, not JA's) | ✅ Set; rotated 2026-05-26 |
+| `GROQ_MODEL` | Groq model id (default: `llama-3.3-70b-versatile`) | ✅ Set |
+| `AI_BACKEND_MODE` | `groq-direct` vs `litellm-proxy` for Groq path (LiteLLM proxy never went live) | Default `groq-direct` |
+
+### Cloudflare R2 (media)
+
+| Variable | Description | Status |
+|----------|-------------|--------|
+| `R2_ENDPOINT` | S3-compatible endpoint (`https://<account>.r2.cloudflarestorage.com`) | ✅ Set |
+| `R2_ACCESS_KEY_ID` | S3 hex access key | ✅ Set; rotated 2026-05-26 |
+| `R2_SECRET_ACCESS_KEY` | S3 hex secret | ✅ Set; rotated 2026-05-26 |
+| `R2_BUCKET` | Bucket name (`gto-listings`) | ✅ Set |
+| `R2_PUBLIC_BASE_URL` | Public CDN base (`https://pub-68cb353eff5c466a9a97bea573efb789.r2.dev`) — `lib/r2.ts:toPublicUrl()` rewrites endpoint URLs to this; ALSO defensively `.trim()`s the value to defend against trailing-space footgun | ✅ Set |
+
+### Push notifications + push subscription
+
+| Variable | Description | Status |
+|----------|-------------|--------|
+| `VAPID_PUBLIC_KEY` | Web Push public (generated April 2026, NEVER regenerate) | ✅ Set |
+| `VAPID_PRIVATE_KEY` | Web Push private | ✅ Set |
+| `VAPID_EMAIL` | Contact email (`mailto:...`) | ✅ Set |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Same as VAPID_PUBLIC_KEY — exposed to browser | ✅ Set |
+
+### Google OAuth (marketplace "Continue with Google")
+
+| Variable | Description | Status |
+|----------|-------------|--------|
+| `GOOGLE_CLIENT_ID` | Google OAuth web client ID | ❌ NOT SET — pending §11 item E |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth web client secret | ❌ NOT SET |
+
+Until both are set, the "Continue with Google" button on `/businesses/sign-in` shows a friendly "not configured yet" notice. Set up in Google Cloud Console with redirect URI `https://gatewaytooman.com/api/businesses/google/callback` (do AFTER the DNS swap so the registered URI uses the canonical domain).
+
+### Email (legacy SMTP env vars — NO LONGER USED for the primary email path)
+
+The previous `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_USER` / `EMAIL_PASS` / `EMAIL_FROM_ADDRESS` env vars are **no longer required**. After Batch 6 + 7a + 7d refactors, ALL email paths (`sendEmail()` for booking + admin-approved emails, `sendEmailLegacy()` for `/api/email/{send,test}`, and `sendOtpEmail()` for OTP) read provider config from the `settings` table — set via `/admin/settings → Email configuration`. The Resend API key (`re_WhV...`) is saved there, not in env. Old SMTP env vars (if still present) are dead weight, safe to delete from Vercel.
+
+### Deprecated / safe to delete
+
+| Variable | Why deprecated |
+|----------|----------------|
+| `ADMIN_TOKEN` | Retired in Batch 2 (2026-05-26). Code is cookie-only-auth now; the var is still in Vercel as dead weight. Delete cosmetically; no behavioural effect. |
+| `EMAIL_HOST` / `EMAIL_PORT` / etc. | Replaced by settings-DB path. See above. |
 
 ---
 
@@ -361,28 +399,46 @@ What Phase 5 added:
 
 ## 9. Database Schema
 
-18 tables in Turso (8 from Phase 1–5 + 7 added in Phase 6 + 3 added in Phase 7):
+22 tables in Turso (8 Phase 1–5 + 7 Section C + 3 marketplace + 4 added in subsequent batches). New since the original table-list:
+
+- `intelligence_notes` (Section C / Intelligence v1)
+- `rate_limits` (Batch 2 — fixed-window Turso rate limiter)
+- `lead_options` (Batch 5 — admin-editable status/qualification/segment)
+- `lead_notes` (Batch 7c — narrative timeline per lead)
+
+Plus column additions:
+- `leads.outcome_reason` + `leads.omar_grade_correct` (Intelligence v2 attribution, Batch 1)
+- `conversations.hook_variant_id` (Batch 7b — A/B teaser variant tracking)
 
 | Table | Purpose |
 |-------|---------|
-| `conversations` | Every chat session (id, session_id, outcome, segment, timestamps, **source**) |
+| `conversations` | Every chat session (id, session_id, outcome, segment, timestamps, **source**, **`hook_variant_id`** for teaser A/B) |
 | `messages` | Every message in every conversation (role, content, raw_content with signals) |
-| `leads` | Captured leads — name, email, phone, segment, qualification, status, `ai_summary`, `booking_id`, **source**, **Layer 3 intelligence fields** (lead_score, referrer_name/url, qualification_path, chatbot_responses, special_filter_triggered, score_breakdown, outcome, outcome_updated_at, admin_notes, session_duration_seconds, device_type) |
+| `leads` | Captured leads — name, email, phone, segment, qualification, status, `ai_summary`, `booking_id`, **source**, **Layer 3 intelligence fields** (lead_score, referrer_name/url, qualification_path, chatbot_responses, special_filter_triggered, score_breakdown, outcome, outcome_updated_at, **admin_notes** [legacy — superseded by `lead_notes` table since Batch 7d], session_duration_seconds, device_type, **outcome_reason**, **omar_grade_correct**). **CHECK constraints removed** from `status`/`qualification`/`segment` via the one-shot rebuild script in Batch 5 — values now validated against the `lead_options` lookup table. |
 | `emails` | Email log — subject, body, status (draft/sent/failed), `to_address`, `booking_id`, `approved_at` |
-| `settings` | Key-value config store (email settings, chatbot settings, `consultation_slots`, `marketplace_access_fee_omr`) |
+| `settings` | Key-value config store — email provider config (`email_provider`, `email_resend_key`, `email_smtp_*`, `email_from_*`, `email_reply_to`), chatbot settings, `consultation_slots`, `marketplace_access_fee_omr`, `omar_phase` |
 | `bookings` | Consultation bookings — lead_id, conversation_id, preferred_date, preferred_time, status, **source** |
 | `blocked_slots` | Days or time slots Ahmed has blocked — date, time_slot (null = full day), reason |
 | `push_subscriptions` | Browser push subscriptions — endpoint, p256dh, auth keys |
-| **`categories`** | Marketplace categories (8 seeded: café-restaurant, gym, car-service, grocery-store, car-accessories, laundry, travel-agency, industrial-commercial) — admin-editable |
-| **`sellers`** | Business sellers, optional `lead_id` FK so visitors-who-want-to-list become sellers when admin promotes them |
-| **`listings`** | Marketplace listings — Plan v3 fields + `for_sale`/`for_rent` bools (Project 3 hybrid), `processing_fee_omr` (default 500), `commercial_registration_included`, `stock_value_omr`, **`featured`** + **`featured_rank`** for curated teaser |
-| **`inquiries`** | Buyer inquiries on listings — `lead_id`, `listing_id`, message, status, source default `'businesses'` |
-| **`admin_users`** | Admin accounts (email, bcrypt password_hash, full_name, role: owner/admin/viewer, active, last_login_at) |
-| **`admin_sessions`** | Active admin sessions (opaque token id, admin_user_id, ip, user_agent, expires_at) |
-| **`activity_log`** | Append-only audit trail (actor_type: bot/admin/system/visitor, action, target_type, target_id, source, metadata_json, ip, user_agent) |
-| **`marketplace_users`** | Visitors who signed up via /businesses/sign-in — email, full_name, password_hash (bcrypt cost-12), phone, country_code, email_verified, access_activated, google_id, lead_id FK, last_login_at |
-| **`marketplace_otps`** | 6-digit verification codes for sign-up / sign-in — purpose, expires_at (10-min TTL), attempts (max 5), consumed |
-| **`marketplace_sessions`** | Active marketplace user sessions — opaque token id (HttpOnly cookie), user_id FK, ip, user_agent, expires_at (7-day TTL) |
+| `categories` | Marketplace categories (8 seeded: café-restaurant, gym, car-service, grocery-store, car-accessories, laundry, travel-agency, industrial-commercial) — admin-editable |
+| `sellers` | Business sellers, optional `lead_id` FK |
+| `listings` | Marketplace listings — Plan v3 fields + `for_sale`/`for_rent` bools, `processing_fee_omr` (default 500), `commercial_registration_included`, `stock_value_omr`, **`featured`** + **`featured_rank`**, `cover_image_url` + `gallery_json` + `video_url` (R2 URLs, rewritten at read time via `lib/r2.ts:toPublicUrl()`) |
+| `inquiries` | Buyer inquiries on listings — `lead_id`, `listing_id`, message, status, source default `'businesses'` |
+| `admin_users` | Admin accounts (email, bcrypt password_hash, full_name, role: owner/admin/viewer, active, last_login_at) |
+| `admin_sessions` | Active admin sessions (opaque token id, admin_user_id, ip, user_agent, expires_at). Cookie `SameSite=Strict` since Batch 6. |
+| `activity_log` | Append-only audit trail (actor_type: bot/admin/system/visitor, action, target_type, target_id, source, metadata_json, ip, user_agent) |
+| `marketplace_users` | Visitors who signed up via /businesses/sign-in — email, full_name, password_hash (bcrypt cost-12), phone, country_code, email_verified, access_activated, google_id, lead_id FK, last_login_at |
+| `marketplace_otps` | 6-digit verification codes for sign-up / sign-in — purpose, expires_at (10-min TTL), attempts (max 5), consumed |
+| `marketplace_sessions` | Active marketplace user sessions — opaque token id (HttpOnly cookie), user_id FK, ip, user_agent, expires_at (7-day TTL). Cookie `SameSite=Lax` (intentional — OAuth callback flow needs Lax). |
+| `intelligence_notes` | JA-internal hypothesis/learning/analysis-run log for `/admin/intelligence` |
+| `rate_limits` | Fixed-window Turso-backed rate limiter — `(key, window_start)` PK, `count`. Used by /api/chat (20/min), /api/auth/login (5/10min), OTP issuance (10/10min/IP + 1/60s/email), access-request (5/10min), /api/chat/event (60/min). Fail-open everywhere. |
+| **`lead_options`** | Admin-editable lookup for `leads.status` / `.qualification` / `.segment`. Composite PK `(kind, slug)`. Fields: `kind` ('status'\|'qualification'\|'segment'), `slug`, `label`, `color` (tailwind colour token whitelisted to 18 values), `sort_order`, `active`, timestamps. Seeded with the original enum values. Admin CRUD via `/admin/settings → Lead options` (Batch 5). |
+| **`lead_notes`** | Narrative timeline per lead. Fields: `id`, `lead_id` FK, `author_type` ('admin'\|'omar'), `author_id` (admin_users.id or NULL for Omar), `author_name` (denormalised), `body`, `created_at`. Admin manual entries via `/admin/leads → expand → Add note`. Omar AI auto-writes on chat events via `/api/chat/event` (whatsapp_click, calendly_click, keep_chat_started — static text; keep_chat_ended — AI-generated 2-3 sentence quality assessment via `chat()`). Batch 7c+7d. |
+
+Run migrations on a fresh database: `npm run migrate` (idempotent — uses CREATE TABLE IF NOT EXISTS + ALTER TABLE with duplicate-column error swallow).
+**Special one-shot migration:** `npm run migrate:lead-options` runs `scripts/migrate-lead-options.ts` to drop CHECK constraints on `leads.status/qualification/segment` via table-rebuild (idempotent — inspects `sqlite_master` and exits early if already done; uses `client.batch()` for atomic transaction; toggles `PRAGMA foreign_keys=OFF` around the rebuild since child tables FK-reference `leads.id`). Already applied to live Turso 2026-05-27. Do NOT need to run again on existing prod DB.
+
+Inspect live schema: `npx tsx scripts/verify-schema.ts`.
 
 Run migrations on a fresh database: `npm run migrate`
 Inspect live schema: `npx tsx scripts/verify-schema.ts` (lists tables, columns, indexes, seed data).
@@ -680,7 +736,146 @@ Agreed roadmap after Phase 8. Brainstorm-first (design before code) for items 1 
 
 ---
 
-## 11. Status Snapshot — Completed / Pending (2026-05-27)
+## 11. Status Snapshot — Canonical Current State (2026-05-28)
+
+**Read this section first to know where the project stands. Everything above is historical/reference.**
+
+### Live state in one paragraph
+
+Gateway to Oman is **live in production** at `https://www.gatewaytooman.com` (aliased via Vercel; canonical deploy `dpl_4RFUi3MuaRy1F41aauiLxrx4XVF7`). All 14 of JA's original review notes + 6 follow-up notes from "Notes 2" have been built, tested (177/177), deployed, and migrated. The apex `gatewaytooman.com` still resolves to the previous developer's cPanel host — DNS swap is the next pending user action (item D below). AI runs on **Anthropic Claude Haiku 4.5** as primary with **Groq Llama 3.3 70B** as failover. Resend domain is verified and DNS records are live — only the in-admin paste-and-save step is left before OTP email goes live (item A below). Branch `section-b-marketplace` at commit `584ed49`; local in sync with origin.
+
+### Deploy history this session (most recent first)
+
+| Deploy ID | Date | Batch | What landed |
+|-----------|------|-------|-------------|
+| `dpl_4RFUi3MuaRy1F41aauiLxrx4XVF7` | 2026-05-28 | **7d** | Country code field fix · auto-summary unified via `lib/ai/lead-summary.ts` · calendar 7-col strip with horiz scroll · nav "List a business" → "Book a consultation" Calendly · Omar wrap-up message before capture prompt · removed `AdminNotesField` · Omar-AI quality summary on keep-chat end |
+| `dpl_AHZC5tkAgusqv17PK5BiLfveqMhX` | 2026-05-28 | **7a/7b/7c** | All 14 original JA review notes: brevity prompt · WhatsApp floating button · 5-variant hook A/B · Calendly direct · marketplace profile menu · lead-capture opt-in redesign · `lead_notes` timeline · status badge fix · email-test settings-DB · `&apos;` HTML entities fix · country-code first pass · domain text fix |
+| (pre-batch-7) Batch 6 commit `4d1ab51` | 2026-05-28 | **6** | `sender.ts` refactor → settings DB · SameSite=Strict admin cookie (L-1) · mask Resend/SendGrid API key inputs (L-5) · I-4 verified safe by design |
+| `dpl_FviU24MZZzmyV4qo7GNant57ABGj` | 2026-05-27 | **5** | R2 image rewriter · AI summary identity/markdown fix · admin-editable lead options (with one-shot CHECK-rebuild script) · mobile admin logout |
+| `dpl_2QZiFwNHWe9JvjDur4AeiyCgyGEG` | 2026-05-26 | **1+2+3+4** | Intelligence v2 · security audit priorities 1–4 · compliance pages · Anthropic provider + Groq failover · lead-column editing · R2 media uploads |
+
+### What's been done — exhaustive
+
+**Architecture & infrastructure**
+- Vercel production hosting (Hobby tier; free until usage exceeds limits)
+- Turso (libSQL) database in Ahmed's account, Tokyo `ap-northeast-1`
+- Anthropic Claude Haiku 4.5 primary AI provider; Groq Llama 3.3 70B failover (auto on 429/5xx/network/Anthropic 529; manual flip via `AI_PROVIDER=groq` env override if needed)
+- Cloudflare R2 for listing media (bucket `gto-listings`, public via R2.dev subdomain `pub-68cb353eff5c466a9a97bea573efb789.r2.dev`)
+- Resend transactional email (domain `gatewaytooman.com` verified, DKIM + SPF + DMARC live; receiving disabled). API key saved in env-vars-private.md AND meant to be pasted into `/admin/settings → Email configuration` to activate the email send paths.
+
+**Authentication**
+- Admin: email + bcrypt password (cost 12), opaque session token in HttpOnly cookie, 7-day TTL, **`SameSite=Strict`** (L-1 hardened in Batch 6). First admin seeded for Ahmed via `scripts/seed-admin.ts`.
+- Marketplace users: email + password OR Google OAuth (OAuth code complete but `GOOGLE_CLIENT_*` env vars not yet set). OTP via Resend for sign-up/sign-in verification. HttpOnly cookie `SameSite=Lax` (intentional — OAuth callback needs Lax).
+- Admin sign-out: `/api/auth/logout`. Marketplace sign-out: `/api/businesses/sign-out` (added Batch 7b).
+- `ADMIN_TOKEN` legacy auth fully retired in Batch 2 — code is cookie-only.
+
+**Lead capture & qualification (Omar chatbot)**
+- Anthropic Haiku 4.5 with prompt assembled by `lib/ai/prompt-assembler.ts:buildSystemPrompt({surface, phase, context})`.
+- Surface-aware: `main` (gatewaytooman.com) vs `businesses` (path-based — see decision in §15) — Omar behaves differently per surface.
+- 15-topic knowledge base (Ahmed's KB v2) injected per surface.
+- "New employee" phasing ladder — Phase 1 active (qualify + answer from KB); Phases 2 (Concierge) and 3 (Scheduler) locked until JA advances via `/admin/intelligence` Omar Roadmap panel.
+- **Brevity rule** (Batch 7b): max 1-3 sentences per response; at most one ≤10-word filler sentence; explicit BAD/GOOD examples (Batch 7d strengthened with the OMR 75,000 anti-verbose example).
+- **Conversation flow** (post-Batch 7c+7d): 1-6 qualifying exchanges → Omar's last visible message is a wrap-up sentence (NOT another question) accompanied by `[CAPTURE_READY]` signal → in-chat opt-in prompt "Share your details? [Yes] [Not yet]" → form (if Yes) → "Continue chatting? [Keep chatting] [Close]" → keep-chat capped at 7 additional exchanges → `[HIGH_INTENT]` shows inline [Book consultation] + [WhatsApp Ahmed] buttons → all button clicks + keep-chat events logged to `lead_notes` via `/api/chat/event`. See §15 for the full state machine.
+- **5-variant hook A/B**: `pickTeaserVariant(section)` picks one of up to 5 teaser bubble messages per surface on widget mount; the chosen variant ID (e.g., `businesses-3`) is persisted to `conversations.hook_variant_id` for later conversion-rate analysis.
+- **WhatsApp floating button** (Batch 7b): green circle next to the Omar chat button, all pages except `/admin` and auth — links direct to `wa.me/96895108257`.
+
+**Marketplace (`/businesses`)**
+- Path-based at `gatewaytooman.com/businesses` (not subdomain — decision locked in Batch 7b; subdomain reversible later if needed, see §15)
+- Vetted listings with category, location, price, age, employees, financials. Filters (category, city, type, status, price), search, "Editor's picks" featured row.
+- Paywall: non-activated visitors see grid blurred behind overlay (one-time fee + Sign in / Request access).
+- Marketplace authentication at `/businesses/sign-in` — email + password + OTP, or Google OAuth (latter pending env vars).
+- Access flow at `/businesses/access` — submit name/email/mobile/message; team gets it in `/admin/inquiries`; invoices and grants access manually.
+- Subscriber profile chip in header (Batch 7b) — dropdown shows name/email/access status + Sign out.
+- Marketplace landing CTA section now includes "Book a free consultation" → Calendly direct (Batch 7b).
+- Header nav: `Browse | Book a consultation | How it works` (Batch 7d — "List a business" removed from header; seller flow still reachable at `/businesses/list-your-business`).
+
+**Admin (`/admin`)**
+- Cookie-only auth (since Batch 2). First admin = `gatewaytooman@gmail.com` / `Gatewaytooman@2026` (Ahmed — change in admin UI after first sign-in).
+- Mobile top bar with sign-out + signed-in identity (Batch 5).
+- Leads page: inline-editable status/qualification/segment/admin_notes; AI Summary with Regenerate; **Notes Timeline** (admin manual + Omar AI auto) between AI Summary and Conversation Transcript; CSV upload + export.
+- Settings page: Email configuration (Resend/SendGrid/SMTP) · Chatbot · **Lead options CRUD** · Admin users CRUD.
+- Listings: full CRUD + featured curation + R2 media uploads (cover + gallery + video).
+- Sellers, Inquiries, Users, Calendar (now 7-col horizontal strip), Conversations, Activity, Intelligence (owner-only).
+
+**Compliance**
+- `/privacy`, `/terms`, `/cookies` — full final wording (Oman PDPL + GDPR), no DRAFT watermark. Awaiting Ahmed business-accuracy review + lawyer review (pending item G).
+- Footer Legal links on main site + `/businesses`.
+- Required sign-up consent checkbox + passive consent lines on LeadCaptureForm + AccessRequestForm.
+- 4 `[bracketed]` company-fact placeholders in `components/legal/CompanyFacts.ts` (legal entity · CR · address · privacy contact) pending Ahmed.
+
+**Security audit status (full mapping in §14)**
+- High priorities 1–4: ✅ ALL closed in Batch 2.
+- Medium: ⏭ **M-2** (Google id_token signature verify) deferred — will land alongside Google OAuth go-live (item E).
+- Low: ✅ **L-1** SameSite=Strict admin cookie (Batch 6); ✅ **L-5** mask email creds in admin (Batch 6); ⏭ L-rest minor/cosmetic.
+- Info: ✅ **I-4** `cover_image_url` validation — verified already safe by design (no user-input path); ⏭ `npm audit fix` (dev-only vulns).
+
+### Pending USER actions (ordered by priority)
+
+A clear, alphabet-labeled list so post-compact lookups are easy.
+
+| Letter | Action | Why | Effort | Blocks what |
+|---|---|---|---|---|
+| **A** | **Resend admin-config**: paste `re_WhV...` (from env-vars-private.md) into `/admin/settings → Email configuration`, set From `noreply@gatewaytooman.com`, set Reply-to (Ahmed's mailbox), Save. Then click **Send Test** → verify landing. | Activates OTP email + admin-approved emails. Until this lands, marketplace sign-up OTP and "Send" button on admin draft emails silently fail. | 5 min | All real marketplace sign-ups |
+| **B** | **Click-test Batch 7d** (verify 1-6 from the most recent message; mainly: country code field narrow, AI summary first-gen shows name, calendar 7-col, nav says "Book a consultation", Omar wrap-up before prompt, Omar AI quality note instead of "ended after N exchanges") | Final-pass QA | 10 min | Sign-off on handover |
+| **C** | **Click-test Batch 7a/7b/7c** if any are still untested (lead options custom value → /admin/leads dropdown → save · R2 image upload + render · sign out/in on mobile · pre-capture opt-in · WhatsApp + Omar floating buttons · profile chip · hook variants over multiple incognito tabs) | Final-pass QA | 15 min | Sign-off on handover |
+| **D** | **DNS pointer** — switch GoDaddy DNS for `gatewaytooman.com` from old cPanel host to Vercel. **Surgical plan locked** (Ahmed confirmed no `@gatewaytooman.com` mailboxes 2026-05-28): KEEP `resend._domainkey` TXT, `send` TXT+MX (Resend), `_dmarc` TXT, NS records (ns07/ns08), SOA, `_domainconnect` CNAME. REPLACE `A @ 68.178.145.111` → `A @ 76.76.21.21` (Vercel). REPLACE `CNAME www @` → `CNAME www cname.vercel-dns.com`. DELETE `A admin`, `A mail`, `CNAME cpanel`, `CNAME webdisk`, `CNAME webdisk.admin`, `CNAME whm`, `CNAME www.admin` (all cPanel cruft). TTL 1 hour on edited records. Verify: dnschecker.org → A = 76.76.21.21; Vercel Domains → ✅ Valid; SSL auto-provisions. | Makes `gatewaytooman.com` (the canonical brand URL) serve GTO instead of the old dev's site. | 10 min edits + 5-15 min DNS propagation | Item E |
+| **E** | **Google OAuth setup** — Google Cloud Console → create project "Gateway to Oman" → OAuth consent screen (External, scopes `openid email profile`) → Web OAuth client → redirect URIs: `https://gatewaytooman.com/api/businesses/google/callback` AND `https://gateway-to-oman.vercel.app/api/businesses/google/callback`. Copy client ID + secret → Vercel env: `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` (Production scope) → redeploy. Then click-test "Continue with Google" on `/businesses/sign-in`. **Do AFTER D so redirect URI uses canonical domain.** Also covers security audit item M-2 (id_token signature verify) — we'll add `jose` and verify against Google JWKS at the same time. | Adds frictionless sign-up via Google. | ~15 min | n/a |
+| **F** | **`ADMIN_TOKEN` env var delete in Vercel** — cosmetic cleanup of dead variable. Code retired this in Batch 2. | Tidy | 1 min | n/a |
+| **G** | **Verify VAPID + CRON env vars present** by scrolling the Vercel env list — `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_EMAIL`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `CRON_SECRET`. Were not visible in earlier screenshots (probably off-screen). If any are missing, push notifications + cron reminders silently fail. | Operational | 2 min | n/a |
+| **H** | **Compliance fact fill-ins from Ahmed** — collect: legal entity name (e.g. "Al Azizi Group LLC"), Commercial Registration (CR) number, registered Oman address, official privacy contact email. JA edits `components/legal/CompanyFacts.ts` once received. | Removes `[bracketed]` placeholders on `/privacy`, `/terms`, `/cookies` | Ahmed's call | n/a |
+| **I** | **Compliance lawyer review** — qualified Oman PDPL + GDPR lawyer to review `/privacy`, `/terms`, `/cookies` before public launch. Pages carry final-form wording but need legal sign-off. | Legal exposure | Ahmed's call | Public-marketing launch |
+| **J** | **Payment tracker → Drive** — upload `assets/gto-payments-tracker.csv` (+ README) to a GTO folder in Google Drive, "Open with Google Sheets" to convert, share edit access with Ahmed. Add rows whenever a real charge posts. | Ahmed sees costs in one place | 5 min | n/a |
+| **K** | **`R2_PUBLIC_BASE_URL` trailing-space check in Vercel** — Batch 7a added defensive `.trim()` in code so trailing-space env values still work, but cleaner to fix the actual value if it's still trailing. Edit the Vercel env var → ensure no trailing whitespace. | Cosmetic; defensively handled in code | 2 min | n/a |
+
+### Future work / deferred (no urgency)
+
+- **DMARC tightening** (next 2-4 weeks) — once aggregate reports landing in `gatewaytooman@gmail.com` show no legitimate sends being marked failing, tighten `p=none` → `p=quarantine` → `p=reject` in steps.
+- **DNS migration GoDaddy → Cloudflare** (optional polish) — to swap `pub-…r2.dev` for `media.gatewaytooman.com`. Single env var change + uncomment a `next.config.js` line after DNS lands.
+- **Multiple-choice / quick-reply answer UI** (Omar "piece F") — has its own spec needed; deferred.
+- **Meeting-notes audit** (Thread 2 item 3) — not started.
+- **Repo hygiene** — `master` ~80 commits behind `section-b-marketplace`; production deploys from `section-b`, so this is cosmetic. Eventually merge or rebase.
+- **AI-driven lead enrichment** (future) — Omar's keep-chat quality summaries now exist; next step could be feeding these into the lead-scoring model. Out of scope for this handover.
+- **Booking calendar UI** — basic admin view exists at `/admin/calendar`; visitor-side booking flow not built (Calendly direct is the substitute for now).
+- **Multi-tenant Omar** — Phase 2 (Concierge) and Phase 3 (Scheduler) of Omar's phasing ladder are locked until JA enables them via `/admin/intelligence`.
+
+### Architectural decisions locked this session (so they don't get reversed)
+
+1. **Marketplace lives at `/businesses` (path), NOT `businesses.gatewaytooman.com` (subdomain).** Reversible later — would add ~30 min of work (Vercel subdomain + GoDaddy CNAME + Next.js rewrites). Path-based picked for simplicity + shared session cookies between main site and marketplace.
+2. **Lead capture is opt-in via an in-chat button prompt**, NOT a surprise modal pop. Visitor sees "Share your details? [Yes] [Not yet]" before the form ever appears (Batch 7c, in response to JA Note #14).
+3. **Post-capture continues if user opts in**, capped at 7 additional exchanges (Batch 7c+7d).
+4. **HOT-lead CTAs are inline buttons within the chat**, not redirects — [Book consultation] (Calendly) + [WhatsApp Ahmed]. Both clicks logged to `lead_notes`.
+5. **`lead_notes` is a separate table** (not reusing `activity_log` or extending `leads.admin_notes`). Different intent: narrative vs system audit. (Batch 7c)
+6. **`admin_notes` single-field is dropped from UI in Batch 7d** — `lead_notes` timeline supersedes it. Column kept in schema for backward compat with older rows; no longer edited.
+7. **Email config single source of truth = settings DB.** All three send paths (`sendOtpEmail`, `sendEmail`, `sendEmailLegacy`) read provider config from the `settings` table — NOT env vars. (Batch 6 + 7a + 7d completed the migration.)
+8. **5 hook variants per page, randomly selected on widget mount, variant ID persisted on conversation row.** Conversion analysis by variant via `SELECT hook_variant_id, COUNT(leads) FROM conversations LEFT JOIN leads ON ... GROUP BY hook_variant_id` (Batch 7b).
+9. **AI provider chain: Anthropic primary, Groq failover.** Failover on transient errors (429, 5xx, network, Anthropic 529); auth errors (401/403) NOT retried (config errors should fail loud). (Batch 4)
+10. **Omar's `[CAPTURE_READY]` message must be a wrap-up sentence, not another question.** Explicit prompt rule with BAD/GOOD examples. Hard exchange ceiling raised 5 → 7 to give Omar room to conclude gracefully. (Batch 7d)
+11. **WhatsApp + Omar floating buttons side-by-side, both icon-only.** Omar lost his "AI Assistant" text label in Batch 7b (replaced with `MessageCircle` lucide icon). WhatsApp is to the LEFT (right-[92px]).
+12. **Calendly link is `https://calendly.com/alazizi/30min`** — direct, not via Omar. Used by Hero, ContactCTA, marketplace landing CTA section, marketplace header nav, and Omar's HOT-lead CTA button.
+
+### Deploy sequence reference (for any future deploy)
+
+```bash
+# 1. Migrate (idempotent, safe to re-run)
+npm --prefix "<repo>" run migrate
+# 2. One-shot lead-options CHECK-rebuild (already applied to prod;
+#    re-running just prints "✓ already removed — nothing to do.")
+npm --prefix "<repo>" run migrate:lead-options
+# 3. Deploy
+vercel deploy --prod --cwd "<repo>"
+```
+
+Auto-deploy is OFF — every deploy is manual.
+
+### Tests + build state
+
+- **Tests:** 177/177 passing as of `584ed49`. Two pre-existing test type errors (`tests/admin/lead-update.test.ts` line 139, `tests/api/chat.test.ts` line 30) flagged by `tsc --noEmit` but ignored by `vitest`; harmless.
+- **Build:** clean. 65 routes (was 62 before Batch 7c+7d added `/api/admin/leads/[id]/notes`, `/api/chat/event`, `/api/businesses/sign-out`).
+- **Git:** `section-b-marketplace` @ `584ed49`. Local in sync with origin.
+
+### Historical batch detail (kept for reference; superseded by the bullets above)
+
+(Old §11 content below — preserved verbatim in case anyone wants the per-batch granular history)
 
 **Completed & live in production (as of 2026-05-26):**
 - Phases 1–8 (landing, marketplace, admin, auth, gating, reviewer link, Google sign-in, hero fix).
@@ -809,6 +1004,174 @@ Internal first-pass audit (not a professional pentest). **Full findings + remedi
 7. ⬜ Before scale: professional pentest + load test (the ~1000-concurrent goal).
 
 **Already solid:** bcrypt (cost 12), parameterized SQL, 32-byte session tokens, timing-safe reviewer token, HttpOnly+Secure cookies, OTP attempt cap, `requireAuth` on every admin route, `.env` git-ignored and not committed.
+
+---
+
+## 15. Architecture Reference (post-Batch 7) — for cold reloads after compaction
+
+This section captures the moving pieces that are easiest to forget after a context compaction. Treat it as the "where things are wired" map.
+
+### 15.1 Chat / lead-capture state machine (ChatWidget.tsx)
+
+State variables (all reset on widget unmount):
+- `messages` — conversation history (user + assistant)
+- `exchangeCount` — total exchanges; ceiling 7 (was 5 pre-Batch-7d)
+- `teaserVariant` — `{ text, variantId }`, picked once on mount via `pickTeaserVariant(surface.page)`
+- `conversationId` — set after first /api/chat call
+- `detectedSegment`, `detectedInterest` — from server-side signal parsing
+- `showCapturePrompt` — true once Omar emits `[CAPTURE_READY]` or ceiling 7 hit
+- `captureDeferred` — true if visitor clicked "Not yet" (suppresses re-prompt this session)
+- `showCaptureForm` — true if visitor clicked "Yes, share my details"
+- `leadCaptured` — set true on form submit
+- `showPostCaptureChoice` — true immediately after form submit
+- `keepChatActive` — true if visitor clicked "Keep chatting"
+- `keepChatExchanges` — 0…7 counter (cap = `KEEP_CHAT_MAX_EXCHANGES`)
+- `showHotLeadCtas` — true if Omar emits `[HIGH_INTENT]` during keep-chat
+- `isClosed` — chat input hidden, widget collapses after 1.5-3 sec
+
+Flow (linear, no branches except user choices):
+
+```
+[mount] → teaser variant picked
+[scroll 30%] → teaser bubble appears (right of WhatsApp button)
+[click chat button] → widget opens, greeting fires
+[exchanges 1-6] → normal Omar conversation, signals parsed each turn
+  - [SEGMENT:X] → setDetectedSegment(X)
+  - [INTEREST:X] → setDetectedInterest(X)
+  - [CAPTURE_READY] OR exchange==7 → setShowCapturePrompt(true)
+    (Omar's visible message at this turn is a WRAP-UP, not a question —
+     enforced by BASE_PROMPT directive, Batch 7d)
+[in-chat: "Share your details?" with [Yes, share] [Not yet]]
+  - [Not yet] → setCaptureDeferred(true); conversation continues
+  - [Yes, share] → LeadCaptureForm renders
+[form submit] → setLeadCaptured(true); "Got it…want to keep chatting?" prompt
+[in-chat: [Keep chatting] [Close]]
+  - [Close] → setIsClosed(true) → widget collapses
+  - [Keep chatting] → setKeepChatActive(true)
+    → POST /api/chat/event { event: "keep_chat_started" }
+    → Omar AI writes static note to lead_notes
+[keep-chat exchanges 1-7]
+  - Each turn: keepChatExchanges++
+  - If [HIGH_INTENT] signal → setShowHotLeadCtas(true)
+    → renders [Book consultation] + [WhatsApp Ahmed] inline buttons
+    → click any button → window.open(url) + POST /api/chat/event
+                       { event: "whatsapp_click" | "calendly_click" }
+                       → Omar AI writes static note
+  - When keepChatExchanges == 7 (cap):
+    → POST /api/chat/event { event: "keep_chat_ended", exchanges: 7, reason: "ended" }
+    → API endpoint calls chat() with the FULL transcript to generate
+       a 2-3 sentence quality assessment, writes that as the lead_note
+    → Omar emits closing message ("I'll stop here so the team gets your details fresh…")
+    → setIsClosed(true)
+```
+
+### 15.2 Hook A/B variant scheme
+
+- File: `lib/ai/prompts.ts`
+- Constant: `TEASER_VARIANTS: Record<string, string[]>` — up to 5 per surface
+- Surfaces: `default`, `opportunities`, `services`, `contact`, `businesses`, `businesses-listings`
+- Picker: `pickTeaserVariant(section)` returns `{ text: string, variantId: string }` where `variantId` follows the pattern `<section>-<index>` (1-indexed, e.g. `businesses-3`)
+- Persistence: `ChatWidget.tsx` sends `hookVariantId` on the first `/api/chat` call. `/api/chat` writes it to `conversations.hook_variant_id` ONLY on conversation creation (subsequent messages can't overwrite). Server-side regex validates the format `^[a-z-]+-\d{1,2}$` before persisting.
+- Analytics query template (run via Turso SQL prompt):
+  ```sql
+  SELECT c.hook_variant_id,
+         COUNT(c.id) AS opens,
+         COUNT(l.id) AS captures,
+         ROUND(100.0 * COUNT(l.id) / COUNT(c.id), 1) AS conversion_pct
+  FROM conversations c
+  LEFT JOIN leads l ON l.conversation_id = c.id
+  WHERE c.hook_variant_id IS NOT NULL
+  GROUP BY c.hook_variant_id
+  ORDER BY conversion_pct DESC;
+  ```
+
+### 15.3 Email path routing
+
+All three send paths read from the `settings` table — set via `/admin/settings → Email configuration`:
+
+| Function | Used by | Config source |
+|---|---|---|
+| `sendOtpEmail()` in `lib/email/otp.ts` | `/api/businesses/{sign-up,sign-in,resend-access}` — OTP code emails | settings DB |
+| `sendEmail()` in `lib/email/sender.ts` (refactored Batch 6) | `/api/admin/emails/[id]/send` — booking confirmations + admin-approved lead emails | settings DB |
+| `sendEmailLegacy()` in `lib/email/sender.ts` | `/api/email/test` (refactored Batch 7a to actually use settings DB now) and `/api/email/send` | settings DB |
+
+Settings keys (in the `settings` table):
+- `email_provider` — `'resend' | 'sendgrid' | 'smtp'`
+- `email_resend_key`, `email_sendgrid_key` — API keys (masked in admin UI since Batch 6)
+- `email_smtp_host`, `email_smtp_port`, `email_smtp_user`, `email_smtp_pass`
+- `email_from_name`, `email_from_address`, `email_reply_to`
+- `email_auto_send` — `'true' | 'false'` — controls whether lead-welcome emails auto-send
+
+### 15.4 New API endpoints (Batches 5-7)
+
+| Method | Path | Purpose | Batch |
+|---|---|---|---|
+| `GET` `POST` | `/api/admin/lead-options` | List + create lead options (admin auth) | 5 |
+| `PATCH` `DELETE` | `/api/admin/lead-options/[kind]/[slug]` | Update + hard-delete a lead option | 5 |
+| `POST` | `/api/admin/listings/[id]/media` | Multipart upload to R2 (cover/gallery/video) | 4 |
+| `DELETE` | `/api/admin/listings/[id]/media?key=...&kind=...` | Delete media from R2 + nullify column | 4 |
+| `PATCH` | `/api/admin/leads/[id]` | Inline-edit status/qualification/segment/admin_notes (now validated against lead_options) | 4+5 |
+| `POST` | `/api/admin/leads/[id]/summarize` | Regenerate AI summary (uses `lib/ai/lead-summary.ts:summariseLead()`) | 5 (refactored 7d) |
+| `GET` `POST` | `/api/admin/leads/[id]/notes` | List + add notes (admin manual entries) | 7c |
+| `POST` | `/api/chat/event` | Visitor-facing event logger for Omar auto-notes. Rate-limited 60/min/IP. Events: `whatsapp_click`, `calendly_click`, `keep_chat_started`, `keep_chat_ended`. The last one triggers Omar AI to generate a 2-3 sentence quality assessment. | 7c (AI summary 7d) |
+| `POST` | `/api/businesses/sign-out` | Marketplace user sign-out — deletes session row + clears cookie | 7b |
+
+### 15.5 Shared helpers added this session
+
+| File | Purpose |
+|---|---|
+| `lib/ai/lead-summary.ts` | `summariseLead(facts, transcript)` + `stripMarkdown()` — used by BOTH auto-gen (POST /api/leads) and Regenerate (POST /api/admin/leads/[id]/summarize) so they can't drift. Batch 7d. |
+| `lib/r2.ts:toPublicUrl()` | Read-time URL rewriter: `*.r2.cloudflarestorage.com/<bucket>/<key>` → `<R2_PUBLIC_BASE_URL>/<key>`. Also `.trim()`s the env var to defend against trailing-space footgun. Applied in `lib/businesses/queries.ts:rowToListing` and `app/api/admin/listings/[id]/media/route.ts:getMediaState`. Batch 5+7a. |
+| `lib/ai/prompts.ts:pickTeaserVariant()` | 5-variant random picker per surface, returns `{ text, variantId }`. Batch 7b. |
+
+### 15.6 New components added this session
+
+| File | Purpose |
+|---|---|
+| `components/admin/LeadOptionsSection.tsx` | CRUD UI for `lead_options`. Used in `/admin/settings`. Batch 5. |
+| `components/admin/LeadNotesTimeline.tsx` | Notes timeline in `/admin/leads` expanded panel. Inline add-note form. Batch 7c. |
+| `components/chat/WhatsAppFloatingButton.tsx` | Green WhatsApp button next to Omar's chat button. Mounted globally in `app/layout.tsx`. Hidden on `/admin` + auth pages. Batch 7b. |
+| `components/businesses/ProfileMenu.tsx` | Signed-in marketplace user chip with dropdown (name/email/access status + sign out). Used in `BusinessesHeader.tsx`. Batch 7b. |
+
+### 15.7 Domain decision — path-based, not subdomain
+
+- Marketplace lives at `gatewaytooman.com/businesses` (path), not `businesses.gatewaytooman.com` (subdomain).
+- Decision locked 2026-05-28 (Batch 7b).
+- Reversible if Ahmed later wants the cleaner subdomain — would require: add subdomain in Vercel → CNAME at GoDaddy → 3 lines of rewrites in `next.config.js`. ~30 min.
+- Domain text references in code use the path form (corrected in Batch 7a — `lib/email/otp.ts` footer, `lib/ai/prompts.ts` business surface variant, `/admin/listings` subtitle).
+
+### 15.8 Known fragile areas
+
+- **schema.sql `;` in comments breaks `schema.split(';')`** — vitest test files split on `;` to apply schema in-memory; a stray `;` in a SQL comment chunks the SQL wrong. Has caught us twice. Convention: avoid semicolons in `-- comment` lines.
+- **libsql HTTP transaction quirks** — `client.execute("BEGIN") / .execute("COMMIT")` does NOT work in libsql HTTP mode (each call is a separate request → COMMIT finds "no active transaction"). Use `client.batch(stmts, "write")` for atomic groups. `PRAGMA foreign_keys` MUST be set outside the transaction (SQLite rule).
+- **PRAGMA introspection on Turso** — returns the literal string `"None"` for some `dflt_value` cells (vs JS `null`). Don't trust `PRAGMA table_info` for regenerating DDL — hardcode the rebuild DDL like `scripts/migrate-lead-options.ts` does.
+- **`R2_PUBLIC_BASE_URL` trailing-space footgun** — Vercel env var trimming is unreliable. `lib/r2.ts` defensively `.trim()`s all env reads. If image rendering breaks again with `%20` in the URL, that's the cause — fix in code already, but verify the env var value too.
+- **JSX HTML-entity decoding rules** — JSX text `<p>It&apos;s</p>` decodes. JSX attribute string `<Foo body="It&apos;s" />` decodes. But JS string literals inside `{...}` expressions do NOT decode. Use real apostrophes in JS strings, `&apos;` only in JSX text/attributes.
+
+### 15.9 External services state (one-line each)
+
+- **Vercel** — Hobby plan; free; auto-deploy OFF (every deploy manual via CLI)
+- **Turso** — Ahmed's account (gatewaytooman@gmail.com), Tokyo region, free starter tier
+- **Anthropic** — Ahmed's account, payment method added, billing live, model `claude-haiku-4-5-20251001`
+- **Groq** — Ahmed's gatewaytooman account (rotated from JA's account), pay-as-you-go, failover only
+- **Cloudflare R2** — bucket `gto-listings`, public via R2.dev subdomain (custom domain `media.gatewaytooman.com` deferred)
+- **Resend** — domain `gatewaytooman.com` verified, DKIM+SPF+DMARC live, receiving OFF, Tokyo region
+- **GoDaddy** — DNS host for `gatewaytooman.com`, still points apex to old cPanel (`68.178.145.111`) pending DNS swap (item D)
+- **Google Cloud / OAuth** — not yet set up (item E)
+- **WhatsApp** — Ahmed's number `+968 9510 8257` wired everywhere (`wa.me/96895108257`); intentionally public per HANDOVER §2/3
+
+### 15.10 Calendly URL
+
+Used everywhere for "Book a consultation" CTAs: `https://calendly.com/alazizi/30min`
+
+Locations: Hero, ContactCTA, marketplace landing final CTA section, BusinessesHeader nav, Omar's HOT-lead inline CTA.
+
+---
+
+**Document Version:** 7.19
+**Last Updated:** May 28, 2026
+
+*v7.19 — Pre-compact comprehensive HANDOVER update (2026-05-28). Goal: every architecture decision, current-state pointer, and pending item is captured in this file so a fresh context post-compact can pick up cleanly. Restructured §11 as canonical-current-state with alphabet-labeled pending items (A-K) replacing the old numbered list — easier to reference. Updated §4 env vars table to match current Vercel state (Anthropic + R2 + Resend now documented; legacy EMAIL_* and ADMIN_TOKEN marked deprecated). Updated §9 schema table with all new tables (lead_options, lead_notes, hook_variant_id, rate_limits, intelligence_notes) + columns added since the original 18-table list. Added NEW §15 Architecture Reference covering: chat-flow state machine (Batch 7c+7d), hook A/B variant scheme, email path routing (3 functions, all settings-DB now), new API endpoints (8 added across Batches 4-7), new shared helpers (lib/ai/lead-summary.ts, lib/r2.ts:toPublicUrl, pickTeaserVariant), new components, domain decision (path-based, not subdomain), known fragile areas (schema-comment-semicolon, libsql HTTP transactions, PRAGMA quirks, R2 trailing space, JSX entity rules), external services one-line state, Calendly URL. Older per-batch detail preserved verbatim under the new §11 as "Historical batch detail" since it's still useful for debugging.*
 
 ---
 
