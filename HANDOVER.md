@@ -3,7 +3,7 @@
 **Prepared by:** JA (Developer)
 **Prepared for:** Ahmed Al-Azizi — Al Azizi Group
 **Last Updated:** May 28, 2026
-**Doc Version:** 7.20 (see footer changelog)
+**Doc Version:** 7.21 (see footer changelog)
 **Live URL:** https://gateway-to-oman.vercel.app (aliased to `www.gatewaytooman.com` — apex `gatewaytooman.com` still points at old developer's cPanel host pending DNS swap, see §11 pending item D)
 **Marketplace landing:** /businesses
 **Marketplace grid:** /businesses/listings
@@ -829,8 +829,74 @@ A clear, alphabet-labeled list so post-compact lookups are easy.
 
 ### Future work / deferred (no urgency)
 
-- **Google Analytics integration** (Notes 6 — JA "later"). Add GA4 (or alternative like Plausible/Umami) via the `_app` / `RootLayout` script slot. Decide on consent-banner strategy first (Oman PDPL + GDPR — see §12 cookie notice). One day's work including the consent gating.
-- **SEO blog setup** (Notes 6 — JA "later"). MDX-driven blog posts under `/blog/[slug]` with structured-data (JSON-LD `BlogPosting` + `Author`) for ranking. Need: pick MDX provider (recommend `next-mdx-remote` for App Router compatibility), add `app/blog/[slug]/page.tsx` + `app/blog/page.tsx` (index), wire sitemap.xml + RSS, add OG image generation per post. ~1 day for the scaffold; content cadence is then a separate ongoing task with Ahmed.
+#### SEO + Blog + Analytics strategy (Notes 6 — pitched to Ahmed 2026-05-28)
+
+Three connected workstreams. Decision pending Ahmed's go-ahead on the blog editing model. JA's preferred path: **Option C (custom Turso-backed admin)** — wants to sell this to Ahmed.
+
+##### A. Baseline SEO infrastructure (~4 hours — ready to ship anytime)
+
+Current state: Next.js's natural SEO is excellent (SSR, fast CWV), but the surface is barely scratched. What's missing:
+
+- **`app/sitemap.ts`** — auto-generated from listings + static pages. Without it Google guesses what to index.
+- **`app/robots.ts`** — block `/admin` and `/api` from crawlers (currently they could be indexed).
+- **`Organization` JSON-LD** in root layout (Schema.org structured data — what Yoast adds automatically on WordPress).
+- **Per-page metadata** on marketplace landing, listing detail, sign-in (currently they inherit root `<title>` so Google sees them as duplicates).
+- **Canonical URLs** (`metadata.alternates.canonical`) across the site — prevents `www` vs apex duplicate-content penalties.
+- **Image alt text audit** — hero photos have it, listing photos likely don't.
+- **Google Search Console verification + sitemap submission** — separate from analytics, REQUIRED for SEO performance tracking. Free.
+
+##### B. Blog approach — three options for Ahmed to pick
+
+**Option A — MDX in the repo (lowest cost, JA-authored)**
+
+Posts as `.mdx` files in `content/blog/`. Git-versioned. Every post = a commit + deploy.
+
+- **Pros:** Free, full control, fastest performance (build-time generation), code samples + interactive widgets possible, easy to migrate later
+- **Cons:** Ahmed cannot write/edit unless he learns markdown + git; every post = a deploy
+- **Build time:** ~4 hours for the scaffold
+- **Right for:** JA writes posts (Ahmed reviews in Google Doc → JA converts to MDX). Realistic cadence: 1-2 posts/week.
+
+**Option B — Sanity headless CMS (best for non-dev editing)**
+
+Sanity hosts content + editor; Next.js fetches at build/request time.
+
+- **Pros:** WYSIWYG editor non-devs love; image upload built-in; drafts/scheduling/multi-author workflows; free tier covers 5-posts/week blog for years (3 users, 10k docs, 100k API requests/mo); real-time preview
+- **Cons:** Another service to maintain; vendor lock-in (mitigated — clean JSON exports); slight schema-setup learning curve
+- **Build time:** ~half a day (schema + studio config + fetch wiring)
+- **Right for:** Ahmed wants to write/edit posts himself
+
+**Option C — Custom Turso-backed blog admin** ⭐ JA's preferred pitch to Ahmed
+
+Build `/admin/blog` route inside the existing admin shell. Backed by a new `blog_posts` table in the Turso DB we already have. Markdown editor (e.g. Tiptap or react-mde) + R2 for image uploads (also already wired).
+
+- **Pros:** Zero new dependencies; zero monthly SaaS cost forever; lives inside the existing admin (Ahmed already uses `/admin`); full control over data model; same R2 + auth infrastructure
+- **Cons:** Highest build effort (~1 week to do it well — editor, image picker, draft/publish workflow, preview, schedule); we'd be reinventing what Sanity already does
+- **Build time:** ~5 working days
+- **Right for:** Strong "own everything" preference; willing to invest 1 week of build now to save $0-12/mo SaaS forever; want a single admin surface for both leads + content
+
+##### C. Analytics — three tools that don't compete (all three recommended)
+
+Vercel Analytics, Google Analytics 4, and Google Search Console solve **different problems**. Recommended setup uses all three.
+
+| Tool | What it's best for | Cost | Setup |
+|---|---|---|---|
+| **Vercel Speed Insights** | Real-user Core Web Vitals (LCP/INP/CLS) — directly impacts SEO ranking because Google uses CWV as a signal | Free up to 25k events/mo on Hobby | 5 min — `@vercel/speed-insights` package + 1 import in `RootLayout` |
+| **Google Search Console** | Search performance (impressions, clicks, average rank, indexing status) — REQUIRED for SEO work, separate from analytics | Free | Verify domain ownership via TXT record, submit `sitemap.xml` |
+| **Google Analytics 4** | Conversion tracking, traffic sources, funnel analysis, Google Ads integration | Free up to 10M events/mo | 30 min — Property + gtag + custom events for `submit-lead`, `request-access`, `book-consultation`, `whatsapp-click` |
+
+**Consent banner caveat:** Google Analytics requires cookie consent (Oman PDPL + GDPR — we already ship `/privacy`, `/terms`, `/cookies` pages). Vercel Speed Insights does not. Search Console doesn't track visitors at all (it tracks Google's view of the site). Build order: SEO infra → Speed Insights + Search Console (no consent needed) → consent banner → GA4 behind the consent gate.
+
+**Vercel Analytics paid tier (page-popularity dashboard)** is NOT recommended — GA4 does the same thing for free at typical traffic levels.
+
+##### Recommended execution order
+
+1. **Day 1 — SEO baseline** (sitemap, robots, JSON-LD, per-page metadata, canonical URLs, Search Console verification, Vercel Speed Insights). Ready to ship anytime — no Ahmed decision needed.
+2. **Day 2 — Blog scaffold** (whichever of Options A/B/C Ahmed picks). Includes `BlogPosting` JSON-LD per post, `opengraph-image.tsx` for dynamic OG images per post, RSS feed.
+3. **Day 3-4 — Consent banner + GA4 wiring** (GDPR-compliant gate, then conversion-event tagging). One full day each unless reusing a banner library.
+
+---
+
+
 - **DMARC tightening** (next 2-4 weeks) — once aggregate reports landing in `gatewaytooman@gmail.com` show no legitimate sends being marked failing, tighten `p=none` → `p=quarantine` → `p=reject` in steps.
 - **DNS migration GoDaddy → Cloudflare** (optional polish) — to swap `pub-…r2.dev` for `media.gatewaytooman.com`. Single env var change + uncomment a `next.config.js` line after DNS lands.
 - **Multiple-choice / quick-reply answer UI** (Omar "piece F") — has its own spec needed; deferred.
@@ -1191,8 +1257,10 @@ Both have been considered; for Batch 8 we shipped only the pre-flight error path
 
 ---
 
-**Document Version:** 7.20
+**Document Version:** 7.21
 **Last Updated:** May 28, 2026
+
+*v7.21 — Strategy doc for SEO + Blog + Analytics added to §11 "Future work / deferred" (Notes 6 — 2026-05-28). Replaces the two-line stubs from v7.20 with a full strategy breakdown across three workstreams: (A) baseline SEO infrastructure — sitemap, robots, JSON-LD, per-page metadata, canonical URLs, Search Console verification — ~4 hours, ready to ship anytime; (B) blog approach with three options Ahmed can pick — Option A MDX-in-repo (free, JA-authored, 4hr build), Option B Sanity headless CMS (best non-dev editor, free tier, half-day build), Option C custom Turso-backed admin (zero-SaaS, 1-week build, lives inside existing /admin) — JA's preferred pitch is Option C; (C) analytics three-tool stack (Vercel Speed Insights + Google Search Console + GA4 behind a consent banner; Vercel Analytics paid tier NOT recommended — GA4 covers it). Execution order: SEO baseline → blog scaffold (whichever option Ahmed picks) → consent banner + GA4 wiring. Also captured the dependency chain: Search Console + Speed Insights ship WITHOUT a consent banner; GA4 must wait for the banner. Also batches 9-13 silently merged across this same day are noted in commit log but didn't warrant individual changelog entries (icons, scoring tightening, post-capture fix, chat scroll, opportunity card refresh). No code changes in this version — doc only.*
 
 *v7.20 — Batch 8 (JA Notes 3 — 2026-05-28). Seven items closed; awaiting your deploy. Touched files: `app/businesses/page.tsx` (hero CTA "List your business" → Calendly "Book a consultation"; `id="why-us"` anchor on the "What makes us different" section), `components/businesses/BusinessesHeader.tsx` (nav "Book a consultation" → "Why us" anchor link), `app/businesses/sign-in/page.tsx` (added `useRouter` + `router.refresh()` on OTP success so the server-rendered marketplace header re-reads the new session cookie and swaps "Sign in" for the profile chip — root cause of Notes 3 items 3 + 6), `components/landing/Hero.tsx` (dead "Explore Your Opportunity" button now wired to a `scrollToOpportunities()` smooth-scroll handler), `components/landing/Opportunities.tsx` (removed the "Coming Soon" pill on non-marketplace cards; replaced with an in-card "Click for more details →" gold pill that signals chat-on-click; switched `Clock` import to `ArrowRight`; added `scroll-mt-20` to the section), `components/chat/ChatInput.tsx` (added `flex-shrink-0` so the input form is never squeezed out), `components/chat/ChatModal.tsx` (added `sm:max-h-[calc(100vh-2rem)]` so the 600px modal never extends past the viewport, and `min-h-0` on the flex-1 messages-scroll container — root cause of "input field not visible" on short viewports), `components/businesses/ListingCard.tsx` (chip row tightened — `whitespace-nowrap` on age + staff spans, hover "Request access" hint moved to its own row so it doesn't steal layout space), `lib/ai/scoring.ts` (full v2 recalibration: budget uniform across surfaces ≥20K=30 / ≥5K=25 / any concrete=15 / none=0; objective clarity bumped 15→20 for clear sector+plan and 8→12 for general intent; DM-unclear floor 8→10; early-price penalty retired entirely [kept on wire format as 0 for backwards compat]; thresholds eased hot 75→70 and warm 45→40; surface param added and now flows through to the breakdown), `app/api/leads/route.ts` (reads `conversations.source` and passes `surface: "main" | "businesses"` into `scoreLead()`), `app/admin/listings/page.tsx` (video upload pre-flight check against the 4.5 MB Vercel Hobby body limit + detailed error surfacing showing status code, parsed body, and per-file size+type when uploads fail — root cause of Notes 3 item 2 was that the platform was rejecting 4.5MB+ bodies before they reached our handler, so the UI just saw "Upload failed" with no JSON body; label updated to "Upload video (MP4/WebM, max 4.5 MB on Hobby tier)"), `app/api/admin/listings/[id]/media/route.ts` (added structured `console.error` for `formData()` parse failures so the Vercel logs distinguish a 413-body-too-large from a malformed multipart). 177/177 tests pass; zero new TypeScript errors. The pre-existing 3 TS errors in `tests/admin/lead-update.test.ts` + `tests/api/chat.test.ts` are unchanged (undici Response/Request vs Next.js wrappers — runtime-fine). No DB migration required.*
 
