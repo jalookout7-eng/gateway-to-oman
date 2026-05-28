@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
+import { trackEvent } from "@/lib/analytics/track";
 
 /**
  * Floating WhatsApp button — opens a chat directly with Ahmed's WhatsApp.
@@ -38,6 +39,7 @@ export function WhatsAppFloatingButton() {
       rel="noopener noreferrer"
       aria-label="WhatsApp Ahmed at Gateway to Oman"
       title="WhatsApp Ahmed"
+      onClick={() => trackEvent("whatsapp_click", { surface: "floating_button" })}
       // Position: same bottom edge as Omar's button (bottom-6 right-6 is
       // 24px). The Omar button is 56px wide (h-14 w-14). Adding a 12px gap
       // means our right edge is at 24 + 56 + 12 = 92px. We use right-[92px].

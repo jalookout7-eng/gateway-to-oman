@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, getRequestUser } from "@/lib/auth/token";
 import { getDb } from "@/lib/db/client";
+import { deleteLeadCascade } from "@/lib/admin/lead-delete";
 
 /**
  * Validate that a candidate value exists as an active slug in the lead_options
@@ -146,3 +147,28 @@ export async function PATCH(
 
   return NextResponse.json({ ok: true });
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
+
+  const { id: leadId } = await params;
+  const user = await getRequestUser(request);
+  const ip = request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? null;
+  const userAgent = request.headers.get("user-agent") ?? null;
+
+  try {
+    const result = await deleteLeadCascade(leadId, user?.id ?? null, ip, userAgent);
+    if (!result.deleted) {
+      return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("[admin/leads delete] failed:", err);
+    return NextResponse.json({ error: "Delete failed" }, { status: 500 });
+  }
+}
+

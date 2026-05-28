@@ -10,6 +10,7 @@ import { getContextualGreeting, pickTeaserVariant } from "@/lib/ai/prompts";
 import { resolveSurface } from "@/lib/ai/surface";
 import { useChatModal, type ChatModalConfig } from "@/lib/context/ChatModalContext";
 import { WhatsAppHandoffButton } from "./WhatsAppHandoffButton";
+import { trackEvent } from "@/lib/analytics/track";
 import { MessageCircle, CalendarDays, MessageSquare } from "lucide-react";
 
 const CALENDLY_URL = "https://calendly.com/alazizi/30min";
@@ -154,11 +155,15 @@ export function ChatWidget() {
 
   const handleOpen = useCallback(() => {
     setIsOpen(true);
+    trackEvent("chat_opened", {
+      surface: resolveSurface(pathname ?? "/").page,
+      hook_variant: teaserVariant.variantId,
+    });
     if (messages.length === 0) {
       const greeting = getContextualGreeting(resolveSurface(pathname ?? "/").page);
       setMessages([{ role: "assistant", content: greeting }]);
     }
-  }, [messages.length, pathname]);
+  }, [messages.length, pathname, teaserVariant.variantId]);
 
   // Bridge from the ChatModalContext: when an opportunity card (or any other
   // caller) fires openModal({intent, topic}), open this floating widget with
@@ -374,6 +379,10 @@ export function ChatWidget() {
   const handleLeadSubmit = useCallback(() => {
     setLeadCaptured(true);
     setShowCaptureForm(false);
+    trackEvent("lead_submit", {
+      surface: resolveSurface(pathname ?? "/").page,
+      hook_variant: teaserVariant.variantId,
+    });
     setMessages((prev) => [
       ...prev,
       {
@@ -383,7 +392,7 @@ export function ChatWidget() {
       },
     ]);
     setShowPostCaptureChoice(true);
-  }, []);
+  }, [pathname, teaserVariant.variantId]);
 
   const handlePostCaptureDecision = useCallback(
     (keepChatting: boolean) => {
@@ -409,11 +418,13 @@ export function ChatWidget() {
 
   const handleWhatsAppClick = useCallback(() => {
     logEvent("whatsapp_click");
+    trackEvent("whatsapp_click", { surface: "omar_chat", source: "hot_lead_cta" });
     window.open("https://wa.me/96895108257", "_blank", "noopener,noreferrer");
   }, [logEvent]);
 
   const handleCalendlyClick = useCallback(() => {
     logEvent("calendly_click");
+    trackEvent("calendly_click", { surface: "omar_chat", source: "hot_lead_cta" });
     window.open(CALENDLY_URL, "_blank", "noopener,noreferrer");
   }, [logEvent]);
 

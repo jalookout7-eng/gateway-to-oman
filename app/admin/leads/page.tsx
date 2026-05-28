@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
@@ -75,6 +76,95 @@ export default function LeadsPage() {
   // Admin-editable lookups — loaded once, fall back to empty list if endpoint
   // is unreachable (the dropdown still shows the current value + "—").
   const [leadOptions, setLeadOptions] = useState<LeadOptionsByKind>(EMPTY_LEAD_OPTIONS);
+  // Multi-select state for the bulk-delete tool (Notes 7). A Set<string> of
+  // lead IDs the visitor has ticked the checkbox on.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // Toggle one lead in/out of the selection.
+  const toggleSelected = useCallback((leadId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(leadId)) next.delete(leadId);
+      else next.add(leadId);
+      return next;
+    });
+  }, []);
+
+  // Select-all / clear-all toggle in the table header.
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      if (prev.size === leads.length && leads.length > 0) {
+        return new Set();
+      }
+      return new Set(leads.map((l) => l.id));
+    });
+  }, [leads]);
+
+  const allSelected = useMemo(
+    () => leads.length > 0 && selectedIds.size === leads.length,
+    [leads.length, selectedIds.size],
+  );
+
+  // Single-row delete with confirmation.
+  async function handleDelete(lead: Lead) {
+    if (!window.confirm(`Delete lead "${lead.name}" (${lead.email})? This also wipes their chat transcript and any inquiries. Cannot be undone.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/leads/${lead.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        window.alert(`Delete failed: ${data.error ?? res.statusText}`);
+        return;
+      }
+      setLeads((prev) => prev.filter((l) => l.id !== lead.id));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(lead.id);
+        return next;
+      });
+    } catch (err) {
+      window.alert(`Delete failed: ${err instanceof Error ? err.message : "Connection error"}`);
+    }
+  }
+
+  // Bulk delete with confirmation — N selected → confirm → POST /bulk-delete.
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (!window.confirm(`Delete ${ids.length} lead${ids.length === 1 ? "" : "s"}? This wipes their chat transcripts and inquiries. Cannot be undone.`)) {
+      return;
+    }
+    setBulkDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/leads/bulk-delete`, {
+        method: "POST",
+        credentials: "include",
+        headers: authHeaders(),
+        body: JSON.stringify({ ids }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        window.alert(`Bulk delete failed: ${data.error ?? res.statusText}`);
+        return;
+      }
+      const deleted: number = data.deleted ?? 0;
+      const failed: { id: string; reason: string }[] = data.failed ?? [];
+      setLeads((prev) => prev.filter((l) => !selectedIds.has(l.id) || failed.some((f) => f.id === l.id)));
+      setSelectedIds(new Set(failed.map((f) => f.id)));
+      if (failed.length > 0) {
+        window.alert(`Deleted ${deleted} of ${ids.length}. ${failed.length} failed — they remain selected so you can retry.`);
+      }
+    } catch (err) {
+      window.alert(`Bulk delete failed: ${err instanceof Error ? err.message : "Connection error"}`);
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
 
   useEffect(() => {
     async function loadLeadOptions() {
@@ -249,6 +339,35 @@ export default function LeadsPage() {
         </select>
       </div>
 
+      {/* Bulk-delete action bar — surfaces when at least one row is ticked.
+          Sticks above the table; one-click delete with confirm. (Notes 7) */}
+      {selectedIds.size > 0 && (
+        <div className="mb-3 flex items-center justify-between bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
+          <span className="text-sm text-red-700 font-medium">
+            {selectedIds.size} selected
+          </span>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              disabled={bulkDeleting}
+              className="text-sm text-red-700 hover:text-red-900 disabled:opacity-50"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+              className="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-md px-3 py-1.5 transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {bulkDeleting ? "Deleting…" : `Delete selected (${selectedIds.size})`}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         {loading ? (
@@ -260,6 +379,15 @@ export default function LeadsPage() {
           <table className="w-full min-w-[640px] text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
+                <th className="px-3 py-3 w-9">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    aria-label="Select all leads"
+                    className="h-4 w-4 rounded border-gray-300 text-gold focus:ring-gold/30 cursor-pointer"
+                  />
+                </th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Name</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Phone</th>
@@ -277,8 +405,19 @@ export default function LeadsPage() {
                   <tr
                     key={lead.id}
                     onClick={() => handleExpand(lead)}
-                    className="border-b border-gray-50 hover:bg-warm-white cursor-pointer transition-colors"
+                    className={`border-b border-gray-50 hover:bg-warm-white cursor-pointer transition-colors ${
+                      selectedIds.has(lead.id) ? "bg-red-50/50" : ""
+                    }`}
                   >
+                    <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(lead.id)}
+                        onChange={() => toggleSelected(lead.id)}
+                        aria-label={`Select ${lead.name}`}
+                        className="h-4 w-4 rounded border-gray-300 text-gold focus:ring-gold/30 cursor-pointer"
+                      />
+                    </td>
                     <td className="px-4 py-3 font-medium text-navy">{lead.name}</td>
                     <td className="px-4 py-3 text-gray-600">{lead.email}</td>
                     <td className="px-4 py-3 text-gray-600">
@@ -333,21 +472,31 @@ export default function LeadsPage() {
                     <td className="px-4 py-3 text-gray-500">
                       {new Date(lead.created_at).toLocaleDateString()}
                     </td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => setExpandedLead(expandedLead === lead.id ? null : lead.id)}
-                        className="p-1 text-gray-400 hover:text-navy transition-colors"
-                        aria-label="Toggle AI summary"
-                      >
-                        <svg className={`w-4 h-4 transition-transform ${expandedLead === lead.id ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setExpandedLead(expandedLead === lead.id ? null : lead.id)}
+                          className="p-1 text-gray-400 hover:text-navy transition-colors"
+                          aria-label="Toggle AI summary"
+                        >
+                          <svg className={`w-4 h-4 transition-transform ${expandedLead === lead.id ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(lead)}
+                          className="p-1 text-gray-300 hover:text-red-600 transition-colors"
+                          aria-label="Delete lead"
+                          title="Delete this lead and all related data"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   {expandedLead === lead.id && (
                     <tr key={`${lead.id}-summary`}>
-                      <td colSpan={9} className="px-4 pb-4 bg-gray-50/50">
+                      <td colSpan={10} className="px-4 pb-4 bg-gray-50/50">
                         <div className="bg-white rounded-xl p-4 border-l-4 border-gold mt-1">
                           <div className="flex items-center justify-between mb-2">
                             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">AI Summary</p>
@@ -393,7 +542,7 @@ export default function LeadsPage() {
                   )}
                   {expandedId === lead.id && (
                     <tr key={`${lead.id}-expand`}>
-                      <td colSpan={9} className="px-4 py-4 bg-gray-50">
+                      <td colSpan={10} className="px-4 py-4 bg-gray-50">
                         {conversation?.messages ? (
                           <div className="space-y-2 max-h-60 overflow-y-auto">
                             <p className="text-xs font-semibold text-gray-500 mb-2">Conversation Transcript</p>

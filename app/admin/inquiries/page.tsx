@@ -12,6 +12,7 @@ import {
   Search,
   Loader2,
   CheckCircle2,
+  Trash2,
 } from "lucide-react";
 
 type Inquiry = {
@@ -62,6 +63,78 @@ export default function AdminInquiriesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [outcomeFilter, setOutcomeFilter] = useState<"all" | Inquiry["outcome"]>("all");
+  // Multi-select for test-data cleanup (Notes 7). Same Set<string> pattern
+  // used in /admin/leads — delete cascades through the same DELETE
+  // /api/admin/leads/[id] endpoint since an inquiry IS a businesses-source lead.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  const toggleSelected = useCallback((leadId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(leadId)) next.delete(leadId);
+      else next.add(leadId);
+      return next;
+    });
+  }, []);
+
+  async function handleDelete(leadId: string, name: string, email: string) {
+    if (!window.confirm(`Delete inquiry from "${name}" (${email})? This also wipes their lead record, chat transcript, and any other inquiries. Cannot be undone.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/leads/${leadId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        window.alert(`Delete failed: ${data.error ?? res.statusText}`);
+        return;
+      }
+      setInquiries((prev) => prev.filter((i) => i.lead_id !== leadId));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(leadId);
+        return next;
+      });
+    } catch (err) {
+      window.alert(`Delete failed: ${err instanceof Error ? err.message : "Connection error"}`);
+    }
+  }
+
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (!window.confirm(`Delete ${ids.length} inquir${ids.length === 1 ? "y" : "ies"}? This wipes the lead records, chat transcripts, and any related rows. Cannot be undone.`)) {
+      return;
+    }
+    setBulkDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/leads/bulk-delete`, {
+        method: "POST",
+        credentials: "include",
+        headers: authHeaders(),
+        body: JSON.stringify({ ids }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        window.alert(`Bulk delete failed: ${data.error ?? res.statusText}`);
+        return;
+      }
+      const deleted: number = data.deleted ?? 0;
+      const failed: { id: string; reason: string }[] = data.failed ?? [];
+      setInquiries((prev) => prev.filter((i) => !selectedIds.has(i.lead_id) || failed.some((f) => f.id === i.lead_id)));
+      setSelectedIds(new Set(failed.map((f) => f.id)));
+      if (failed.length > 0) {
+        window.alert(`Deleted ${deleted} of ${ids.length}. ${failed.length} failed — they remain selected so you can retry.`);
+      }
+    } catch (err) {
+      window.alert(`Bulk delete failed: ${err instanceof Error ? err.message : "Connection error"}`);
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
 
   const fetchInquiries = useCallback(async () => {
     setLoading(true);
@@ -171,6 +244,34 @@ export default function AdminInquiriesPage() {
         <StatCard label="Converted" value={stats.converted} accent="emerald" />
       </div>
 
+      {/* Bulk-delete action bar — Notes 7. Same UX as /admin/leads. */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
+          <span className="text-sm text-red-700 font-medium">
+            {selectedIds.size} selected
+          </span>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              disabled={bulkDeleting}
+              className="text-sm text-red-700 hover:text-red-900 disabled:opacity-50"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+              className="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-md px-3 py-1.5 transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {bulkDeleting ? "Deleting…" : `Delete selected (${selectedIds.size})`}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-xl bg-white ring-1 ring-gray-200 shadow-sm overflow-hidden">
         <div className="border-b border-gray-100 p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
           <div className="relative flex-1 max-w-md">
@@ -224,6 +325,9 @@ export default function AdminInquiriesPage() {
               <InquiryRow
                 key={i.lead_id}
                 inquiry={i}
+                selected={selectedIds.has(i.lead_id)}
+                onToggleSelect={() => toggleSelected(i.lead_id)}
+                onDelete={() => handleDelete(i.lead_id, i.name, i.email)}
                 onUpdateOutcome={updateOutcome}
                 onUpdateAttribution={updateAttribution}
                 onApprove={approveAccess}
@@ -238,20 +342,36 @@ export default function AdminInquiriesPage() {
 
 function InquiryRow({
   inquiry: i,
+  selected,
+  onToggleSelect,
+  onDelete,
   onUpdateOutcome,
   onUpdateAttribution,
   onApprove,
 }: {
   inquiry: Inquiry;
+  selected: boolean;
+  onToggleSelect: () => void;
+  onDelete: () => void;
   onUpdateOutcome: (leadId: string, outcome: Inquiry["outcome"]) => void;
   onUpdateAttribution: (leadId: string, patch: { outcome?: Inquiry["outcome"]; outcome_reason?: string; omar_grade_correct?: string }) => void;
   onApprove: (leadId: string) => void;
 }) {
   return (
-    <div className="p-5 hover:bg-gray-50/50 transition-colors">
+    <div className={`p-5 hover:bg-gray-50/50 transition-colors ${selected ? "bg-red-50/40" : ""}`}>
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_240px] gap-5">
         <div className="space-y-3">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            {/* Multi-select checkbox + trash button (Notes 7). The checkbox
+                feeds the bulk-delete action bar above; the trash icon is a
+                single-row delete with its own confirm. */}
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={onToggleSelect}
+              aria-label={`Select inquiry from ${i.name}`}
+              className="h-4 w-4 rounded border-gray-300 text-gold focus:ring-gold/30 cursor-pointer self-center"
+            />
             <h3 className="font-heading text-lg font-semibold text-navy">{i.name}</h3>
             <span
               className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${OUTCOME_STYLES[i.outcome]}`}
@@ -261,6 +381,15 @@ function InquiryRow({
             <span className="text-xs text-gray-400">
               {new Date(i.submitted_at).toLocaleString()}
             </span>
+            <button
+              type="button"
+              onClick={onDelete}
+              aria-label="Delete inquiry"
+              title="Delete this inquiry + lead record"
+              className="ml-auto p-1 text-gray-300 hover:text-red-600 transition-colors"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           </div>
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-700">
