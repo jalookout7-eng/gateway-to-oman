@@ -41,9 +41,18 @@ export async function BusinessesHeader() {
           <Link href="/businesses" className="hover:text-gold transition-colors">
             Browse
           </Link>
-          <Link href="/businesses/list-your-business" className="hover:text-gold transition-colors">
-            List a business
-          </Link>
+          {/* Calendly direct — replaces the previous "List a business" link.
+              Seller-side flow still exists at /businesses/list-your-business
+              for users who navigate there directly, but it's no longer
+              promoted in the header (per JA Notes 2). */}
+          <a
+            href="https://calendly.com/alazizi/30min"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-gold transition-colors"
+          >
+            Book a consultation
+          </a>
           <Link href="/businesses/about" className="hover:text-gold transition-colors">
             How it works
           </Link>

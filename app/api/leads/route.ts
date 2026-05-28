@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db/client";
 import { requireAuth } from "@/lib/auth/token";
-import Groq from "groq-sdk";
 import { sendPushNotification } from "@/lib/push/notify";
 import { scoreLead } from "@/lib/ai/scoring";
+import { summariseLead, type LeadFacts } from "@/lib/ai/lead-summary";
 
 async function scoreLeadFromConversation(
   leadId: string,
@@ -45,51 +45,56 @@ async function scoreLeadFromConversation(
   }
 }
 
-async function generateLeadSummary(leadId: string, conversationId: string | null, db: ReturnType<typeof getDb>) {
-  if (!conversationId) return;
-
+/**
+ * Auto-generate the AI summary for a freshly-captured lead.
+ *
+ * Uses the shared `summariseLead()` helper (Anthropic primary, Groq failover)
+ * with the same prompt + lead-facts injection as the admin "Regenerate"
+ * button. Centralising this fixed the bug where the first-time summary
+ * still hallucinated the lead's name and emitted markdown asterisks — the
+ * old auto-gen path was a stale copy of an older prompt + the weak
+ * llama-3.1-8b model + no facts injection.
+ *
+ * Fire-and-forget from the caller: failures are logged but never block the
+ * lead-creation response.
+ */
+async function generateLeadSummary(
+  leadId: string,
+  conversationId: string | null,
+  facts: LeadFacts,
+  db: ReturnType<typeof getDb>,
+) {
   try {
-    const msgs = await db.execute({
-      sql: "SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at ASC",
-      args: [conversationId],
-    });
-
-    if (msgs.rows.length < 2) {
-      await db.execute({
-        sql: "UPDATE leads SET ai_summary = ? WHERE id = ?",
-        args: ["Lead submitted with minimal conversation. Review lead details directly.", leadId],
+    let transcript: string | null = null;
+    if (conversationId) {
+      const msgs = await db.execute({
+        sql: "SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at ASC",
+        args: [conversationId],
       });
-      return;
+      if (msgs.rows.length > 0) {
+        transcript = msgs.rows
+          .map((m) => {
+            const role = String(m.role).toLowerCase();
+            const label =
+              role === "user"
+                ? "VISITOR (lead)"
+                : role === "assistant"
+                  ? "OMAR (bot)"
+                  : role.toUpperCase();
+            return `${label}: ${String(m.content)}`;
+          })
+          .join("\n");
+      }
     }
 
-    const transcript = msgs.rows
-      .map((m) => `${String(m.role).toUpperCase()}: ${String(m.content)}`)
-      .join("\n");
+    const summary = await summariseLead(facts, transcript);
 
-    const client = new Groq({ apiKey: process.env.GROQ_API_KEY });
-    const response = await client.chat.completions.create({
-      model: "llama-3.1-8b-instant",
-      temperature: 0.3,
-      max_tokens: 300,
-      messages: [
-        {
-          role: "system",
-          content: `You are summarizing a sales qualification conversation for Ahmed Al-Azizi at Gateway to Oman. Write a concise summary with exactly these five labeled sections, each 1-2 sentences, plain prose, no bullet points within sections:\n\nWHO: Who this person is — background, country, situation.\nWANTS: What they are specifically looking for in Oman.\nSIGNALS: Key qualifying indicators and hot/warm/cold assessment.\nBOTTLENECKS: Concerns, hesitations, or obstacles they raised. If none, write "None identified."\nNEXT STEP: Recommended action for Ahmed.`,
-        },
-        {
-          role: "user",
-          content: `Conversation:\n\n${transcript}`,
-        },
-      ],
-    });
-
-    const summary = response.choices[0]?.message?.content ?? "";
     await db.execute({
       sql: "UPDATE leads SET ai_summary = ? WHERE id = ?",
       args: [summary, leadId],
     });
   } catch (err) {
-    console.error("Summary generation failed:", err);
+    console.error("[leads] Summary generation failed:", err);
   }
 }
 
@@ -137,8 +142,23 @@ export async function POST(request: NextRequest) {
 
     const leadId = result.rows[0].id as string;
 
-    // Fire-and-forget: generate AI summary without blocking response
-    generateLeadSummary(leadId, conversationId ?? null, db).catch(console.error);
+    // Fire-and-forget: generate AI summary without blocking response.
+    // Pass the freshly-captured lead facts directly so the AI knows the
+    // visitor's name + segment + interests even when the transcript
+    // doesn't mention them (the lead form is the source of truth, not chat).
+    generateLeadSummary(
+      leadId,
+      conversationId ?? null,
+      {
+        name: name ?? null,
+        email: email ?? null,
+        phone: phone ?? null,
+        country_code: countryCode ?? null,
+        segment: segment ?? null,
+        interests: interests ?? null,
+      },
+      db,
+    ).catch(console.error);
 
     // Programmatic lead scoring (in-process, fast — runs before push so the
     // notification can include the tier).

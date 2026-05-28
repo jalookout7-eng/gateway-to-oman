@@ -132,8 +132,11 @@ export default function CalendarPage() {
         </button>
       </div>
 
-      {/* Week grid */}
-      <div className="grid grid-cols-7 gap-2">
+      {/* Week grid — always renders all 7 days as a single horizontal strip.
+          On narrow viewports the row scrolls horizontally instead of wrapping
+          into multiple rows (which left empty trailing cells per JA Notes 2 #3). */}
+      <div className="overflow-x-auto -mx-2 px-2">
+        <div className="grid grid-cols-7 gap-2 min-w-[840px]">
         {weekDays.map((day) => {
           const dateStr = formatDate(day);
           const dayBookings = bookings.filter((b) => b.preferred_date === dateStr);
@@ -195,6 +198,7 @@ export default function CalendarPage() {
             </div>
           );
         })}
+        </div>
       </div>
 
       {/* Block modal */}

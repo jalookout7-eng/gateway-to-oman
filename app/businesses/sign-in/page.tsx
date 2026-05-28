@@ -218,21 +218,33 @@ function SignUpForm({
 
       <Field label="Phone *">
         <div className="flex gap-2">
-          {/* Country code: compact display "🇴🇲 +968" so the phone input has room
-              even on narrow screens. The full country name is still visible
-              in the dropdown when opened (see option text below). */}
-          <select
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-            className="input w-[96px] sm:w-[112px] flex-shrink-0 pr-1"
-            aria-label="Country code"
-          >
-            {COUNTRY_CODES.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.flag} +{c.dial} {c.name}
-              </option>
-            ))}
-          </select>
+          {/* Country code: dial-first ordering so the most-useful info is at
+              the start (the dial code itself); truncation can drop the name
+              tail without losing meaning. Flag emoji removed because it
+              renders as plain ISO letters on Windows ("🇴🇲" → "OM"), which
+              made the visible string look like a duplicate ("OM ... Oman").
+              Explicit overflow-hidden + text-ellipsis on the wrapper so
+              browsers consistently truncate the displayed-in-closed-state
+              text instead of letting it overflow into the phone input. */}
+          <div className="relative w-[110px] flex-shrink-0">
+            <select
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              className="input w-full pr-7 truncate"
+              aria-label="Country code"
+              style={{
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+              }}
+            >
+              {COUNTRY_CODES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  +{c.dial} {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
           <input
             type="tel"
             required

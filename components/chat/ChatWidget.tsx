@@ -217,10 +217,11 @@ export function ChatWidget() {
           }
         }
 
-        // Hard ceiling: still surface the opt-in prompt at exchange 5
-        // (instead of auto-opening the form).
+        // Hard ceiling: surface the opt-in prompt at exchange 7 (was 5).
+        // Gives Omar room to deliver a graceful conclusion before the prompt
+        // appears — see the [CAPTURE_READY] wrap-up directive in BASE_PROMPT.
         if (
-          newExchangeCount >= 5 &&
+          newExchangeCount >= 7 &&
           !leadCaptured &&
           !showCapturePrompt &&
           !showCaptureForm &&

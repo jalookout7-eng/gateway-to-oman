@@ -367,16 +367,11 @@ export default function LeadsPage() {
                           ) : (
                             <p className="text-sm text-gray-400 italic">No summary yet.</p>
                           )}
-                          <AdminNotesField
-                            leadId={lead.id}
-                            initialValue={lead.admin_notes ?? ""}
-                            setLeads={setLeads}
-                          />
-                          {/* Notes timeline — admin manual + Omar AI auto-notes
-                              (WhatsApp/Calendly clicks, keep-chat events).
-                              Placed below the single Admin Notes field and
-                              above the Conversation Transcript panel (which
-                              renders in its own row below). */}
+                          {/* Notes timeline — admin manual entries + Omar AI
+                              auto-notes (WhatsApp/Calendly clicks + a quality
+                              assessment summary on keep-chat end). The legacy
+                              single 'Admin Notes' field was removed in Batch
+                              7d (the timeline supersedes it). */}
                           <LeadNotesTimeline leadId={lead.id} />
                           {lead.pendingEmail && (
                             <div className="mt-4 border-t border-gray-100 pt-4">
@@ -440,37 +435,11 @@ export default function LeadsPage() {
   );
 }
 
-function AdminNotesField({
-  leadId,
-  initialValue,
-  setLeads,
-}: {
-  leadId: string;
-  initialValue: string;
-  setLeads: React.Dispatch<React.SetStateAction<Lead[]>>;
-}) {
-  const [value, setValue] = useState(initialValue);
-
-  function handleBlur() {
-    if (value !== initialValue) {
-      updateLead(leadId, { admin_notes: value }, setLeads);
-    }
-  }
-
-  return (
-    <div className="mt-4 border-t border-gray-100 pt-4">
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Admin Notes</p>
-      <textarea
-        rows={2}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={handleBlur}
-        placeholder="Add private notes…"
-        className="w-full text-xs rounded border border-gray-200 bg-white px-2 py-1.5 resize-none focus:outline-none focus:border-gold"
-      />
-    </div>
-  );
-}
+// AdminNotesField removed in Batch 7d — the LeadNotesTimeline component
+// now supersedes it (richer model: multi-entry list with author + timestamp,
+// admin manual + Omar AI auto-writes). The leads.admin_notes column stays in
+// the schema for backward compatibility with older rows but is no longer
+// edited from the admin UI.
 
 function AddLeadModal({ isOpen, onClose, onAdded }: { isOpen: boolean; onClose: () => void; onAdded: () => void }) {
   const [name, setName] = useState("");

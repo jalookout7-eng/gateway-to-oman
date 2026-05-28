@@ -812,8 +812,18 @@ Internal first-pass audit (not a professional pentest). **Full findings + remedi
 
 ---
 
-**Document Version:** 7.17
+**Document Version:** 7.18
 **Last Updated:** May 28, 2026
+
+*v7.18 — Batch 7d (JA Notes 2 follow-up — 2026-05-28). Six follow-up items closed after the first 7a/7b/7c deploy.*
+
+*v7.18 / Batch 7d details:*
+*(1) Country code field — width didn't truncate because the flag emoji renders as plain ISO letters on Windows ("OM" not "🇴🇲"), making "OM +968 · Oman" still long. Restructured option text to dial-first ("+968 Oman"), removed the flag, fixed width to 110px wrapper + explicit overflow-hidden/text-ellipsis so browsers consistently truncate the closed-state display.*
+*(2) First-generation lead summary still hallucinated name + emitted markdown — the auto-generation path in /api/leads/route.ts had a STALE COPY of the old Groq/llama-3.1-8b code + old prompt that batch 7a missed. Extracted a shared `lib/ai/lead-summary.ts` helper (`summariseLead(facts, transcript)` + `stripMarkdown()`) and refactored BOTH the auto-gen (POST /api/leads) and the admin Regenerate (POST /api/admin/leads/[id]/summarize) to use it. Single source of truth — no drift possible.*
+*(3) Calendar layout — empty cells appeared in the bottom row when `grid-cols-7` wrapped at narrower viewports. Wrapped the 7-column grid in `overflow-x-auto` + set `min-w-[840px]` so the week strip always renders as a single horizontal row (scrolls if needed) — no more trailing empty cells.*
+*(4) BusinessesHeader nav — "List a business" link replaced with "Book a consultation" → calendly.com/alazizi/30min direct. Seller-side flow at /businesses/list-your-business is still reachable but no longer promoted in header (per JA's priorities).*
+*(5) Omar chat flow — raised the hard exchange ceiling from 5 → 7 (gives Omar room to wrap up gracefully); added a CRITICAL section to BASE_PROMPT requiring the visible message accompanying [CAPTURE_READY] to be a wrap-up sentence (NOT another question), with concrete BAD/GOOD examples. Fixes the "still asking a question while the in-chat prompt pops up" UX issue JA flagged.*
+*(6) Notes refinement — removed the legacy `AdminNotesField` single-textarea from the admin lead detail panel (LeadNotesTimeline supersedes it). The `keep_chat_ended` event in /api/chat/event no longer writes a static "ended after N exchanges" note; instead Omar AI generates a 2-3 sentence quality assessment based on the keep-chat transcript + lead facts (focus areas: what they actually wanted, hot/warm/cold gut read with reason, one concrete recommendation for the team's first reply). Hard fallback to a one-line static note if the AI call fails. Other auto-notes (whatsapp_click, calendly_click, keep_chat_started) kept as static text — they're event-marker notes, not quality summaries.*
 
 *v7.17 — Final handover pass — Batch 7a/7b/7c (2026-05-28). JA's 14 review notes closed across three sub-batches.*
 
