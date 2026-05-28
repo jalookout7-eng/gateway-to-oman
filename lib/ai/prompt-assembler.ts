@@ -7,6 +7,11 @@ export interface AssembleContext {
   intent?: string;
   topic?: string;
   availability?: string; // pre-fetched availability fragment, if any
+  /** True when the visitor has already submitted the lead-capture form on
+   *  the client. When set, the assembler appends a [LEAD CAPTURED] marker
+   *  that tells Omar he must NOT ask for name/email/phone again — the team
+   *  already has them (Notes 5). */
+  leadCaptured?: boolean;
 }
 
 export interface AssembleInput {
@@ -82,6 +87,15 @@ export function buildSystemPrompt(input: AssembleInput): string {
     sections.push(context.availability);
     sections.push(
       "For consultation bookings: after qualifying, ask for preferred day from AVAILABLE_DAYS above, then preferred time from that day's slots. Embed [BOOKING_DAY:YYYY-MM-DD] and [BOOKING_TIME:HH:MM] when visitor confirms."
+    );
+  }
+  // Post-capture marker (Notes 5): the visitor has already submitted the
+  // lead-capture form on the client. Omar must NOT re-collect personal
+  // details — the team already has them. This is the runtime counterpart
+  // to the POST-CAPTURE section in BASE_PROMPT.
+  if (context?.leadCaptured) {
+    sections.push(
+      "[LEAD CAPTURED: the visitor has already submitted the lead-capture form. The team has their name, email, and phone (and WhatsApp where given). DO NOT ask for these details again — not as a follow-up, not in a 'just confirming' message, not at all. Answer their substantive question and continue qualifying their fit / specifics. Embed [HIGH_INTENT] if they ask 2+ specific follow-up questions about pricing, timeline, visa, or sectors.]"
     );
   }
 

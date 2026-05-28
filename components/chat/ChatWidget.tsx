@@ -218,6 +218,12 @@ export function ChatWidget() {
             // [CONTEXT: visitor clicked '<topic>' ...] in his system prompt.
             // Null when the visitor opened Omar via the floating button.
             context: chatContext ?? undefined,
+            // Notes 5: tells the server-side prompt assembler the visitor
+            // has already given us the form. Omar then sees [LEAD CAPTURED]
+            // and will not re-ask for name/email/phone. The server also
+            // cross-checks the DB so a stale flag (e.g. page refresh) is
+            // restored automatically.
+            leadCaptured,
           }),
         });
 
@@ -340,6 +346,7 @@ export function ChatWidget() {
       pathname,
       teaserVariant.variantId,
       chatContext,
+      leadCaptured,
       logEvent,
     ],
   );

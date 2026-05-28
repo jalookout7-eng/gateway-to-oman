@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
       context,
       source: requestSource,
       hookVariantId,
+      leadCaptured: clientLeadCaptured,
     } = await request.json();
 
     if (!message || !sessionId) {
@@ -119,6 +120,19 @@ export async function POST(request: NextRequest) {
     if (context?.intent === "consultation") {
       assembleContext.availability = await getAvailabilityContext();
     }
+    // Cross-check the client-supplied leadCaptured flag against the DB so a
+    // false-positive client can't claim "lead already captured" and skip
+    // the form unprompted — and so a true-positive flag survives a page
+    // refresh that loses client state. The OR-with-DB resolves both ways.
+    let leadCaptured = clientLeadCaptured === true;
+    if (!leadCaptured) {
+      const leadRow = await db.execute({
+        sql: "SELECT id FROM leads WHERE conversation_id = ? LIMIT 1",
+        args: [conversationId],
+      });
+      if (leadRow.rows.length > 0) leadCaptured = true;
+    }
+    if (leadCaptured) assembleContext.leadCaptured = true;
     const systemPrompt = buildSystemPrompt({
       surface: conversationSource,
       phase,
