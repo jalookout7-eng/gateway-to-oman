@@ -98,9 +98,18 @@ export function Opportunities() {
           </p>
         </ScrollAnimationWrapper>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {/* items-stretch so every animation wrapper reaches the same row
+            height — required for the h-full chain inside OpportunityCard
+            to land all six cards at identical heights (Notes 4 BFS-card
+            height fix). */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 items-stretch">
           {opportunities.map((o, i) => (
-            <ScrollAnimationWrapper key={o.title} animation="fadeUp" delay={i * 0.08}>
+            <ScrollAnimationWrapper
+              key={o.title}
+              animation="fadeUp"
+              delay={i * 0.08}
+              className="h-full"
+            >
               <OpportunityCard opportunity={o} />
             </ScrollAnimationWrapper>
           ))}
@@ -112,9 +121,14 @@ export function Opportunities() {
 
 function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
   const inner = <OpportunityCardInner opportunity={opportunity} />;
+  // h-full chains the grid-cell stretch through the motion wrapper so all
+  // card variants reach the same height in the row (Notes 4 — the
+  // Businesses-for-Sale card was shorter than its neighbours because the
+  // Link inside it didn't have h-full to propagate the cell's height down
+  // to the inner content's flex-1 content area).
   const wrapperProps = {
     className:
-      "block w-full text-left cursor-pointer bg-warm-white rounded-xl overflow-hidden border border-gold/10 hover:border-gold/30 transition-all flex flex-col",
+      "block h-full w-full text-left cursor-pointer bg-warm-white rounded-xl overflow-hidden border border-gold/10 hover:border-gold/30 transition-all flex flex-col",
     whileHover: { y: -8, boxShadow: "0 20px 40px rgba(201,155,60,0.12)" },
     transition: { type: "spring" as const, stiffness: 300, damping: 20 },
   };
@@ -122,7 +136,10 @@ function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
   if (opportunity.routing.kind === "subdomain") {
     return (
       <motion.div {...wrapperProps}>
-        <Link href={opportunity.routing.url} className="block">
+        {/* h-full + flex-col so the Link itself stretches to fill the
+            motion wrapper and the OpportunityCardInner's flex-1 content
+            area expands the same way the button-variant cards do. */}
+        <Link href={opportunity.routing.url} className="block h-full flex flex-col">
           {inner}
         </Link>
       </motion.div>

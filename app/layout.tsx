@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Bodoni_Moda, Jost } from "next/font/google";
 import { ChatWidget } from "@/components/chat/ChatWidget";
-import { ChatModal } from "@/components/chat/ChatModal";
 import { ChatModalProvider } from "@/lib/context/ChatModalContext";
 import { WhatsAppFloatingButton } from "@/components/chat/WhatsAppFloatingButton";
 import "./globals.css";
@@ -47,8 +46,11 @@ export default function RootLayout({
         <ChatModalProvider>
           {children}
           <WhatsAppFloatingButton />
+          {/* ChatWidget now subscribes to ChatModalContext (Notes 4) — it
+              receives openModal({intent, topic}) calls from landing-page
+              cards and opens itself with the topic-aware greeting. The
+              old centered ChatModal component has been retired. */}
           <ChatWidget />
-          <ChatModal />
         </ChatModalProvider>
       </body>
     </html>

@@ -8,11 +8,45 @@ import { ChatInput } from "./ChatInput";
 import { LeadCaptureForm } from "./LeadCaptureForm";
 import { getContextualGreeting, pickTeaserVariant } from "@/lib/ai/prompts";
 import { resolveSurface } from "@/lib/ai/surface";
+import { useChatModal, type ChatModalConfig } from "@/lib/context/ChatModalContext";
 import { WhatsAppHandoffButton } from "./WhatsAppHandoffButton";
 import { MessageCircle, CalendarDays, MessageSquare } from "lucide-react";
 
 const CALENDLY_URL = "https://calendly.com/alazizi/30min";
 const KEEP_CHAT_MAX_EXCHANGES = 7;
+
+/**
+ * Topic-aware greetings used when the visitor opens the chat by clicking
+ * a card on the landing page (Notes 4). Previously these lived on the
+ * retired ChatModal component; they're now hoisted here so the single
+ * unified ChatWidget surface can deliver the same tailored opening line
+ * AND continue with persistent state (lead capture, keep-chat, HOT-lead
+ * CTAs). Anything not in this map falls back to the surface-default
+ * greeting from `getContextualGreeting()`.
+ */
+const TOPIC_GREETINGS: Record<string, string> = {
+  consultation:
+    "To make the most of a consultation with our team, I need to understand your situation first. What's the main thing you're trying to figure out — is it a business opportunity, investment, career move, or a lifestyle relocation?",
+  "Businesses for Sale":
+    "There's a wide range here from OMR 2,500 to 200,000. Are you looking at something small to get started, or are you positioned for a larger acquisition?",
+  "Franchise Partnerships":
+    "Franchise partnerships in Oman work differently than most markets. What's your background — have you operated a franchise before, or is this a first?",
+  "Real Estate ITCs":
+    "Real estate ITCs are one of the cleaner paths into Oman — you get property and a residency pathway. What's driving the interest, the investment return or the residency?",
+  "Digital Banking":
+    "Digital banking licenses in Oman require significant capital — OMR 10M minimum. Are you exploring this as a lead investor or as part of a consortium?",
+  "Career Platform":
+    "Oman has real demand for skilled professionals right now. What's your field and what kind of role are you looking for?",
+  "Rehabilitation Center":
+    "Healthcare is one of the stronger sectors in Oman right now. Are you a healthcare professional looking to operate this, or purely an investor?",
+};
+
+function greetingFor(config: ChatModalConfig | null, fallback: string): string {
+  if (!config) return fallback;
+  if (config.topic && TOPIC_GREETINGS[config.topic]) return TOPIC_GREETINGS[config.topic];
+  if (config.intent === "consultation") return TOPIC_GREETINGS.consultation;
+  return fallback;
+}
 
 /**
  * ChatWidget — the floating Omar chat surface.
@@ -40,6 +74,13 @@ const KEEP_CHAT_MAX_EXCHANGES = 7;
  */
 export function ChatWidget() {
   const pathname = usePathname();
+  // Subscribe to the global ChatModalContext so opportunity-card clicks (and
+  // any other openModal({intent, topic}) caller) route into THIS widget
+  // rather than the retired ChatModal component. Notes 4: visitors should
+  // see the new persistent Omar surface, not the older "AI Assistant"
+  // pop-up — and the topic they clicked should flow through to Omar's
+  // system prompt as [CONTEXT: ...] so he opens with the right question.
+  const { isOpen: modalIsOpen, config: modalConfig, closeModal } = useChatModal();
 
   const [isOpen, setIsOpen] = useState(false);
   const [showTeaser, setShowTeaser] = useState(false);
@@ -53,6 +94,10 @@ export function ChatWidget() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [detectedSegment, setDetectedSegment] = useState<string | null>(null);
   const [detectedInterest, setDetectedInterest] = useState<string | null>(null);
+  // Topic/intent context the visitor brought in via openModal(). Persisted
+  // across messages so every /api/chat call keeps the [CONTEXT: ...]
+  // injection in Omar's system prompt.
+  const [chatContext, setChatContext] = useState<ChatModalConfig | null>(null);
 
   // New state machine pieces — see header comment.
   const [showCapturePrompt, setShowCapturePrompt] = useState(false);
@@ -102,6 +147,27 @@ export function ChatWidget() {
     }
   }, [messages.length, pathname]);
 
+  // Bridge from the ChatModalContext: when an opportunity card (or any other
+  // caller) fires openModal({intent, topic}), open this floating widget with
+  // a topic-aware greeting and remember the context so subsequent /api/chat
+  // calls keep [CONTEXT: ...] in the system prompt. Notes 4 — retires the
+  // old centered "AI Assistant" modal in favour of the persistent Omar
+  // surface. Re-opening with a different topic refreshes the context but
+  // preserves the conversation history.
+  useEffect(() => {
+    if (!modalIsOpen || !modalConfig) return;
+    setChatContext(modalConfig);
+    setIsOpen(true);
+    setIsClosed(false);
+    if (messages.length === 0) {
+      const fallback = getContextualGreeting(resolveSurface(pathname ?? "/").page);
+      setMessages([{ role: "assistant", content: greetingFor(modalConfig, fallback) }]);
+    }
+    // Single-shot consumption: clear the context-side state so closing the
+    // widget doesn't immediately re-open it on the next render pass.
+    closeModal();
+  }, [modalIsOpen, modalConfig, messages.length, pathname, closeModal]);
+
   // Fire-and-forget event logger to the lead_notes timeline. Failures are
   // silenced — the visitor doesn't need to know if the bookkeeping write
   // didn't land, and there's no UI action to retry.
@@ -135,6 +201,10 @@ export function ChatWidget() {
             history: messages,
             source: surface,
             hookVariantId: teaserVariant.variantId,
+            // Notes 4: opportunity-card context flows through so Omar sees
+            // [CONTEXT: visitor clicked '<topic>' ...] in his system prompt.
+            // Null when the visitor opened Omar via the floating button.
+            context: chatContext ?? undefined,
           }),
         });
 
@@ -256,6 +326,7 @@ export function ChatWidget() {
       keepChatExchanges,
       pathname,
       teaserVariant.variantId,
+      chatContext,
       logEvent,
     ],
   );
