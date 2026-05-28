@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -9,6 +9,27 @@ interface ChatInputProps {
 
 export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [text, setText] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Re-focus the input after Omar finishes typing (Notes 4) — keeps the
+  // visitor on the keyboard so the next exchange flows without an extra
+  // tap. Only fires on desktop and tablet; on iOS we deliberately skip
+  // auto-focus because it would force the on-screen keyboard back up
+  // every reply, which is more annoying than the missed focus.
+  useEffect(() => {
+    if (!disabled && inputRef.current) {
+      // Touch heuristic — `matchMedia("(pointer: coarse)")` is the safest
+      // way to detect a phone/tablet without UA sniffing. Coarse-pointer
+      // devices keep manual focus control.
+      const isCoarsePointer =
+        typeof window !== "undefined" &&
+        window.matchMedia &&
+        window.matchMedia("(pointer: coarse)").matches;
+      if (!isCoarsePointer) {
+        inputRef.current.focus({ preventScroll: true });
+      }
+    }
+  }, [disabled]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +49,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
       className="flex items-center gap-2 px-3 py-2 border-t border-gray-100 bg-white flex-shrink-0"
     >
       <input
+        ref={inputRef}
         type="text"
         value={text}
         onChange={(e) => setText(e.target.value)}

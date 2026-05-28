@@ -135,9 +135,22 @@ export function ChatWidget() {
     if (isOpen) setShowTeaser(false);
   }, [isOpen]);
 
+  // Keep the most recent message in view AFTER every exchange and whenever
+  // an inline form panel appears below the messages (Notes 4 chat scroll
+  // bug). The previous deps array missed the form-flag flips, so after Omar
+  // replied the user had to manually scroll. Now: any change to messages,
+  // typing state, OR an inline form re-runs scroll-to-bottom on the sentinel
+  // INSIDE the message-list scroll container.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isTyping]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [
+    messages,
+    isTyping,
+    showCapturePrompt,
+    showCaptureForm,
+    showPostCaptureChoice,
+    showHotLeadCtas,
+  ]);
 
   const handleOpen = useCallback(() => {
     setIsOpen(true);
@@ -511,9 +524,10 @@ export function ChatWidget() {
               </button>
             </div>
 
-            {/* Messages */}
-            <ChatMessages messages={messages} isTyping={isTyping} />
-            <div ref={messagesEndRef} />
+            {/* Messages — sentinel ref lives INSIDE this component's scroll
+                container so scrollIntoView() actually scrolls the message
+                list, not the page (Notes 4 chat scroll bug fix). */}
+            <ChatMessages messages={messages} isTyping={isTyping} ref={messagesEndRef} />
 
             {/* Pre-capture opt-in prompt — replaces the surprise modal pattern. */}
             {showCapturePrompt && !leadCaptured && (
