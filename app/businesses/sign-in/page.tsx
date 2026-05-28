@@ -58,17 +58,17 @@ export default function SignInPage() {
           </span>
           <h1 className="mt-4 font-heading text-2xl sm:text-3xl font-semibold">
             {step === "success"
-              ? "You&apos;re in."
+              ? "You're in."
               : mode === "signin"
                 ? "Sign in to your account"
                 : "Create your subscriber account"}
           </h1>
           <p className="mt-2 text-sm text-gray-200">
             {step === "success"
-              ? "We&apos;ll let you know as soon as your access is activated."
+              ? "We'll let you know as soon as your access is activated."
               : mode === "signin"
-                ? "Enter your email and password. We&apos;ll send a one-time code to confirm it&apos;s you."
-                : "We&apos;ll send a one-time code to your email to confirm you own it."}
+                ? "Enter your email and password. We'll send a one-time code to confirm it's you."
+                : "We'll send a one-time code to your email to confirm you own it."}
           </p>
         </div>
 
@@ -113,7 +113,7 @@ export default function SignInPage() {
             <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
             <p className="mt-4 text-gray-700 leading-relaxed">
               {mode === "signup"
-                ? "Your account is created. Our team will review your access request and activate your full marketplace access. You&apos;ll get an email when that happens."
+                ? "Your account is created. Our team will review your access request and activate your full marketplace access. You'll get an email when that happens."
                 : "Signed in successfully. Browse the marketplace from your subscriber dashboard."}
             </p>
             <Link
@@ -151,7 +151,7 @@ function SignUpForm({
     e.preventDefault();
     setError("");
     if (password !== confirmPw) {
-      setError("Passwords don&apos;t match");
+      setError("Passwords don't match");
       return;
     }
     if (password.length < 8) {
@@ -218,15 +218,18 @@ function SignUpForm({
 
       <Field label="Phone *">
         <div className="flex gap-2">
+          {/* Country code: compact display "🇴🇲 +968" so the phone input has room
+              even on narrow screens. The full country name is still visible
+              in the dropdown when opened (see option text below). */}
           <select
             value={country}
             onChange={(e) => setCountry(e.target.value)}
-            className="input w-[148px] flex-shrink-0"
+            className="input w-[96px] sm:w-[112px] flex-shrink-0 pr-1"
             aria-label="Country code"
           >
             {COUNTRY_CODES.map((c) => (
               <option key={c.code} value={c.code}>
-                {c.flag} +{c.dial} · {c.name}
+                {c.flag} +{c.dial} {c.name}
               </option>
             ))}
           </select>
@@ -237,7 +240,7 @@ function SignUpForm({
             onChange={(e) => setPhone(e.target.value)}
             placeholder="9510 8257"
             autoComplete="tel"
-            className="input flex-1"
+            className="input flex-1 min-w-0"
           />
         </div>
       </Field>
@@ -471,7 +474,7 @@ function OtpStep({
       });
       setResentNote("Code re-sent. Check your email.");
     } catch {
-      setResentNote("Couldn&apos;t re-send right now. Try again in a moment.");
+      setResentNote("Couldn't re-send right now. Try again in a moment.");
     } finally {
       setResending(false);
     }

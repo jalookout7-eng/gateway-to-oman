@@ -112,7 +112,7 @@ export default function AdminInquiriesPage() {
   }
 
   async function approveAccess(leadId: string) {
-    if (!confirm("Approve marketplace access for this visitor? They&apos;ll be able to sign in and see the full marketplace.")) return;
+    if (!confirm("Approve marketplace access for this visitor? They'll be able to sign in and see the full marketplace.")) return;
     try {
       const res = await fetch(`/api/admin/inquiries/${leadId}/approve`, {
         method: "POST",

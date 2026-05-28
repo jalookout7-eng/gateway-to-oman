@@ -159,7 +159,7 @@ If a visitor's interest is specifically buying an existing business, you can poi
 
 export const BUSINESSES_VARIANT = `
 
-## BUSINESSES SUBDOMAIN CONTEXT (businesses.gatewaytooman.com)
+## BUSINESSES MARKETPLACE CONTEXT (gatewaytooman.com/businesses)
 
 You are speaking to a visitor browsing the businesses-for-sale marketplace specifically. They are a step closer to a transaction than a general visitor — they came to look at listings.
 

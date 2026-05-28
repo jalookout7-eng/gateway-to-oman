@@ -43,6 +43,6 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     ok: true,
     message:
-      "If your email matches a previous request, our team will resend your access details shortly. If you don&apos;t hear back within 24 hours, please request access via the sign-up tab.",
+      "If your email matches a previous request, our team will resend your access details shortly. If you don't hear back within 24 hours, please request access via the sign-up tab.",
   });
 }

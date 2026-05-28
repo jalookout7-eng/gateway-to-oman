@@ -28,7 +28,7 @@ export async function sendOtpEmail(to: string, code: string, purpose: "signup" |
         </p>
       </div>
       <p style="color: #999; font-size: 12px; text-align: center; margin-top: 24px;">
-        Gateway to Oman · businesses.gatewaytooman.com
+        Gateway to Oman · gatewaytooman.com/businesses
       </p>
     </div>
   `;

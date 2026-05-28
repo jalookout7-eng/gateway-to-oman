@@ -156,7 +156,7 @@ export default function AdminMarketplaceUsersPage() {
             </p>
             <p className="mt-1 text-sm text-gray-500">
               {users.length === 0
-                ? "When visitors sign up on /businesses/sign-in, they&apos;ll appear here."
+                ? "When visitors sign up on /businesses/sign-in, they'll appear here."
                 : "Try clearing filters."}
             </p>
           </div>

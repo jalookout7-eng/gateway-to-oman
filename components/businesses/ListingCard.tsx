@@ -46,11 +46,14 @@ export function ListingCard({ listing, unlocked = false }: { listing: Listing; u
         ) : (
           <Briefcase className="h-16 w-16 text-gray-400/40" strokeWidth={1.5} />
         )}
-        <div className="absolute right-3 top-3">
+        {/* Badges constrained so a long category label can't bleed into the
+            status pill on narrow viewports. The category badge truncates with
+            a max-width; the status badge sits on top with higher z-index. */}
+        <div className="absolute right-3 top-3 z-20">
           <StatusBadge status={listing.status} />
         </div>
-        <div className="absolute left-3 top-3">
-          <span className="inline-flex items-center rounded-md bg-white/90 px-2 py-0.5 text-xs font-medium text-navy backdrop-blur">
+        <div className="absolute left-3 top-3 z-10 max-w-[55%]">
+          <span className="block truncate rounded-md bg-white/90 px-2 py-0.5 text-xs font-medium text-navy backdrop-blur">
             {listing.category_name}
           </span>
         </div>

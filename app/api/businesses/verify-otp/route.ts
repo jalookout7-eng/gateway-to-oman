@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   const result = await verifyOtp(email, code, purpose);
   if (!result.ok) {
     const messages = {
-      invalid: "That code doesn&apos;t match. Double-check or request a new one.",
+      invalid: "That code doesn't match. Double-check or request a new one.",
       expired: "That code has expired. Request a new one to continue.",
       too_many_attempts: "Too many attempts. Request a new code to try again.",
     };

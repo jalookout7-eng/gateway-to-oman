@@ -29,7 +29,7 @@ export async function POST(
     return NextResponse.json(
       {
         error:
-          "This visitor hasn&apos;t completed sign-up yet. Reach out to them via email or WhatsApp and ask them to sign up at /businesses/sign-in so we can activate their account.",
+          "This visitor hasn't completed sign-up yet. Reach out to them via email or WhatsApp and ask them to sign up at /businesses/sign-in so we can activate their account.",
       },
       { status: 404 },
     );

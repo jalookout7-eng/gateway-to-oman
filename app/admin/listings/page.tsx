@@ -199,7 +199,7 @@ export default function AdminListingsPage() {
           <h1 className="font-heading text-2xl font-semibold text-navy">Listings</h1>
           <p className="text-sm text-gray-500 mt-1">
             Manage businesses for sale on{" "}
-            <span className="font-medium">businesses.gatewaytooman.com</span>
+            <span className="font-medium">gatewaytooman.com/businesses</span>
           </p>
         </div>
         <button

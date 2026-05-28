@@ -32,8 +32,11 @@ export async function uploadToR2(opts: {
   keyPrefix: string;
   extension: string;
 }): Promise<UploadResult> {
-  const bucket = process.env.R2_BUCKET;
-  const publicBase = (process.env.R2_PUBLIC_BASE_URL ?? "").replace(/\/$/, "");
+  const bucket = process.env.R2_BUCKET?.trim();
+  // Trim defends against trailing-space env-var footgun (see toPublicUrl below).
+  const publicBase = (process.env.R2_PUBLIC_BASE_URL ?? "")
+    .trim()
+    .replace(/\/$/, "");
   if (!bucket) throw new Error("R2_BUCKET not set");
   const random = randomBytes(8).toString("hex");
   const key = `${opts.keyPrefix.replace(/\/$/, "")}/${Date.now()}-${random}.${opts.extension}`;
@@ -95,16 +98,24 @@ export function keyFromUrl(url: string): string {
  */
 export function toPublicUrl(url: string | null | undefined): string | null {
   if (!url) return null;
-  const publicBase = (process.env.R2_PUBLIC_BASE_URL ?? "").replace(/\/$/, "");
-  if (!publicBase) return url;
-  if (url.startsWith(publicBase + "/")) return url;
-  const endpoint = (process.env.R2_ENDPOINT ?? "").replace(/\/$/, "");
-  const bucket = process.env.R2_BUCKET ?? "";
+  // .trim() + replace trailing slash defends against the classic "trailing
+  // space in the Vercel env var" footgun. Without this, a stray space turns
+  // an otherwise-valid URL into "https://pub-xxx.r2.dev%20/..." (URL-encoded
+  // space) which browsers can't resolve. Also strip any trailing whitespace
+  // from the stored URL itself for the same reason.
+  const publicBase = (process.env.R2_PUBLIC_BASE_URL ?? "")
+    .trim()
+    .replace(/\/$/, "");
+  const cleanedUrl = url.trim();
+  if (!publicBase) return cleanedUrl;
+  if (cleanedUrl.startsWith(publicBase + "/")) return cleanedUrl;
+  const endpoint = (process.env.R2_ENDPOINT ?? "").trim().replace(/\/$/, "");
+  const bucket = (process.env.R2_BUCKET ?? "").trim();
   if (endpoint && bucket) {
     const endpointPrefix = `${endpoint}/${bucket}/`;
-    if (url.startsWith(endpointPrefix)) {
-      return `${publicBase}/${url.slice(endpointPrefix.length)}`;
+    if (cleanedUrl.startsWith(endpointPrefix)) {
+      return `${publicBase}/${cleanedUrl.slice(endpointPrefix.length)}`;
     }
   }
-  return url;
+  return cleanedUrl;
 }
