@@ -498,3 +498,32 @@ INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES
 
 ALTER TABLE conversations ADD COLUMN hook_variant_id TEXT;
 CREATE INDEX IF NOT EXISTS idx_conversations_hook_variant ON conversations(hook_variant_id);
+
+-- ----------------------------------------------------------------------------
+-- 18. Lead notes timeline (narrative log per lead)
+-- Separate from activity_log (which is a system audit trail) and from
+-- leads.admin_notes (which is a single sticky-note field). lead_notes is the
+-- conversational timeline shown in the admin lead detail view between the AI
+-- summary and the conversation transcript.
+--
+-- author_type:
+--   'admin' = a signed-in admin (Ahmed or a delegated admin) wrote it.
+--             author_id references admin_users.id, and author_name is
+--             denormalised so the timeline keeps showing the right name even
+--             if the admin user is later deactivated or renamed.
+--   'omar'  = Omar AI auto-wrote it on a keep-chat event (visitor clicked
+--             WhatsApp, booked via Calendly, completed a keep-chat session).
+--             author_id is NULL, author_name is just 'Omar AI'.
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS lead_notes (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  lead_id TEXT NOT NULL REFERENCES leads(id),
+  author_type TEXT NOT NULL CHECK (author_type IN ('admin', 'omar')),
+  author_id TEXT,
+  author_name TEXT NOT NULL,
+  body TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_lead_notes_lead ON lead_notes(lead_id, created_at);

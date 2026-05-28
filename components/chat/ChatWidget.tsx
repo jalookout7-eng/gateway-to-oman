@@ -6,12 +6,38 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChatMessages, type Message } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
 import { LeadCaptureForm } from "./LeadCaptureForm";
-import { BookingButton } from "./BookingButton";
 import { getContextualGreeting, pickTeaserVariant } from "@/lib/ai/prompts";
 import { resolveSurface } from "@/lib/ai/surface";
 import { WhatsAppHandoffButton } from "./WhatsAppHandoffButton";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, CalendarDays, MessageSquare } from "lucide-react";
 
+const CALENDLY_URL = "https://calendly.com/alazizi/30min";
+const KEEP_CHAT_MAX_EXCHANGES = 7;
+
+/**
+ * ChatWidget — the floating Omar chat surface.
+ *
+ * State machine (post-redesign, notes 5+6+14):
+ *
+ *   1. Visitor chats normally (exchanges 1-5).
+ *   2. When Omar emits [CAPTURE_READY] (or exchange 5 ceiling is hit), we
+ *      DO NOT auto-pop the lead form anymore. Instead we render an in-chat
+ *      "Share your details?" prompt with [Yes, share] / [Not yet] buttons.
+ *      This addresses note #14: no surprise modal.
+ *   3. [Yes, share] → renders LeadCaptureForm.
+ *      [Not yet] → conversation continues; prompt won't re-show this session
+ *      until the next [CAPTURE_READY] (so Omar doesn't badger).
+ *   4. After form submit, we render a "Continue chatting?" prompt
+ *      ([Keep chatting] / [Close]). Addresses notes #5+6.
+ *   5. [Keep chatting] → enables keep-chat mode (capped at
+ *      KEEP_CHAT_MAX_EXCHANGES additional exchanges). Logs to lead_notes
+ *      via /api/chat/event.
+ *   6. During keep-chat, if Omar emits [HIGH_INTENT] (HOT lead), we render
+ *      inline [Book consultation] + [WhatsApp Ahmed] CTAs. Button clicks
+ *      log to lead_notes via /api/chat/event.
+ *   7. Keep-chat ends naturally at the exchange cap or [CLOSE_CHAT]; we log
+ *      a closing note with the exchange count.
+ */
 export function ChatWidget() {
   const pathname = usePathname();
 
@@ -20,8 +46,6 @@ export function ChatWidget() {
   const [teaserDismissed, setTeaserDismissed] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [showCaptureForm, setShowCaptureForm] = useState(false);
-  const [showBooking, setShowBooking] = useState(false);
   const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
   const [isClosed, setIsClosed] = useState(false);
   const [exchangeCount, setExchangeCount] = useState(0);
@@ -29,10 +53,17 @@ export function ChatWidget() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [detectedSegment, setDetectedSegment] = useState<string | null>(null);
   const [detectedInterest, setDetectedInterest] = useState<string | null>(null);
+
+  // New state machine pieces — see header comment.
+  const [showCapturePrompt, setShowCapturePrompt] = useState(false);
+  const [captureDeferred, setCaptureDeferred] = useState(false); // visitor said "Not yet"
+  const [showCaptureForm, setShowCaptureForm] = useState(false);
   const [leadCaptured, setLeadCaptured] = useState(false);
-  // Pick a hook variant once per widget mount so the visitor sees a single
-  // consistent teaser. Variant ID is sent with the first /api/chat call and
-  // persisted to conversations.hook_variant_id for later A/B analysis.
+  const [showPostCaptureChoice, setShowPostCaptureChoice] = useState(false);
+  const [keepChatActive, setKeepChatActive] = useState(false);
+  const [keepChatExchanges, setKeepChatExchanges] = useState(0);
+  const [showHotLeadCtas, setShowHotLeadCtas] = useState(false);
+
   const [teaserVariant] = useState(() =>
     pickTeaserVariant(resolveSurface(pathname ?? "/").page),
   );
@@ -55,12 +86,10 @@ export function ChatWidget() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Hide teaser when full chat opens
   useEffect(() => {
     if (isOpen) setShowTeaser(false);
   }, [isOpen]);
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
@@ -73,7 +102,20 @@ export function ChatWidget() {
     }
   }, [messages.length, pathname]);
 
-  // pathname is captured in closure below via dependency
+  // Fire-and-forget event logger to the lead_notes timeline. Failures are
+  // silenced — the visitor doesn't need to know if the bookkeeping write
+  // didn't land, and there's no UI action to retry.
+  const logEvent = useCallback(
+    (event: string, metadata?: Record<string, unknown>) => {
+      fetch("/api/chat/event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, event, metadata: metadata ?? {} }),
+      }).catch(() => {});
+    },
+    [sessionId],
+  );
+
   const sendMessage = useCallback(
     async (text: string) => {
       if (isClosed || isTyping) return;
@@ -98,7 +140,6 @@ export function ChatWidget() {
 
         const data = await res.json().catch(() => null);
 
-        // Don't render an empty bubble on an API error / empty reply — fall back.
         if (!res.ok || !data?.message) {
           throw new Error("Empty or error response from chat API");
         }
@@ -120,30 +161,72 @@ export function ChatWidget() {
         const newExchangeCount = exchangeCount + 1;
         setExchangeCount(newExchangeCount);
 
-        // Handle signals
-        if (data.signals?.segment) {
-          setDetectedSegment(data.signals.segment);
-        }
-        if (data.signals?.interest) {
-          setDetectedInterest(data.signals.interest);
+        if (data.signals?.segment) setDetectedSegment(data.signals.segment);
+        if (data.signals?.interest) setDetectedInterest(data.signals.interest);
+
+        // Capture-ready handling. Pre-redesign this auto-opened the form.
+        // Now: surface the opt-in prompt. Once the visitor has chosen
+        // "Not yet" we don't badger them again on this signal — they'll
+        // eventually hit the exchange-5 hard ceiling.
+        if (
+          data.signals?.captureReady &&
+          !leadCaptured &&
+          !showCapturePrompt &&
+          !showCaptureForm &&
+          !captureDeferred
+        ) {
+          setShowCapturePrompt(true);
         }
 
-        if (data.signals?.captureReady && !leadCaptured) {
-          setShowCaptureForm(true);
-        }
-
-        if (data.signals?.highIntent && leadCaptured) {
-          setShowBooking(true);
+        // HOT-lead inline CTAs — only meaningful AFTER capture (visitor's
+        // already shared contact details). Before capture, [HIGH_INTENT]
+        // is still recorded server-side but we don't show buttons.
+        if (data.signals?.highIntent && leadCaptured && keepChatActive) {
+          setShowHotLeadCtas(true);
         }
 
         if (data.signals?.closeChat) {
+          if (keepChatActive) {
+            logEvent("keep_chat_ended", {
+              exchanges: keepChatExchanges,
+              reason: "closed_by_omar",
+            });
+          }
           setIsClosed(true);
           setTimeout(() => setIsOpen(false), 3000);
         }
 
-        // Hard ceiling: force capture at exchange 5
-        if (newExchangeCount >= 5 && !leadCaptured && !showCaptureForm) {
-          setShowCaptureForm(true);
+        // Keep-chat exchange-counter + cap enforcement.
+        if (keepChatActive) {
+          const nextKeepChatExchanges = keepChatExchanges + 1;
+          setKeepChatExchanges(nextKeepChatExchanges);
+          if (nextKeepChatExchanges >= KEEP_CHAT_MAX_EXCHANGES) {
+            logEvent("keep_chat_ended", {
+              exchanges: nextKeepChatExchanges,
+              reason: "ended",
+            });
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "assistant",
+                content:
+                  "I'll stop here so the team gets your details fresh. They'll be in touch shortly — and you can WhatsApp Ahmed any time via the green button.",
+              },
+            ]);
+            setIsClosed(true);
+          }
+        }
+
+        // Hard ceiling: still surface the opt-in prompt at exchange 5
+        // (instead of auto-opening the form).
+        if (
+          newExchangeCount >= 5 &&
+          !leadCaptured &&
+          !showCapturePrompt &&
+          !showCaptureForm &&
+          !captureDeferred
+        ) {
+          setShowCapturePrompt(true);
         }
       } catch {
         setMessages((prev) => [
@@ -165,40 +248,91 @@ export function ChatWidget() {
       messages,
       exchangeCount,
       leadCaptured,
+      showCapturePrompt,
       showCaptureForm,
+      captureDeferred,
+      keepChatActive,
+      keepChatExchanges,
       pathname,
       teaserVariant.variantId,
-    ]
+      logEvent,
+    ],
+  );
+
+  const handleCaptureDecision = useCallback(
+    (accepted: boolean) => {
+      setShowCapturePrompt(false);
+      if (accepted) {
+        setShowCaptureForm(true);
+      } else {
+        setCaptureDeferred(true);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              "No problem — keep going. Let me know whenever you're ready to share your details and I'll loop the team in.",
+          },
+        ]);
+      }
+    },
+    [],
   );
 
   const handleLeadSubmit = useCallback(() => {
     setLeadCaptured(true);
     setShowCaptureForm(false);
-    setIsClosed(true);
-    setTimeout(() => setIsOpen(false), 2000);
     setMessages((prev) => [
       ...prev,
       {
         role: "assistant",
-        content: "Details received — our team will be in touch with you shortly.",
+        content:
+          "Got it — the team will follow up with you shortly. Want to keep chatting in the meantime?",
       },
     ]);
+    setShowPostCaptureChoice(true);
   }, []);
 
-  const handleBookingClick = useCallback(() => {
-    window.open("mailto:azizi@alazizigroup.com?subject=Priority%20Session%20Request", "_blank");
-  }, []);
+  const handlePostCaptureDecision = useCallback(
+    (keepChatting: boolean) => {
+      setShowPostCaptureChoice(false);
+      if (keepChatting) {
+        setKeepChatActive(true);
+        logEvent("keep_chat_started");
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              "Great — I'm here. Anything else you want to dig into about Oman or this opportunity?",
+          },
+        ]);
+      } else {
+        setIsClosed(true);
+        setTimeout(() => setIsOpen(false), 1500);
+      }
+    },
+    [logEvent],
+  );
+
+  const handleWhatsAppClick = useCallback(() => {
+    logEvent("whatsapp_click");
+    window.open("https://wa.me/96895108257", "_blank", "noopener,noreferrer");
+  }, [logEvent]);
+
+  const handleCalendlyClick = useCallback(() => {
+    logEvent("calendly_click");
+    window.open(CALENDLY_URL, "_blank", "noopener,noreferrer");
+  }, [logEvent]);
 
   if (pathname?.startsWith("/admin")) return null;
-  // Stay quiet on auth-style pages — visitor is mid-flow, don't distract.
   const AUTH_PATHS = ["/businesses/sign-in", "/businesses/access"];
   if (pathname && AUTH_PATHS.some((p) => pathname.startsWith(p))) return null;
 
   return (
     <>
-      {/* Floating button — icon-only circle, sits to the right of the
-          WhatsApp button (which is mounted in app/layout.tsx). The hook
-          teaser bubble still anchors above this button as before. */}
+      {/* Floating Omar button — icon-only circle. Sits to the right of the
+          WhatsApp button (which is mounted in app/layout.tsx). */}
       <AnimatePresence>
         {!isOpen && (
           <motion.button
@@ -216,7 +350,7 @@ export function ChatWidget() {
         )}
       </AnimatePresence>
 
-      {/* Scroll-triggered teaser bubble — appears above the floating button at 30% scroll */}
+      {/* Hook teaser bubble — anchored above the Omar button at 30% scroll. */}
       <AnimatePresence>
         {showTeaser && !teaserDismissed && !isOpen && (
           <motion.div
@@ -240,9 +374,7 @@ export function ChatWidget() {
             <div className="p-4 pr-9">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-full gold-gradient ring-2 ring-gold/20 flex items-center justify-center flex-shrink-0">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                  </svg>
+                  <MessageCircle className="h-5 w-5 text-white" />
                 </div>
                 <div className="leading-tight">
                   <p className="font-semibold text-navy text-sm">Omar</p>
@@ -268,7 +400,7 @@ export function ChatWidget() {
         )}
       </AnimatePresence>
 
-      {/* Chat window — docked bottom-right on desktop, full bottom drawer on mobile */}
+      {/* Chat window */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -286,9 +418,7 @@ export function ChatWidget() {
             <div className="gold-gradient px-4 py-3.5 flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="h-9 w-9 rounded-full bg-white/20 ring-2 ring-white/30 flex items-center justify-center flex-shrink-0">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                  </svg>
+                  <MessageCircle className="h-4 w-4 text-white" />
                 </div>
                 <div className="leading-tight min-w-0">
                   <p className="text-white font-semibold text-sm truncate">Omar</p>
@@ -313,7 +443,31 @@ export function ChatWidget() {
             <ChatMessages messages={messages} isTyping={isTyping} />
             <div ref={messagesEndRef} />
 
-            {/* Lead capture form */}
+            {/* Pre-capture opt-in prompt — replaces the surprise modal pattern. */}
+            {showCapturePrompt && !leadCaptured && (
+              <div className="mx-3 mb-2 rounded-lg border border-gold/30 bg-gold/5 p-3">
+                <p className="text-sm text-navy">
+                  Before we go further — can I share your details with the team so they can
+                  follow up properly? It takes about 30 seconds.
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={() => handleCaptureDecision(true)}
+                    className="flex-1 gold-gradient text-white text-sm font-semibold py-2 rounded-lg hover:shadow-md transition-shadow"
+                  >
+                    Yes, share my details
+                  </button>
+                  <button
+                    onClick={() => handleCaptureDecision(false)}
+                    className="px-3 text-sm font-medium text-gray-600 hover:text-navy"
+                  >
+                    Not yet
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Lead capture form — only when explicitly accepted. */}
             {showCaptureForm && !leadCaptured && conversationId && (
               <LeadCaptureForm
                 conversationId={conversationId}
@@ -323,11 +477,57 @@ export function ChatWidget() {
               />
             )}
 
-            {/* Booking button */}
-            {showBooking && <BookingButton onClick={handleBookingClick} />}
+            {/* Post-capture continue-or-close choice. */}
+            {showPostCaptureChoice && (
+              <div className="mx-3 mb-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handlePostCaptureDecision(true)}
+                    className="flex-1 gold-gradient text-white text-sm font-semibold py-2 rounded-lg hover:shadow-md transition-shadow"
+                  >
+                    Keep chatting
+                  </button>
+                  <button
+                    onClick={() => handlePostCaptureDecision(false)}
+                    className="px-3 text-sm font-medium text-gray-600 hover:text-navy"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* HOT-lead inline CTAs — surfaced when Omar grades a keep-chat
+                visitor as high-intent. Two clean buttons, each logs to
+                lead_notes when clicked. */}
+            {showHotLeadCtas && (
+              <div className="mx-3 mb-2 rounded-lg border border-gold/40 bg-gradient-to-r from-gold/10 to-amber-50 p-3">
+                <p className="text-sm text-navy font-medium">
+                  Sounds like a strong fit. Want to take the next step?
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    onClick={handleCalendlyClick}
+                    className="inline-flex items-center justify-center gap-1.5 gold-gradient text-white text-xs font-semibold py-2.5 rounded-lg hover:shadow-md transition-shadow"
+                  >
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    Book consultation
+                  </button>
+                  <button
+                    onClick={handleWhatsAppClick}
+                    className="inline-flex items-center justify-center gap-1.5 bg-emerald-500 text-white text-xs font-semibold py-2.5 rounded-lg hover:bg-emerald-600 transition-colors"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    WhatsApp Ahmed
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* WhatsApp handoff from the chat reply itself (existing path). */}
             {whatsappUrl && <WhatsAppHandoffButton href={whatsappUrl} />}
 
-            {/* Input */}
+            {/* Input — stays available except when chat is closed. */}
             {!isClosed && <ChatInput onSend={sendMessage} disabled={isTyping} />}
           </motion.div>
         )}

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { LeadNotesTimeline } from "@/components/admin/LeadNotesTimeline";
 
 interface Lead {
   id: string;
@@ -371,6 +372,12 @@ export default function LeadsPage() {
                             initialValue={lead.admin_notes ?? ""}
                             setLeads={setLeads}
                           />
+                          {/* Notes timeline — admin manual + Omar AI auto-notes
+                              (WhatsApp/Calendly clicks, keep-chat events).
+                              Placed below the single Admin Notes field and
+                              above the Conversation Transcript panel (which
+                              renders in its own row below). */}
+                          <LeadNotesTimeline leadId={lead.id} />
                           {lead.pendingEmail && (
                             <div className="mt-4 border-t border-gray-100 pt-4">
                               <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">Email Pending Approval</p>
