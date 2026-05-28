@@ -5,7 +5,8 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { ShieldCheck, Users, Star } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useChatModal } from "@/lib/context/ChatModalContext";
+
+const CALENDLY_URL = "https://calendly.com/alazizi/30min";
 
 function GoldParticles() {
   const [particles, setParticles] = useState<
@@ -46,7 +47,6 @@ const trustBadges = [
 ];
 
 export function Hero() {
-  const { openModal } = useChatModal();
   return (
     <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background photo — Sultan Qaboos Grand Mosque */}
@@ -111,9 +111,17 @@ export function Hero() {
           <Button size="lg" variant="gold">
             Explore Your Opportunity
           </Button>
-          <Button size="lg" variant="outline" onClick={() => openModal({ intent: "consultation" })}>
+          {/* Direct Calendly link — bypasses Omar so the visitor lands straight
+              on Ahmed's calendar. Omar still available via the floating chat
+              button if they want to qualify first. */}
+          <a
+            href={CALENDLY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-12 items-center justify-center rounded-lg border-2 border-white/70 bg-white/10 backdrop-blur-sm px-8 text-base font-semibold text-white hover:bg-white hover:text-navy transition-all"
+          >
             Book Free Consultation
-          </Button>
+          </a>
         </motion.div>
 
         {/* Trust badges */}

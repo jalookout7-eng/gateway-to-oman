@@ -488,3 +488,13 @@ INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES
 INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('segment', 'investor', 'Investor', 'emerald', 20);
 INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('segment', 'professional', 'Professional', 'indigo', 30);
 INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('segment', 'retiree', 'Retiree', 'slate', 40);
+
+-- ----------------------------------------------------------------------------
+-- 17. Hook A/B variant tracking on conversations
+-- Records which scroll-trigger teaser variant the visitor saw before opening
+-- the chat (`<section>-<index>`, e.g. `businesses-3`). Lets us compute
+-- conversion-by-variant via JOIN against leads.
+-- ----------------------------------------------------------------------------
+
+ALTER TABLE conversations ADD COLUMN hook_variant_id TEXT;
+CREATE INDEX IF NOT EXISTS idx_conversations_hook_variant ON conversations(hook_variant_id);

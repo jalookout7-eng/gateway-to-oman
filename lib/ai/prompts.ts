@@ -19,7 +19,23 @@ Lead with the answer. Give context after. Never build to a reveal.
 
 Contractions are fine. "Don't" not "do not." Match the register of whoever you're talking to.
 
-Keep each response short — 2 to 4 sentences is the target. Never write a paragraph when a sentence will do.
+Keep each response short — **target 1-3 sentences**, never more than 4. Never write a paragraph when a sentence will do.
+
+**FILLER INFORMATION RULE (strict):** When the visitor gives you new information, your response is mostly the next qualifying question. You may add AT MOST ONE short filler sentence (≤10 words) that acknowledges or contextualises their answer — never a paragraph of pricing ranges, sector breakdowns, or unsolicited explanations.
+
+BAD (do NOT do this):
+"Retail and F&B are popular choices. We have listings in both categories. For retail, prices can start from around OMR 10,000 to OMR 75,000 or more, depending on the size, location, and type of business. For F&B, it can range from OMR 20,000 to over OMR 100,000, considering factors like equipment, leases, and existing customer base. What's your budget for the business purchase?"
+
+GOOD:
+"Retail and F&B are popular choices. What's your budget for the business purchase?"
+
+BAD (do NOT do this):
+"With a budget of OMR 75,000, you've got a good range of options in both retail and F&B. At this price point, you might find established small to medium-sized businesses, possibly with some existing customer base and equipment. Are you looking to operate the business yourself, or would you be hiring a manager to oversee daily operations?"
+
+GOOD:
+"OMR 75,000 opens up real options in both. Are you looking to run it yourself, or hire a manager to oversee?"
+
+If you can't drop a fact that DIRECTLY answers their question or removes a specific concern, drop NO fact at all. Just acknowledge briefly and ask the next question.
 
 BANNED words — using any of these breaks character permanently:
 delve, crucial, landscape (non-physical), leverage (verb), robust, streamline, it's worth noting, let's unpack, straightforward, I'd be happy to, great question, absolutely (as affirmation), I understand your frustration, in today's world, at the end of the day, game-changer, deep dive, synergy, holistic, navigate (non-physical), nuanced, multifaceted, empower, foster, harness, paradigm, ecosystem (non-biological), unlock, journey (non-travel), space (meaning field), optimize, utilize, facilitate, subsequently, furthermore, moreover, additionally, in conclusion, to summarize, there are various/several/numerous
@@ -207,22 +223,81 @@ export function getContextualGreeting(section?: string): string {
   return greetings[section ?? "default"] ?? greetings.default;
 }
 
-// The scroll-triggered "hook" teaser bubble — also per-surface so the marketplace
-// pages don't show the generic homepage hook.
+// The scroll-triggered "hook" teaser bubble.
+//
+// Each surface has up to 5 variants. A random variant is selected on chat
+// widget mount and persisted to `conversations.hook_variant_id` when the
+// visitor opens the chat — so we can later compare conversion rates and
+// drop the weakest performers.
+//
+// Variant IDs follow the pattern `<section>-<index>` (1-indexed) so SQL
+// analysis is straightforward.
+const TEASER_VARIANTS: Record<string, string[]> = {
+  default: [
+    "Thinking about Oman as an investor, business owner, or planning a move with your family? I can point you in the right direction — takes a minute.",
+    "Considering Oman? I can tell you in a minute whether it's the right move for your situation — or whether you're better off looking elsewhere.",
+    "Most people don't know which path into Oman fits them best. I can figure that out with you in 4-5 questions. Want to try?",
+    "Oman opens new doors for business, investment, and family relocation — but only some of them fit you. Tell me about you and I'll narrow it down.",
+    "30 seconds with me will save you 30 hours of research. Want to see if Oman fits what you're actually trying to do?",
+  ],
+  opportunities: [
+    "Exploring opportunities in Oman? Tell me what you're after and I'll point you to the right one — takes a minute.",
+    "Investment, business setup, or something else? I'll match you to the right Oman opportunity in 4-5 questions.",
+    "Real estate, business acquisition, ITC — there's a lot here. Tell me your angle and I'll cut to the one that fits.",
+    "Most opportunities in Oman look similar on paper but suit very different people. Let me help you find yours.",
+    "You're on the opportunities page — let me make this concrete. What's the realistic budget you'd put into Oman?",
+  ],
+  services: [
+    "Not sure which service you need to enter Oman smoothly? I can help you figure it out — takes a minute.",
+    "There's a service for every stage of an Oman entry. Tell me where you are and I'll match it.",
+    "The hardest part of moving to Oman is knowing which step is next. I can show you, in under a minute.",
+    "Visa, business setup, family relocation — different paths, different services. Want me to map yours?",
+    "Most people overpay because they pick the wrong service first. Let me make sure that doesn't happen to you.",
+  ],
+  contact: [
+    "Before you reach out — I can answer the quick questions about Oman right here. Takes a minute.",
+    "About to email the team? I can usually answer Oman questions faster than a 24-hour reply. Try me.",
+    "Two questions in chat = same answer you'd email for, but right now. Want to give it a shot?",
+    "I can save you the back-and-forth — ask me anything about Oman first, and I'll either answer or hand you to the team.",
+    "Quick question? Try me. Bigger conversation? I'll connect you to the team when it makes sense.",
+  ],
+  businesses: [
+    "Looking at buying a business in Oman? I can tell you which opportunities fit your budget — and what relocating actually involves. Takes a minute.",
+    "Buying a business here is different from anywhere else. Tell me your budget and sector, I'll show you what matches.",
+    "Most marketplace buyers come in with the wrong sector in mind. Let me check yours in 4 questions.",
+    "Sale price isn't the only cost — there's CR, licensing, often a local partner. I'll map the total picture for your range.",
+    "Café, gym, factory, retail — Oman has all of it. What budget and what kind of operator are you?",
+  ],
+  "businesses-listings": [
+    "Browsing the listings? Tell me your sector and budget and I'll flag the ones worth a closer look — plus the move-to-Oman side. Takes a minute.",
+    "Most listings look similar at first glance. I can shortlist the 2-3 that actually fit you in 4 questions.",
+    "Sector + budget + are-you-moving-to-Oman — those three answers narrow this list dramatically. Want me to do it?",
+    "Want to know which of these listings is overpriced and which is a real opportunity? I can flag it.",
+    "Don't waste a subscriber fee on the wrong listing. Tell me your criteria and I'll point you at the right ones first.",
+  ],
+};
+
+/**
+ * Pick a teaser variant for the given section. Returns the displayed text and
+ * a stable variantId we persist with the conversation. Visitor sees one of
+ * up to 5 variants per page; we accumulate which ones convert.
+ */
+export function pickTeaserVariant(section?: string): {
+  text: string;
+  variantId: string;
+} {
+  const key = section ?? "default";
+  const variants = TEASER_VARIANTS[key] ?? TEASER_VARIANTS.default;
+  const index = Math.floor(Math.random() * variants.length);
+  return { text: variants[index], variantId: `${key}-${index + 1}` };
+}
+
+/**
+ * Backwards-compatible single-string fetcher — returns the FIRST variant
+ * for a section. Kept so existing tests/usages that just need a string
+ * (without tracking) don't break.
+ */
 export function getContextualTeaser(section?: string): string {
-  const teasers: Record<string, string> = {
-    default:
-      "Thinking about Oman as an investor, business owner, or planning a move with your family? I can point you in the right direction — takes a minute.",
-    opportunities:
-      "Exploring opportunities in Oman? Tell me what you're after and I'll point you to the right one — takes a minute.",
-    services:
-      "Not sure which service you need to enter Oman smoothly? I can help you figure it out — takes a minute.",
-    contact:
-      "Before you reach out — I can answer the quick questions about Oman right here. Takes a minute.",
-    businesses:
-      "Looking at buying a business in Oman? I can tell you which opportunities fit your budget — and what relocating actually involves. Takes a minute.",
-    "businesses-listings":
-      "Browsing the listings? Tell me your sector and budget and I'll flag the ones worth a closer look — plus the move-to-Oman side. Takes a minute.",
-  };
-  return teasers[section ?? "default"] ?? teasers.default;
+  const key = section ?? "default";
+  return (TEASER_VARIANTS[key] ?? TEASER_VARIANTS.default)[0];
 }

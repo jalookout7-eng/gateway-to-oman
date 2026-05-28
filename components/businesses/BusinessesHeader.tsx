@@ -1,8 +1,24 @@
 import Link from "next/link";
 import Image from "next/image";
+import { cookies } from "next/headers";
 import { ChevronLeft } from "lucide-react";
+import {
+  MARKETPLACE_SESSION_COOKIE,
+  getMarketplaceSession,
+} from "@/lib/auth/marketplace";
+import { ProfileMenu } from "./ProfileMenu";
 
-export function BusinessesHeader() {
+/**
+ * Server-rendered marketplace header. Reads the marketplace session cookie
+ * directly so signed-in visitors see a profile chip instead of "Sign in",
+ * with no client-side roundtrip on first paint. The interactive dropdown
+ * (sign-out etc.) is a client component (ProfileMenu).
+ */
+export async function BusinessesHeader() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(MARKETPLACE_SESSION_COOKIE)?.value;
+  const user = await getMarketplaceSession(token).catch(() => null);
+
   return (
     <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-4 sm:px-6 lg:px-8 py-3">
@@ -41,12 +57,22 @@ export function BusinessesHeader() {
             <ChevronLeft className="h-4 w-4" />
             Main site
           </Link>
-          <Link
-            href="/businesses/sign-in"
-            className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-navy hover:border-gold hover:text-gold transition-all"
-          >
-            Sign in
-          </Link>
+          {user ? (
+            <ProfileMenu
+              user={{
+                full_name: user.full_name,
+                email: user.email,
+                access_activated: user.access_activated,
+              }}
+            />
+          ) : (
+            <Link
+              href="/businesses/sign-in"
+              className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-navy hover:border-gold hover:text-gold transition-all"
+            >
+              Sign in
+            </Link>
+          )}
         </div>
       </div>
     </header>

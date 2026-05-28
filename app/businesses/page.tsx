@@ -311,6 +311,20 @@ export default async function BusinessesLandingPage() {
               Request subscriber access
             </Link>
           </div>
+
+          {/* Calendly direct — for visitors who want a real conversation
+              with the team rather than browsing on their own. */}
+          <div className="mt-6 text-sm text-gray-300">
+            Want to talk it through first?{" "}
+            <a
+              href="https://calendly.com/alazizi/30min"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-gold-light underline-offset-4 hover:underline"
+            >
+              Book a free consultation
+            </a>
+          </div>
         </div>
       </section>
     </>

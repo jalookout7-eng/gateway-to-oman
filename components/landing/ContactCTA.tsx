@@ -2,10 +2,10 @@
 
 import { Mail, CalendarDays } from "lucide-react";
 import { ScrollAnimationWrapper } from "./ScrollAnimationWrapper";
-import { useChatModal } from "@/lib/context/ChatModalContext";
+
+const CALENDLY_URL = "https://calendly.com/alazizi/30min";
 
 export function ContactCTA() {
-  const { openModal } = useChatModal();
   return (
     <section id="contact" className="py-24 px-6 bg-white">
       <div className="max-w-3xl mx-auto text-center">
@@ -27,13 +27,15 @@ export function ContactCTA() {
               <Mail className="w-5 h-5" strokeWidth={1.5} />
               Email Us
             </a>
-            <button
-              onClick={() => openModal({ intent: "consultation" })}
+            <a
+              href={CALENDLY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-2.5 px-8 py-4 rounded-lg border-2 border-gold text-gold font-semibold text-lg hover:bg-gold hover:text-white transition-all duration-200 cursor-pointer font-body"
             >
               <CalendarDays className="w-5 h-5" strokeWidth={1.5} />
               Book Free Consultation
-            </button>
+            </a>
           </div>
         </ScrollAnimationWrapper>
       </div>

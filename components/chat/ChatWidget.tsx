@@ -7,9 +7,10 @@ import { ChatMessages, type Message } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
 import { LeadCaptureForm } from "./LeadCaptureForm";
 import { BookingButton } from "./BookingButton";
-import { getContextualGreeting, getContextualTeaser } from "@/lib/ai/prompts";
+import { getContextualGreeting, pickTeaserVariant } from "@/lib/ai/prompts";
 import { resolveSurface } from "@/lib/ai/surface";
 import { WhatsAppHandoffButton } from "./WhatsAppHandoffButton";
+import { MessageCircle } from "lucide-react";
 
 export function ChatWidget() {
   const pathname = usePathname();
@@ -29,6 +30,12 @@ export function ChatWidget() {
   const [detectedSegment, setDetectedSegment] = useState<string | null>(null);
   const [detectedInterest, setDetectedInterest] = useState<string | null>(null);
   const [leadCaptured, setLeadCaptured] = useState(false);
+  // Pick a hook variant once per widget mount so the visitor sees a single
+  // consistent teaser. Variant ID is sent with the first /api/chat call and
+  // persisted to conversations.hook_variant_id for later A/B analysis.
+  const [teaserVariant] = useState(() =>
+    pickTeaserVariant(resolveSurface(pathname ?? "/").page),
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hasTriggeredTeaser = useRef(false);
 
@@ -85,6 +92,7 @@ export function ChatWidget() {
             sessionId,
             history: messages,
             source: surface,
+            hookVariantId: teaserVariant.variantId,
           }),
         });
 
@@ -159,6 +167,7 @@ export function ChatWidget() {
       leadCaptured,
       showCaptureForm,
       pathname,
+      teaserVariant.variantId,
     ]
   );
 
@@ -187,31 +196,22 @@ export function ChatWidget() {
 
   return (
     <>
-      {/* Floating button */}
+      {/* Floating button — icon-only circle, sits to the right of the
+          WhatsApp button (which is mounted in app/layout.tsx). The hook
+          teaser bubble still anchors above this button as before. */}
       <AnimatePresence>
         {!isOpen && (
           <motion.button
-            className="fixed bottom-6 right-6 h-14 px-5 rounded-full gold-gradient shadow-lg shadow-gold/30 flex items-center gap-2.5 text-white z-50 hover:shadow-xl transition-all"
+            className="fixed bottom-6 right-6 h-14 w-14 rounded-full gold-gradient shadow-lg shadow-gold/30 flex items-center justify-center text-white z-50 hover:shadow-xl transition-all"
             onClick={handleOpen}
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
             whileHover={{ scale: 1.05 }}
+            aria-label="Chat with Omar"
+            title="Chat with Omar"
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="flex-shrink-0"
-            >
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-            <span className="text-sm font-semibold tracking-wide whitespace-nowrap">
-              AI Assistant
-            </span>
+            <MessageCircle className="h-6 w-6" strokeWidth={2} />
           </motion.button>
         )}
       </AnimatePresence>
@@ -254,7 +254,7 @@ export function ChatWidget() {
               </div>
 
               <p className="mt-3 text-sm text-gray-700 leading-relaxed">
-                {getContextualTeaser(resolveSurface(pathname ?? "/").page)}
+                {teaserVariant.text}
               </p>
 
               <button
@@ -291,7 +291,7 @@ export function ChatWidget() {
                   </svg>
                 </div>
                 <div className="leading-tight min-w-0">
-                  <p className="text-white font-semibold text-sm truncate">AI Assistant</p>
+                  <p className="text-white font-semibold text-sm truncate">Omar</p>
                   <p className="text-white/85 text-xs flex items-center gap-1.5">
                     <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-300 animate-pulse" />
                     Gateway to Oman

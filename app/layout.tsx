@@ -3,6 +3,7 @@ import { Bodoni_Moda, Jost } from "next/font/google";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import { ChatModal } from "@/components/chat/ChatModal";
 import { ChatModalProvider } from "@/lib/context/ChatModalContext";
+import { WhatsAppFloatingButton } from "@/components/chat/WhatsAppFloatingButton";
 import "./globals.css";
 
 const bodoniModa = Bodoni_Moda({
@@ -45,6 +46,7 @@ export default function RootLayout({
       <body className={`${bodoniModa.variable} ${jost.variable} font-body antialiased`}>
         <ChatModalProvider>
           {children}
+          <WhatsAppFloatingButton />
           <ChatWidget />
           <ChatModal />
         </ChatModalProvider>

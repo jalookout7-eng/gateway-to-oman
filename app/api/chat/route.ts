@@ -47,7 +47,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { message, sessionId, history: rawHistory = [], context, source: requestSource } = await request.json();
+    const {
+      message,
+      sessionId,
+      history: rawHistory = [],
+      context,
+      source: requestSource,
+      hookVariantId,
+    } = await request.json();
 
     if (!message || !sessionId) {
       return NextResponse.json(
@@ -80,9 +87,16 @@ export async function POST(request: NextRequest) {
     let conversationId: string;
     let conversationSource: "main" | "businesses";
     if (existing.rows.length === 0) {
+      // Capture hook_variant_id ONLY on conversation creation; subsequent
+      // messages don't get to overwrite which hook the visitor first saw.
+      // Format guard: only persist if it matches the pattern <section>-<n>.
+      const safeVariantId =
+        typeof hookVariantId === "string" && /^[a-z-]+-\d{1,2}$/.test(hookVariantId)
+          ? hookVariantId
+          : null;
       const result = await db.execute({
-        sql: "INSERT INTO conversations (session_id, source) VALUES (?, ?) RETURNING id",
-        args: [sessionId, source],
+        sql: "INSERT INTO conversations (session_id, source, hook_variant_id) VALUES (?, ?, ?) RETURNING id",
+        args: [sessionId, source, safeVariantId],
       });
       conversationId = result.rows[0].id as string;
       conversationSource = source;
