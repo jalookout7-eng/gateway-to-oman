@@ -829,6 +829,8 @@ A clear, alphabet-labeled list so post-compact lookups are easy.
 
 ### Future work / deferred (no urgency)
 
+- **Google Analytics integration** (Notes 6 — JA "later"). Add GA4 (or alternative like Plausible/Umami) via the `_app` / `RootLayout` script slot. Decide on consent-banner strategy first (Oman PDPL + GDPR — see §12 cookie notice). One day's work including the consent gating.
+- **SEO blog setup** (Notes 6 — JA "later"). MDX-driven blog posts under `/blog/[slug]` with structured-data (JSON-LD `BlogPosting` + `Author`) for ranking. Need: pick MDX provider (recommend `next-mdx-remote` for App Router compatibility), add `app/blog/[slug]/page.tsx` + `app/blog/page.tsx` (index), wire sitemap.xml + RSS, add OG image generation per post. ~1 day for the scaffold; content cadence is then a separate ongoing task with Ahmed.
 - **DMARC tightening** (next 2-4 weeks) — once aggregate reports landing in `gatewaytooman@gmail.com` show no legitimate sends being marked failing, tighten `p=none` → `p=quarantine` → `p=reject` in steps.
 - **DNS migration GoDaddy → Cloudflare** (optional polish) — to swap `pub-…r2.dev` for `media.gatewaytooman.com`. Single env var change + uncomment a `next.config.js` line after DNS lands.
 - **Multiple-choice / quick-reply answer UI** (Omar "piece F") — has its own spec needed; deferred.
