@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
+import { NotificationOptIn } from "@/components/admin/NotificationOptIn";
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Dashboard", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4" },
@@ -61,38 +62,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     })();
   }, []);
 
-  useEffect(() => {
-    if (!authenticated) return;
-
-    async function registerPush() {
-      if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
-
-      try {
-        const reg = await navigator.serviceWorker.register("/sw.js");
-        const permission = await Notification.requestPermission();
-        if (permission !== "granted") return;
-
-        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-        if (!vapidKey) return;
-        const existing = await reg.pushManager.getSubscription();
-        const sub = existing ?? await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: vapidKey,
-        });
-
-        await fetch("/api/admin/push/subscribe", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(sub.toJSON()),
-        });
-      } catch (err) {
-        console.warn("Push registration failed:", err);
-      }
-    }
-
-    registerPush();
-  }, [authenticated]);
+  // Push-notification opt-in is now handled by <NotificationOptIn /> below,
+  // which requests permission inside a synchronous click handler. The
+  // previous auto-on-mount effect silently failed on iOS Safari because
+  // iOS requires permission requests to originate from a user gesture
+  // (Notes 6).
 
   async function handleEmailLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -256,6 +230,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </p>
             </div>
           )}
+          {/* Push-notification opt-in chip (Notes 6) — required as a click
+              handler so iOS Safari accepts the permission request. */}
+          <div className="px-3 pb-3">
+            <NotificationOptIn />
+          </div>
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white w-full transition-colors"
@@ -268,7 +247,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      {/* Mobile top bar — shows identity + logout (desktop sidebar handles this on md+) */}
+      {/* Mobile top bar — shows identity + notifications opt-in + logout
+          (desktop sidebar handles the same on md+). NotificationOptIn is
+          surfaced here so iOS PWA users can tap to enable push — the
+          permission request requires a click handler (Notes 6). */}
       <header className="md:hidden sticky top-0 z-30 bg-navy text-white flex items-center justify-between px-4 py-2 border-b border-white/10">
         <Image
           src="/gto-logo.png"
@@ -278,9 +260,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           priority
           className="h-8 w-auto"
         />
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <NotificationOptIn />
           {sessionUser && (
-            <span className="text-xs text-white/70 truncate max-w-[110px]" title={sessionUser.email}>
+            <span className="text-xs text-white/70 truncate max-w-[80px]" title={sessionUser.email}>
               {sessionUser.full_name ?? sessionUser.email.split("@")[0]}
             </span>
           )}
