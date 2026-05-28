@@ -180,11 +180,25 @@ export default function SettingsPage() {
           )}
 
           {provider === "resend" && (
-            <Input label="Resend API Key" value={resendKey} onChange={(e) => setResendKey(e.target.value)} placeholder="re_..." />
+            <Input
+              label="Resend API Key"
+              type="password"
+              value={resendKey}
+              onChange={(e) => setResendKey(e.target.value)}
+              placeholder="re_..."
+              autoComplete="off"
+            />
           )}
 
           {provider === "sendgrid" && (
-            <Input label="SendGrid API Key" value={sendgridKey} onChange={(e) => setSendgridKey(e.target.value)} placeholder="SG...." />
+            <Input
+              label="SendGrid API Key"
+              type="password"
+              value={sendgridKey}
+              onChange={(e) => setSendgridKey(e.target.value)}
+              placeholder="SG...."
+              autoComplete="off"
+            />
           )}
 
           {/* Common fields */}

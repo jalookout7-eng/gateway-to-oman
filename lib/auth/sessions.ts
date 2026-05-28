@@ -81,7 +81,15 @@ export function cookieOptions() {
   return {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
+    // SameSite=Strict for the admin cookie (audit item L-1).
+    // Admin pages are only navigated from within the site after sign-in — no
+    // legitimate cross-site flow needs to carry the admin cookie. Strict makes
+    // the cookie un-sendable from clicked-from-external-site requests, which
+    // closes the small window where a CSRF-style cross-site GET could leak
+    // admin state. Marketplace + OAuth state cookies remain SameSite=Lax in
+    // their own files because they DO need to survive top-level navigation
+    // from emails / Google OAuth callbacks.
+    sameSite: "strict" as const,
     path: "/",
     maxAge: SESSION_TTL_MS / 1000,
   };
