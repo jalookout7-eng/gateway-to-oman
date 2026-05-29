@@ -11,8 +11,8 @@ export default function TermsOfServicePage() {
         <p>
           These Terms of Service (&ldquo;Terms&rdquo;) govern your access to and use of the{" "}
           {COMPANY.tradingName} website, the businesses-for-sale marketplace, the AI assistant, and any related
-          services (together, the &ldquo;Service&rdquo;) operated by {COMPANY.legalEntity}. By accessing or using the
-          Service, you agree to these Terms. If you do not agree, do not use the Service.
+          services (together, the &ldquo;Service&rdquo;) operated by {COMPANY.entityLine} (License {COMPANY.licenseNumber}).
+          By accessing or using the Service, you agree to these Terms. If you do not agree, do not use the Service.
         </p>
       </section>
 
@@ -185,12 +185,13 @@ export default function TermsOfServicePage() {
 
       <section>
         <h2>16. Contact</h2>
+        <p>Questions about these Terms may be sent by post to:</p>
         <p>
-          {COMPANY.legalEntity} &mdash; {COMPANY.tradingName}
+          {COMPANY.entityLine}
+          <br />
+          License {COMPANY.licenseNumber}
           <br />
           {COMPANY.address}
-          <br />
-          Email: <a href={`mailto:${COMPANY.privacyContact}`}>{COMPANY.privacyContact}</a>
         </p>
       </section>
     </LegalLayout>

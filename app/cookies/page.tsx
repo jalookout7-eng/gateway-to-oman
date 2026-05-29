@@ -86,8 +86,8 @@ export default function CookieNoticePage() {
       <section>
         <h2>Questions?</h2>
         <p>
-          Contact us at{" "}
-          <a href={`mailto:${COMPANY.privacyContact}`}>{COMPANY.privacyContact}</a>.
+          Write to us at our registered address (see the Contact section of the{" "}
+          <a href="/privacy">Privacy Policy</a>).
         </p>
       </section>
     </LegalLayout>

@@ -8,9 +8,9 @@ export default function PrivacyPolicyPage() {
     <LegalLayout title="Privacy Policy">
       <section>
         <p>
-          This Privacy Policy explains how {COMPANY.tradingName} (&ldquo;Gateway to Oman&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;) &mdash; operated
-          by {COMPANY.legalEntity} (CR {COMPANY.crNumber}), {COMPANY.address} &mdash; collects, uses, shares, and
-          protects personal information when you use our website (<code>gatewaytooman.com</code> and{" "}
+          This Privacy Policy explains how {COMPANY.entityLine} (&ldquo;Gateway to Oman&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;) &mdash;
+          License {COMPANY.licenseNumber}, {COMPANY.address} &mdash; collects, uses, shares, and protects personal information when
+          you use our website (<code>gatewaytooman.com</code> and{" "}
           <code>gateway-to-oman.vercel.app</code>), the businesses-for-sale marketplace, our AI assistant, and related
           services (together, the &ldquo;Service&rdquo;).
         </p>
@@ -196,7 +196,7 @@ export default function PrivacyPolicyPage() {
           EU/UK, your local data protection authority).
         </p>
         <p>
-          To exercise any of these rights, contact us at <code>{COMPANY.privacyContact}</code>. We will respond within
+          To exercise any of these rights, write to us at our registered address (see Section 13). We will respond within
           the timeframe required by applicable law.
         </p>
       </section>
@@ -238,13 +238,13 @@ export default function PrivacyPolicyPage() {
 
       <section>
         <h2>13. Contact</h2>
-        <p>Questions, requests, or complaints about this Policy or our handling of your personal information:</p>
+        <p>Questions, requests, or complaints about this Policy or our handling of your personal information may be sent by post to:</p>
         <p>
-          {COMPANY.legalEntity} &mdash; {COMPANY.tradingName}
+          {COMPANY.entityLine}
+          <br />
+          License {COMPANY.licenseNumber}
           <br />
           {COMPANY.address}
-          <br />
-          Email: <a href={`mailto:${COMPANY.privacyContact}`}>{COMPANY.privacyContact}</a>
         </p>
       </section>
     </LegalLayout>

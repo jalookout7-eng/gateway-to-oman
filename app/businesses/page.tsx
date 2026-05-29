@@ -27,12 +27,13 @@ export const metadata = {
 };
 
 export default async function BusinessesLandingPage() {
-  const [featured, fee, allListings] = await Promise.all([
+  // Notes 8 — the total listings count was removed from the hero + final CTA
+  // (only 5 listings live; the count would undersell the value). We no longer
+  // call listListings({}) at all on this page.
+  const [featured, fee] = await Promise.all([
     listListings({ featuredOnly: true, limit: 5 }),
     getMarketplaceAccessFee(),
-    listListings({}),
   ]);
-  const totalListings = allListings.length;
 
   return (
     <>
@@ -58,9 +59,10 @@ export default async function BusinessesLandingPage() {
               Buy a business that&apos;s already running.
             </h1>
             <p className="mt-6 text-lg text-gray-200 leading-relaxed">
-              {totalListings} live listings across cafés, gyms, laundries, travel agencies,
-              and industrial properties. Each one reviewed by the Gateway to Oman team
-              before going live — no shell listings, no time-wasters.
+              A curated marketplace of cafés, gyms, laundries, travel agencies,
+              and industrial properties for sale in Oman. Every listing is reviewed by
+              the Gateway to Oman team before going live — no shell listings,
+              no time-wasters.
             </p>
 
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -257,18 +259,18 @@ export default async function BusinessesLandingPage() {
           <ol className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Step
               n={1}
-              title="Browse the preview"
-              body="See category, location, age, and headline price for every live listing. No payment required to look."
+              title="Request access"
+              body="Submit your details on the access form. Pay the one-time fee and our team activates your subscriber account within 24 hours."
             />
             <Step
               n={2}
-              title="Request access"
-              body="Once a listing catches your eye, request subscriber access. Pay the one-time fee and our team reaches out within 24 hours."
+              title="Browse all available listings"
+              body="Full financials, ownership history, and contact paths unlocked. See the complete picture for every business in the marketplace."
             />
             <Step
               n={3}
-              title="Direct intro to the seller"
-              body="We connect you with the seller directly — by email, WhatsApp, or in-person if you&apos;re in Muscat."
+              title="Consultation for acquiring"
+              body="Found a business you want? Book a consultation with our team. We&apos;ll walk you through fit, due-diligence questions, and the negotiation approach."
             />
             <Step
               n={4}
@@ -301,9 +303,8 @@ export default async function BusinessesLandingPage() {
             Ready to see what&apos;s available?
           </h2>
           <p className="mt-4 text-base text-gray-300 max-w-xl mx-auto">
-            {totalListings} businesses are listed right now. Browse the preview
-            free, or unlock the full marketplace and our advisory support for{" "}
-            {formatOMR(fee)} one-time.
+            Browse the preview free, or unlock the full marketplace and our
+            advisory support for {formatOMR(fee)} one-time.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
             <Link
