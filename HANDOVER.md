@@ -4,7 +4,7 @@
 **Client:** Ahmed Al Azizi — Alazizi Global Projects (AGP)
 **Developer:** JA (JALAI)
 **Stage:** 04-build — active
-**Started:** April 2026 · **This handover written:** May 29, 2026
+**Started:** April 2026 · **This handover written:** May 29, 2026 · **Last updated:** May 30, 2026 (security audit logged)
 
 > **Predecessor:** the full batch-by-batch history (v7.0 → v7.22) is preserved at
 > `docs/superpowers/archive/HANDOVER-v7.22-2026-05-29.md`. Consult it for code
@@ -164,6 +164,8 @@ This keeps in-progress work isolated until reviewed. Use it for any change touch
 | **K** | `R2_PUBLIC_BASE_URL` trailing-space check | 2 min | Code defensively trims it; cleaner to fix the env value |
 | **L** | **GA4 Measurement ID** | 10 min | **JA's stated next priority.** Create GA4 property at <https://analytics.google.com>, copy `G-XXXXXXXXXX` ID, paste into Vercel as `NEXT_PUBLIC_GA_MEASUREMENT_ID`, redeploy. Mark `lead_submit` / `whatsapp_click` / `calendly_click` / `chat_opened` as conversions in GA4 Admin → Events. |
 | **M** | Consent banner sub-batch | ~3-4 hrs | Deferred — JA "later, but priority." Closes the GA4-without-consent PDPL/GDPR gap created by L. Google Consent Mode v2 with `analytics_storage` defaulting to denied + Accept/Decline banner. |
+| **N** | Confirm sign-up enumeration trade-off (security audit A07-1) | 30 sec | The fix removes the "An account with that email exists" 409 error and returns a generic 200 instead. OWASP-recommended; slight UX downgrade for "I forgot I had an account" case. JA confirmed proceeding with the secure version — captured here so the decision isn't re-litigated. |
+| **O** | Click-test Vercel preview of Batch 17 (CSP + magic-byte sniff + topic allowlist + cron HTML escape + Resend masking) before promoting to prod | 10 min | CSP can visually break things if allowlist is wrong. Preview-deploy review is the gate before prod. JA-only action. |
 
 ### Known gaps identified during 2026-05-29 review
 
@@ -172,7 +174,8 @@ This keeps in-progress work isolated until reviewed. Use it for any change touch
 | **Source column missing on `/admin/leads` table** | Cosmetic | ~10 min | Data is in DB + API + filter dropdown; just not rendered as a column in the table. Add `<th>Source</th>` + `<td>{lead.source}</td>`. |
 | **No auto-draft email on lead capture** | Real gap | ~2-3 hr | Currently drafts only auto-generate for booking confirmation + cron reminders. Generic lead-capture should also queue a personalised draft (using Anthropic Haiku + `summariseLead` pattern). Lands in the existing "Email Pending Approval" UI block. |
 | **Email approval workflow incomplete** | Real gap | ~half day | Backend + UI exist for auto-generated drafts only. Missing: (1) "Compose new email" button on each lead row, (2) central `/admin/emails` queue page showing all drafts across all leads, (3) edit-before-send capability. |
-| **Security M-2 — Google `id_token` JWKS verify** | Medium | ~30 min | Was deferred until Google OAuth went live. **OAuth is now live → ship it.** Add `jose`, verify `iss`/`aud`/`exp`/signature in `/api/businesses/google/callback`. Defense-in-depth — current path is HTTPS-only so tampering in transit is already impossible. |
+
+> Security gaps from the 2026-05-30 audit now live under §Security state below (Batch 16 ships to prod; Batch 17 ships to preview first).
 
 ### Dormant code paths
 
@@ -185,20 +188,81 @@ These work but aren't reachable in normal traffic. Documented so they're not "re
 
 ## 🔒 Security state
 
-| Priority | Status |
+### Posture summary
+
+| Layer | Result |
 |---|---|
-| **High 1-4** | ✅ All closed (Batch 2). OTP CSPRNG, field-leak closed on `/api/leads`, security headers, `ADMIN_TOKEN` retired, owner gate on `/admin/intelligence`, Turso rate limiting on `/api/chat` (20/min), `/api/auth/login` (5/10min), OTP issue (10/10min/IP + 1/60s/email), access-request (5/10min) |
-| **Medium M-2** | ⏭ Open — Google `id_token` JWKS verify. See Known gaps above. |
-| **Low L-1, L-5** | ✅ Done — SameSite=Strict admin cookie, masked Resend/SendGrid key inputs |
-| **Low rest** | Cosmetic — not load-bearing |
-| **Info I-4** | ✅ Verified safe by design — no user-input path to `cover_image_url` |
-| **`npm audit`** | Dev-only vitest transitive vulns. No production exposure. |
+| SQL injection (OWASP A03) | ✅ CLEAN — every dynamic SQL fragment uses hardcoded identifiers + parameterised binds |
+| SSRF (OWASP A10) | ✅ CLEAN — no user-controlled URL fetched server-side |
+| Hardcoded credentials | ✅ CLEAN — grep for `sk-`, `re_`, `SG.`, `ghp_` etc. across `app/`, `lib/`, `components/`, `scripts/` returns zero hits |
+| `NEXT_PUBLIC_*` exposure | ✅ CLEAN — only `VAPID_PUBLIC_KEY` (designed public) and `GA_MEASUREMENT_ID` (designed public) |
+| Server keys in browser | ✅ CLEAN — Anthropic/Groq/Resend never referenced from `"use client"` files |
+| Sensitive API field leaks | ✅ CLEAN — `password_hash` never returned; `/api/auth/me` returns minimal `SessionUser` shape |
+| Cookies (admin + marketplace) | ✅ httpOnly + secure + SameSite tuned per surface |
+| Session tokens | ✅ 32-byte CSPRNG |
+| Cron + reviewer-link comparisons | ✅ timing-safe |
+| `npm audit` (production tree) | ✅ no prod vulns (dev-only eslint + vitest transitive vulns acceptable) |
 
-**Nothing on fire.** M-2 is the only open item worth shipping now.
+### Comprehensive audit performed 2026-05-30
 
-### bcryptjs cost-12 — no monetary cost
+Full audit pass across security headers, OWASP Top 10, and credential/data leakage by parallel review agents. Two HIGH findings (both rate-limit gaps on public endpoints), 10 MED, 6 LOW. **No live exploits available; no production data at immediate risk.** Findings + fix plan below.
+
+### Open findings (planned for Batch 16 + 17)
+
+**🔴 Batch 16 — ships direct to prod (server-side only, no UX changes)**
+
+| # | OWASP | Sev | Location | Issue | Fix |
+|---|---|---|---|---|---|
+| A04-1 | A04 Insecure Design | **HIGH** | `app/api/leads/route.ts` POST | Public lead-capture has NO rate limit. Each POST triggers Anthropic AI calls + push notifications. Burnable. | `rateLimit("lead_capture", ip, 5, 600)` + 24-h email+IP dedupe |
+| A04-2 | A04 Insecure Design | **HIGH** | `app/api/businesses/verify-otp/route.ts` | No IP-level rate limit; per-OTP 5-attempt cap can be reset by re-issuance | `rateLimit("verify_otp", ip, 20, 600)` |
+| A07-1 | A07 AuthN Failures | MED | `app/api/businesses/sign-up/route.ts:51-56` | 409 "Account exists" vs 200 = direct email enumeration | Always return generic 200; OTP delivery is the real signal. **Trade-off accepted by JA (item N).** |
+| A01-1 | A01 Broken Access Control | MED | `app/api/admin/admin-users/route.ts` + `[id]/route.ts` | Uses `requireAuth()` + inline owner check (two failure paths) | Swap to `requireOwner()`; drop inline check |
+| A01-2 | A01 Broken Access Control | MED | `app/api/admin/reviewer-link/route.ts` | Any admin role can rotate reviewer link | Swap to `requireOwner()` |
+| A08-1 | A08 SW/Data Integrity | MED | `lib/auth/google.ts:42-57` `decodeIdToken()` | Google `id_token` decoded WITHOUT signature verification (was deferred audit item M-2) | Add `jose`, verify `iss`/`aud`/`exp`/signature against Google JWKS in `/api/businesses/google/callback` |
+
+**🟡 Batch 17 — ships to Vercel preview first; JA click-tests (item O); then prod**
+
+| # | OWASP | Sev | Location | Issue | Fix |
+|---|---|---|---|---|---|
+| H-1 | A05 Misconfig | MED | `next.config.js` headers | No CSP header — biggest XSS defense missing | Ship minimal CSP allowlisting `*.r2.dev`, `images.pexels.com`, `*.googletagmanager.com`, `accounts.google.com`, self |
+| A08-3 | A08 SW/Data Integrity | MED | `app/api/cron/reminders/route.ts:88-93` | Lead name interpolated into reminder-email HTML unescaped (XSS in email body) | HTML-escape `leadName` before template interpolation |
+| A02-2 | A02 Crypto Failures | MED | `app/api/email/config/route.ts` GET | Returns full Resend API key plaintext to admin browser | Mask by default (`re_••••••last4`); add reveal button |
+| A04-3 | A04 Insecure Design | MED | `app/api/businesses/resend-access/route.ts` | No rate limit | `rateLimit("resend_access", ip, 10, 600)` |
+| A05-2 | A05 Misconfig | MED | `app/api/admin/leads/bulk-delete/route.ts:70` | Returns raw `err.message` in JSON (DB constraint name leak) | Generic `"delete_failed"` + server-side `console.error` |
+| A04-4 | A04 Insecure Design | MED | `lib/ai/prompt-assembler.ts:80-84` | Visitor-controlled `context.topic` interpolated verbatim into Omar's system prompt | Allowlist `topic` against the 7 known opportunity-card titles |
+| A08-2 | A08 SW/Data Integrity | MED | `app/api/admin/listings/[id]/media/route.ts` | Image upload only checks Content-Type header (client-controllable) | Add `file-type` magic-byte sniffing |
+
+### Low-priority / deferred
+
+| # | Sev | Location | Issue |
+|---|---|---|---|
+| A02-1 | LOW | `lib/auth/sessions.ts:31` | Session tokens stored plaintext in DB (hash before insert for defense-in-depth) |
+| A07-2 | LOW | `app/api/auth/login/route.ts:39-41` | Differential timing on missing-email (run dummy bcrypt to equalize) |
+| A09-1 | LOW | `app/api/chat/route.ts:161` | `[KB_GAP]` log captures raw visitor message (PII) — truncate or hash |
+| A08-4 | LOW | `lib/email/sender.ts:69` | No CRLF strip on email `from`/`subject` from admin-editable settings |
+| C-1 | LOW | `app/api/leads/route.ts:257` | `SELECT * FROM leads` returns `score_breakdown` to admin browser |
+| H-2/H-3/H-4 | LOW | `next.config.js` | Missing HSTS `preload`, COOP, CORP headers |
+
+### Already-strong baseline (do not regress)
+
+1. All SQL parameterised (no injection vectors)
+2. `requireAuth` precedes every DB lookup in admin routes (no IDOR exposures)
+3. Cookie security tuned correctly per surface
+4. Session tokens 32-byte CSPRNG
+5. OTP design solid (CSPRNG 6-digit, 10-min TTL, 5-attempt cap, single-row consumption)
+6. Rate-limiting infrastructure exists (gaps are coverage, not infra)
+7. `CRON_SECRET` + reviewer-link timing-safe comparisons
+8. `activity_log` admin audit trail with IP/UA
+9. bcryptjs cost-12 (free OSS lib; no monetary cost; ~250ms/login; plaintext never stored)
+10. No client-side credential references anywhere
+
+### bcryptjs cost-12 — clarification
 
 `bcryptjs` is a free npm package. "Cost 12" is the work factor (2¹² = 4,096 hashing rounds), not a price. Each login takes ~250ms on Vercel functions — well within free-tier limits. Plaintext passwords are NEVER stored — only the bcrypt hash (60-char string with embedded salt). OWASP recommends 10-12; we're at the upper end (good).
+
+### Predecessor audit reference
+
+The original first-pass security audit (v7.5, document at `delivery/shared/gto-security-audit-2026-05-24.md`) ranked High priorities 1-4 (all closed in Batch 2), Medium M-2 (now becomes A08-1 above), Low L-1+L-5 (both closed). The 2026-05-30 audit supersedes it.
 
 ---
 
@@ -396,26 +460,41 @@ npx tsx scripts/seed-admin.ts
 
 Pick from these depending on your bandwidth. None block any others except where noted.
 
-### 30-minute path (close the biggest open security item)
-1. **Security M-2** (Google `id_token` JWKS verify) — defense-in-depth on the new OAuth flow
+### 🔴 Up next — Batch 16 (~45 min, security hardening, ships direct to prod)
+Closes both HIGH findings + four MED quick wins from the 2026-05-30 audit:
+1. **A04-1** Rate-limit `/api/leads` POST (HIGH)
+2. **A04-2** Rate-limit `/api/businesses/verify-otp` (HIGH)
+3. **A07-1** Generic sign-up response (MED) — *JA-confirmed via item N*
+4. **A01-1 + A01-2** `requireOwner` on admin-users + reviewer-link (MED)
+5. **A08-1** Google `id_token` JWKS signature verify via `jose` (MED) — *closes legacy M-2*
+
+### 🟡 Then Batch 17 (~3 hr, defense-in-depth, ships to PREVIEW first per item O)
+6. **H-1** Minimal CSP header (MED) — biggest XSS defense
+7. **A08-3** HTML-escape lead name in cron reminder template (MED)
+8. **A02-2** Mask Resend API key in `/api/email/config` GET (MED)
+9. **A04-3** Rate-limit `/api/businesses/resend-access` (MED)
+10. **A05-2** Sanitise bulk-delete error response (MED)
+11. **A04-4** Allowlist `context.topic` in prompt assembler (MED)
+12. **A08-2** Magic-byte image sniffing via `file-type` (MED)
 
 ### Half-day path (close visible UX gaps)
-2. **Source column** on `/admin/leads` table — 10 min
-3. **Auto-draft email on lead capture** — 2-3 hr — biggest single value-add (every lead gets a ready-to-send personalised follow-up)
-4. **GA4 Measurement ID env var** + redeploy (item L) — 10 min, JA priority
+13. **Source column** on `/admin/leads` table — 10 min
+14. **Auto-draft email on lead capture** — 2-3 hr — biggest single value-add (every lead gets a ready-to-send personalised follow-up)
+15. **GA4 Measurement ID env var** + redeploy (item L) — 10 min, JA priority
 
 ### Full-day path (analytics + tracking)
-5. Items above
-6. **Consent banner** (item M) — 3-4 hr — closes PDPL/GDPR gap from L
-7. **Hook A/B panel** on `/admin/intelligence` — 1 hr — start measuring teaser variants
+16. Items above
+17. **Consent banner** (item M) — 3-4 hr — closes PDPL/GDPR gap from L
+18. **Hook A/B panel** on `/admin/intelligence` — 1 hr — start measuring teaser variants
 
 ### When user count starts climbing (scalability Phase 1)
-8. **Pagination on admin lists** + cache lookups + composite indexes + Speed Insights — 4 hr total
+19. **Pagination on admin lists** + cache lookups + composite indexes + Speed Insights — 4 hr total
 
 ### Whenever convenient (cleanup)
-9. Items F, J, K (env var delete, payment tracker upload, R2 trailing-space)
-10. Items B, C (click-test old batches)
-11. Item I (lawyer review — Ahmed's call)
+20. Items F, J, K (env var delete, payment tracker upload, R2 trailing-space)
+21. Items B, C (click-test old batches)
+22. Item I (lawyer review — Ahmed's call)
+23. Low-priority security items (A02-1, A07-2, A09-1, A08-4, C-1, H-2/H-3/H-4)
 
 ---
 
@@ -434,6 +513,13 @@ Don't read it for "what to do next" — that's all here.
 
 ---
 
-**Doc version:** v8.0 (fresh slate)
-**Last updated:** May 29, 2026
+**Doc version:** v8.1 (security audit logged, Batches 16+17 planned)
+**Last updated:** May 30, 2026
 **Maintainer:** JA · JALAI
+
+### v8.1 changelog
+- Logged 2026-05-30 comprehensive security audit findings (2 HIGH, 10 MED, 6 LOW) replacing the older summary §Security state
+- Added pending USER actions **N** (sign-up enumeration trade-off — JA confirmed) and **O** (preview-deploy click-test of Batch 17 before promoting CSP to prod)
+- Added planned Batches 16 (security HIGH + MED quick wins, ships direct to prod) and 17 (CSP + magic-byte sniff + Resend masking + cron escape + topic allowlist, ships to preview first)
+- Removed the standalone "Security M-2" line from Known gaps — absorbed as A08-1 into Batch 16
+- Reorganised "What to do next" with Batch 16/17 as the new immediate priority
