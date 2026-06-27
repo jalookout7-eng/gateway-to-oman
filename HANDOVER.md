@@ -4,7 +4,7 @@
 **Client:** Ahmed Al Azizi — Alazizi Global Projects (AGP)
 **Developer:** JA (JALAI)
 **Stage:** 04-build — active
-**Started:** April 2026 · **This handover written:** May 29, 2026 · **Last updated:** May 30, 2026 (security audit logged)
+**Started:** April 2026 · **This handover written:** May 29, 2026 · **Last updated:** June 27, 2026 (presigned R2 uploads shipped)
 
 > **Predecessor:** the full batch-by-batch history (v7.0 → v7.22) is preserved at
 > `docs/superpowers/archive/HANDOVER-v7.22-2026-05-29.md`. Consult it for code
@@ -13,19 +13,19 @@
 
 ---
 
-## Status — May 29, 2026
+## Status — June 27, 2026
 
 | | |
 |---|---|
 | **Live URLs** | <https://gatewaytooman.com> · <https://www.gatewaytooman.com> |
-| **Latest production deploy** | `dpl_2W5g2mtsJCvLJ2BJuXeEndqcrz1Q` (Batch 15, 2026-05-29) |
-| **Latest commit on `section-b-marketplace`** | `cad4b4d` (local + origin in sync at handover time) |
+| **Latest production deploy** | `dpl_GjoTELzWQDQf6BSCeDTV8MTaqQQR` (presigned R2 uploads, 2026-06-27) |
+| **Latest commit on `section-b-marketplace`** | `e4fbd96` (local + origin in sync) |
 | **Repo** | <https://github.com/jalookout7-eng/gateway-to-oman> (private) |
 | **Active branch** | `section-b-marketplace` (production deploys from here; `master` ~80 commits behind) |
-| **Tests** | 177/177 passing across 30 files |
-| **Build** | clean, 65 routes |
+| **Tests** | 190/190 passing across 31 files |
+| **Build** | clean, 67 routes |
 
-What's running: Next.js 14.2 App Router on Vercel Hobby tier, Anthropic Haiku 4.5 (Groq Llama 3.3 70B failover), Turso libSQL in Tokyo region, Resend transactional email (gatewaytooman.com domain verified), Cloudflare R2 for listing media, Web Push notifications (VAPID), Google OAuth for marketplace sign-in, GA4 wiring shipped dormant (waiting for measurement ID).
+What's running: Next.js 14.2 App Router on Vercel Pro, Anthropic Haiku 4.5 (Groq Llama 3.3 70B failover), Turso libSQL in Tokyo region, Resend transactional email (gatewaytooman.com domain verified), Cloudflare R2 for listing media (presigned direct-to-R2 uploads — browser uploads straight to R2, bypassing Vercel), Web Push notifications (VAPID), Google OAuth for marketplace sign-in, GA4 wiring shipped dormant (waiting for measurement ID).
 
 ---
 
@@ -134,7 +134,7 @@ This keeps in-progress work isolated until reviewed. Use it for any change touch
 - Email+password login (bcryptjs cost-12) with cookie sessions (SameSite=Strict, 7-day TTL)
 - Dashboard with charts (Recharts)
 - Leads — inline-editable status/qualification/segment, AI Summary with Regenerate, Lead Notes Timeline (admin + Omar-AI auto-notes), per-row delete + multi-select bulk delete
-- Listings — full CRUD + featured curation + R2 media uploads (cover/gallery/video, 4.5 MB cap on video per Vercel Hobby tier)
+- Listings — full CRUD + featured curation + R2 media uploads via **presigned direct-to-R2** (cover/gallery up to 15 MB, video up to 50 MB, real upload progress bar — no Vercel body-size cap)
 - Inquiries — marketplace access requests with outcome tracking + bulk delete
 - Calendar — week view + block/unblock slots
 - Conversations — full chat transcript viewer
@@ -176,18 +176,6 @@ This keeps in-progress work isolated until reviewed. Use it for any change touch
 | **Email approval workflow incomplete** | Real gap | ~half day | Backend + UI exist for auto-generated drafts only. Missing: (1) "Compose new email" button on each lead row, (2) central `/admin/emails` queue page showing all drafts across all leads, (3) edit-before-send capability. |
 
 > Security gaps from the 2026-05-30 audit now live under §Security state below (Batch 16 ships to prod; Batch 17 ships to preview first).
-
-### 🎬 Video (and image) uploads — PLANNED FIX (full plan written, awaiting execution)
-
-**Status:** approach approved; JA will compact, then execute. Full plan: `docs/superpowers/plans/2026-05-30-presigned-r2-uploads.md`.
-
-**The real root cause (the earlier "upgrade to Pro" advice was WRONG):** Vercel enforces a **hard 4.5 MB request-body limit on ALL Functions — Hobby AND Pro**. It is not plan-gated, not configurable, Fluid Compute didn't change it (confirmed against current Vercel docs). Our upload routes the whole file through `await request.formData()`, so anything >4.5 MB returns `413 FUNCTION_PAYLOAD_TOO_LARGE` before our code runs. Compounding bug: the client has a hardcoded `VERCEL_HOBBY_BODY_LIMIT_MB = 4.5` pre-flight guard (`app/admin/listings/page.tsx` ~line 481) that blocks videos before they're even sent — which is why the Pro upgrade changed nothing.
-
-**The fix:** migrate BOTH images and videos to **presigned direct-to-R2 uploads** (the pattern Vercel itself recommends for files >4.5 MB). Browser uploads straight to Cloudflare R2 via a presigned PUT URL, bypassing the Vercel function. New `media/presign` + `media/confirm` endpoints; the legacy multipart POST is removed (single clean path); adds a real upload progress bar. Caps: image 5→15 MB, **video 50 MB**, gallery still 10.
-
-**JA's one manual step (REQUIRED before uploads work):** add a CORS policy to the `gto-listings` R2 bucket in the Cloudflare dashboard — exact click-by-click steps + JSON are in the plan file.
-
-**Security note:** this supersedes audit finding A08-2 (magic-byte sniffing is impossible once bytes bypass our server — compensating controls documented in the plan).
 
 ### Dormant code paths
 
@@ -242,7 +230,7 @@ Full audit pass across security headers, OWASP Top 10, and credential/data leaka
 | A04-3 | A04 Insecure Design | MED | `app/api/businesses/resend-access/route.ts` | No rate limit | `rateLimit("resend_access", ip, 10, 600)` |
 | A05-2 | A05 Misconfig | MED | `app/api/admin/leads/bulk-delete/route.ts:70` | Returns raw `err.message` in JSON (DB constraint name leak) | Generic `"delete_failed"` + server-side `console.error` |
 | A04-4 | A04 Insecure Design | MED | `lib/ai/prompt-assembler.ts:80-84` | Visitor-controlled `context.topic` interpolated verbatim into Omar's system prompt | Allowlist `topic` against the 7 known opportunity-card titles |
-| A08-2 | A08 SW/Data Integrity | MED | `app/api/admin/listings/[id]/media/route.ts` | Image upload only checks Content-Type header (client-controllable) | Add `file-type` magic-byte sniffing |
+| ~~A08-2~~ | ~~A08~~ | ~~MED~~ | ~~`media/route.ts`~~ | **N/A — superseded by presigned uploads (2026-06-27).** Bytes never reach Vercel; Content-Type allowlist enforced at presign; extension derived server-side; R2 is a separate origin. | Closed. |
 
 ### Low-priority / deferred
 
@@ -374,7 +362,10 @@ The only one of these that's load-bearing in the short term:
 - `lib/db/client.ts` — Turso client (libsql HTTP)
 - `lib/db/schema.sql` — full schema (22 tables, ~6 indexes per table)
 - `lib/admin/lead-delete.ts` — cascade delete helper (emails → notes → inquiries → bookings.lead_id=NULL → messages → conversation → lead)
-- `lib/r2.ts` — `uploadToR2`, `deleteFromR2`, `toPublicUrl` (with defensive `.trim()`)
+- `lib/r2.ts` — `buildR2Key`, `buildPublicUrl`, `presignPutUrl`, `uploadToR2`, `deleteFromR2`, `toPublicUrl`, `keyFromUrl`
+- `lib/media-constants.ts` — shared `IMAGE_TYPES`, `VIDEO_TYPES`, caps (15 MB image / 50 MB video), `MAX_GALLERY`, `getMediaState` helper
+- `app/api/admin/listings/[id]/media/presign/route.ts` — auth → rate-limit → allowlist → presign PUT URL
+- `app/api/admin/listings/[id]/media/confirm/route.ts` — auth → key-ownership + format check → persist URL server-side → activity log
 - `lib/rate-limit.ts` — Turso-backed fixed-window rate limiter
 - `lib/auth/sessions.ts`, `lib/auth/password.ts`, `lib/auth/token.ts`, `lib/auth/marketplace.ts`
 
@@ -448,7 +439,7 @@ npx tsx scripts/verify-schema.ts
 Tests:
 
 ```powershell
-npm test -- --run               # 177/177 pass; ~80s
+npm test -- --run               # 190/190 pass across 31 files; ~80s
 npx tsc --noEmit                # typecheck (2 pre-existing errors in test files — undici Response/Request vs Next.js wrappers)
 ```
 
@@ -489,9 +480,6 @@ Closes both HIGH findings + four MED quick wins from the 2026-05-30 audit:
 11. **A04-4** Allowlist `context.topic` in prompt assembler (MED)
 12. **A08-2** Magic-byte image sniffing — **N/A once presigned uploads ship** (bytes bypass our server); superseded by the presigned-upload plan's compensating controls
 
-### 🎬 Presigned R2 uploads (fix video/image uploads) — plan ready, ~3 hr + JA's R2 CORS step
-Full plan: `docs/superpowers/plans/2026-05-30-presigned-r2-uploads.md`. Approved approach, awaiting execution after compaction. Removes the 4.5 MB Vercel function-body cap by uploading browser→R2 directly. JA must add an R2 CORS policy (steps in plan) before uploads work end-to-end. Test on localhost (real R2) → Vercel preview → prod.
-
 ### Half-day path (close visible UX gaps)
 13. **Source column** on `/admin/leads` table — 10 min
 14. **Auto-draft email on lead capture** — 2-3 hr — biggest single value-add (every lead gets a ready-to-send personalised follow-up)
@@ -528,9 +516,15 @@ Don't read it for "what to do next" — that's all here.
 
 ---
 
-**Doc version:** v8.2 (presigned-upload plan logged)
-**Last updated:** May 30, 2026
+**Doc version:** v8.3 (presigned R2 uploads shipped + working)
+**Last updated:** June 27, 2026
 **Maintainer:** JA · JALAI
+
+### v8.3 changelog
+- **Presigned direct-to-R2 uploads LIVE** (`dpl_GjoTELzWQDQf6BSCeDTV8MTaqQQR`, 2026-06-27). Video uploads confirmed working by JA. New files: `lib/media-constants.ts`, `lib/r2.ts` (refactored + presigner), `media/presign/route.ts`, `media/confirm/route.ts`. Legacy multipart POST removed. Caps: image 15 MB, video 50 MB. Real progress bar. 190/190 tests.
+- Security hardening in confirm route: `publicUrl` derived server-side from `buildPublicUrl(key)` — client no longer trusted for the stored URL. Key validated with exact regex (`^listings/<id>/epoch13-hex16.(jpg|png|webp|mp4|webm)$`).
+- A08-2 (magic-byte sniffing) closed as N/A — bytes bypass Vercel entirely under presigned architecture; compensating controls in place.
+- Status block updated: prod deploy, commit, test count (190), Vercel Pro.
 
 ### v8.2 changelog
 - Logged the **presigned direct-to-R2 upload** plan (`docs/superpowers/plans/2026-05-30-presigned-r2-uploads.md`) — fixes the video-upload failure. Corrected the earlier wrong note that "upgrade to Pro" would fix it: Vercel's 4.5 MB function body limit is identical on Hobby and Pro. Approved approach (remove legacy POST, video cap 50 MB, image cap 15 MB); awaiting execution after JA compacts. Requires a one-time R2 CORS step from JA (in the plan).
