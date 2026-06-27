@@ -177,6 +177,18 @@ This keeps in-progress work isolated until reviewed. Use it for any change touch
 
 > Security gaps from the 2026-05-30 audit now live under §Security state below (Batch 16 ships to prod; Batch 17 ships to preview first).
 
+### 🎬 Video (and image) uploads — PLANNED FIX (full plan written, awaiting execution)
+
+**Status:** approach approved; JA will compact, then execute. Full plan: `docs/superpowers/plans/2026-05-30-presigned-r2-uploads.md`.
+
+**The real root cause (the earlier "upgrade to Pro" advice was WRONG):** Vercel enforces a **hard 4.5 MB request-body limit on ALL Functions — Hobby AND Pro**. It is not plan-gated, not configurable, Fluid Compute didn't change it (confirmed against current Vercel docs). Our upload routes the whole file through `await request.formData()`, so anything >4.5 MB returns `413 FUNCTION_PAYLOAD_TOO_LARGE` before our code runs. Compounding bug: the client has a hardcoded `VERCEL_HOBBY_BODY_LIMIT_MB = 4.5` pre-flight guard (`app/admin/listings/page.tsx` ~line 481) that blocks videos before they're even sent — which is why the Pro upgrade changed nothing.
+
+**The fix:** migrate BOTH images and videos to **presigned direct-to-R2 uploads** (the pattern Vercel itself recommends for files >4.5 MB). Browser uploads straight to Cloudflare R2 via a presigned PUT URL, bypassing the Vercel function. New `media/presign` + `media/confirm` endpoints; the legacy multipart POST is removed (single clean path); adds a real upload progress bar. Caps: image 5→15 MB, **video 50 MB**, gallery still 10.
+
+**JA's one manual step (REQUIRED before uploads work):** add a CORS policy to the `gto-listings` R2 bucket in the Cloudflare dashboard — exact click-by-click steps + JSON are in the plan file.
+
+**Security note:** this supersedes audit finding A08-2 (magic-byte sniffing is impossible once bytes bypass our server — compensating controls documented in the plan).
+
 ### Dormant code paths
 
 These work but aren't reachable in normal traffic. Documented so they're not "rediscovered" as bugs:
@@ -475,7 +487,10 @@ Closes both HIGH findings + four MED quick wins from the 2026-05-30 audit:
 9. **A04-3** Rate-limit `/api/businesses/resend-access` (MED)
 10. **A05-2** Sanitise bulk-delete error response (MED)
 11. **A04-4** Allowlist `context.topic` in prompt assembler (MED)
-12. **A08-2** Magic-byte image sniffing via `file-type` (MED)
+12. **A08-2** Magic-byte image sniffing — **N/A once presigned uploads ship** (bytes bypass our server); superseded by the presigned-upload plan's compensating controls
+
+### 🎬 Presigned R2 uploads (fix video/image uploads) — plan ready, ~3 hr + JA's R2 CORS step
+Full plan: `docs/superpowers/plans/2026-05-30-presigned-r2-uploads.md`. Approved approach, awaiting execution after compaction. Removes the 4.5 MB Vercel function-body cap by uploading browser→R2 directly. JA must add an R2 CORS policy (steps in plan) before uploads work end-to-end. Test on localhost (real R2) → Vercel preview → prod.
 
 ### Half-day path (close visible UX gaps)
 13. **Source column** on `/admin/leads` table — 10 min
@@ -513,9 +528,13 @@ Don't read it for "what to do next" — that's all here.
 
 ---
 
-**Doc version:** v8.1 (security audit logged, Batches 16+17 planned)
+**Doc version:** v8.2 (presigned-upload plan logged)
 **Last updated:** May 30, 2026
 **Maintainer:** JA · JALAI
+
+### v8.2 changelog
+- Logged the **presigned direct-to-R2 upload** plan (`docs/superpowers/plans/2026-05-30-presigned-r2-uploads.md`) — fixes the video-upload failure. Corrected the earlier wrong note that "upgrade to Pro" would fix it: Vercel's 4.5 MB function body limit is identical on Hobby and Pro. Approved approach (remove legacy POST, video cap 50 MB, image cap 15 MB); awaiting execution after JA compacts. Requires a one-time R2 CORS step from JA (in the plan).
+- Noted A08-2 (magic-byte sniffing) becomes N/A once presigned uploads ship.
 
 ### v8.1 changelog
 - Logged 2026-05-30 comprehensive security audit findings (2 HIGH, 10 MED, 6 LOW) replacing the older summary §Security state
