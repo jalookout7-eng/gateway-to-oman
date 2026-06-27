@@ -72,10 +72,6 @@ export default function BusinessesAboutPage() {
             a="Full marketplace access, one advisory call with our team to scope your search, the pre-purchase document checklist tailored to your target sector, and email updates as new listings match your criteria. It's a one-time fee — no subscription, no recurring charge."
           />
           <Faq
-            q="Do you charge commission on the sale?"
-            a="No. We're not a broker. The subscriber fee is how we recover the cost of vetting listings and offering advisory support. The seller pays nothing to list, and there's no commission on either side at closing. The seller pays a separate processing fee (currently OMR 500) only after the deal closes."
-          />
-          <Faq
             q="Can a foreigner own a business in Oman?"
             a="In most sectors, yes — 100% foreign ownership has been allowed since 2019. Some sectors (defence, certain media, a few licensed activities) still require a local partner. We'll flag which category any listing you're interested in falls into before you go too far."
           />
@@ -99,10 +95,6 @@ export default function BusinessesAboutPage() {
                 page or message us on WhatsApp.
               </>
             }
-          />
-          <Faq
-            q="What sectors do you cover?"
-            a="Today: food & beverage, gyms & wellness, laundries, travel agencies, retail, and industrial / commercial properties. Healthcare, education, and digital businesses are next."
           />
         </div>
       </section>
