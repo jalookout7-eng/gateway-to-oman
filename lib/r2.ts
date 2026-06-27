@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomBytes } from "crypto";
 
 let client: S3Client | null = null;
@@ -26,6 +27,34 @@ export interface UploadResult {
   publicUrl: string;
 }
 
+export function buildR2Key(keyPrefix: string, extension: string): string {
+  const random = randomBytes(8).toString("hex");
+  return `${keyPrefix.replace(/\/$/, "")}/${Date.now()}-${random}.${extension}`;
+}
+
+export function buildPublicUrl(key: string): string {
+  const bucket = process.env.R2_BUCKET?.trim();
+  if (!bucket) throw new Error("R2_BUCKET not set");
+  const publicBase = (process.env.R2_PUBLIC_BASE_URL ?? "").trim().replace(/\/$/, "");
+  return publicBase
+    ? `${publicBase}/${key}`
+    : `${process.env.R2_ENDPOINT}/${bucket}/${key}`;
+}
+
+export async function presignPutUrl(opts: {
+  key: string;
+  contentType: string;
+  expiresIn?: number;
+}): Promise<string> {
+  const bucket = process.env.R2_BUCKET?.trim();
+  if (!bucket) throw new Error("R2_BUCKET not set");
+  return getSignedUrl(
+    getClient(),
+    new PutObjectCommand({ Bucket: bucket, Key: opts.key, ContentType: opts.contentType }),
+    { expiresIn: opts.expiresIn ?? 300 },
+  );
+}
+
 export async function uploadToR2(opts: {
   body: Buffer;
   contentType: string;
@@ -33,13 +62,8 @@ export async function uploadToR2(opts: {
   extension: string;
 }): Promise<UploadResult> {
   const bucket = process.env.R2_BUCKET?.trim();
-  // Trim defends against trailing-space env-var footgun (see toPublicUrl below).
-  const publicBase = (process.env.R2_PUBLIC_BASE_URL ?? "")
-    .trim()
-    .replace(/\/$/, "");
   if (!bucket) throw new Error("R2_BUCKET not set");
-  const random = randomBytes(8).toString("hex");
-  const key = `${opts.keyPrefix.replace(/\/$/, "")}/${Date.now()}-${random}.${opts.extension}`;
+  const key = buildR2Key(opts.keyPrefix, opts.extension);
   await getClient().send(
     new PutObjectCommand({
       Bucket: bucket,
@@ -48,12 +72,7 @@ export async function uploadToR2(opts: {
       ContentType: opts.contentType,
     }),
   );
-  // NOTE: publicBase MUST be set in production (after enabling R2.dev or a custom domain).
-  // The fallback URL here (endpoint+bucket+key) requires authentication — it will 403 in
-  // a browser unless the bucket is made publicly accessible. See .env.example for details.
-  const publicUrl = publicBase
-    ? `${publicBase}/${key}`
-    : `${process.env.R2_ENDPOINT}/${bucket}/${key}`;
+  const publicUrl = buildPublicUrl(key);
   return { key, publicUrl };
 }
 

@@ -459,83 +459,129 @@ function ListingFormModal({
   const [coverUrl, setCoverUrl] = useState<string | null>(initial?.cover_image_url ?? null);
   const [galleryUrls, setGalleryUrls] = useState<string[]>(initial?.gallery_urls ?? []);
   const [videoUrl, setVideoUrl] = useState<string | null>(initial?.video_url ?? null);
-  const [coverUploading, setCoverUploading] = useState(false);
-  const [galleryUploading, setGalleryUploading] = useState(false);
-  const [videoUploading, setVideoUploading] = useState(false);
+  // Progress: -1 = idle, 0-100 = uploading percentage
+  const [coverProgress, setCoverProgress] = useState(-1);
+  const [videoProgress, setVideoProgress] = useState(-1);
+  const [galleryProgress, setGalleryProgress] = useState<Record<number, number>>({});
   const [coverError, setCoverError] = useState("");
   const [galleryError, setGalleryError] = useState("");
   const [videoError, setVideoError] = useState("");
 
+  function putToR2(
+    file: File,
+    uploadUrl: string,
+    contentType: string,
+    onProgress: (pct: number) => void,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", uploadUrl);
+      xhr.setRequestHeader("Content-Type", contentType);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+      xhr.onload = () => {
+        if (xhr.status === 200 || xhr.status === 204) resolve();
+        else reject(new Error(`R2 upload failed (${xhr.status})`));
+      };
+      xhr.onerror = () => reject(new Error("Network error during upload"));
+      xhr.send(file);
+    });
+  }
+
   async function uploadMedia(files: FileList | null, kind: "cover" | "gallery" | "video") {
     if (!files || files.length === 0 || !initial?.id) return;
-    const setUploading = kind === "cover" ? setCoverUploading : kind === "gallery" ? setGalleryUploading : setVideoUploading;
     const setErr = kind === "cover" ? setCoverError : kind === "gallery" ? setGalleryError : setVideoError;
-    setUploading(true);
     setErr("");
+    const fileArray = Array.from(files);
 
-    // Pre-flight size guard for videos — Vercel serverless functions on the
-    // Hobby plan cap request bodies at ~4.5MB, so any upload bigger than that
-    // is rejected by the platform BEFORE it reaches our handler (which is
-    // why the user sees a bare "Upload failed" with no JSON body). Warn
-    // before the round-trip so the user knows what to do (Notes 3 item 2).
-    const VERCEL_HOBBY_BODY_LIMIT_MB = 4.5;
-    if (kind === "video") {
-      const totalMb = Array.from(files).reduce((sum, f) => sum + f.size, 0) / (1024 * 1024);
-      if (totalMb > VERCEL_HOBBY_BODY_LIMIT_MB) {
-        setErr(
-          `Video is ${totalMb.toFixed(1)} MB — over the ${VERCEL_HOBBY_BODY_LIMIT_MB} MB upload limit on our current Vercel plan. ` +
-          `Compress to under ${VERCEL_HOBBY_BODY_LIMIT_MB} MB (handbrake / ffmpeg preset "Web Optimized") or upgrade Vercel to Pro for larger uploads.`,
-        );
-        setUploading(false);
-        return;
-      }
-    }
-
-    try {
-      const fd = new FormData();
-      fd.append("kind", kind);
-      for (let i = 0; i < files.length; i++) fd.append("file", files[i]);
-      const res = await fetch(`/api/admin/listings/${initial.id}/media`, {
-        method: "POST",
-        credentials: "include",
-        body: fd,
-      });
-      // Detailed error surfacing (Notes 3 item 2). The old code just showed
-      // "Upload failed" for everything, which masked whether the failure was:
-      //   - our 400 with a JSON error (e.g. wrong MIME)
-      //   - a Vercel-level 413 with no JSON body (request body too large)
-      //   - a 401 (admin session expired)
-      //   - a network error
-      // Now we surface status code + the most informative body we can read.
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        let parsedError: string | null = null;
-        try {
-          const parsed = JSON.parse(text);
-          if (parsed && typeof parsed.error === "string") parsedError = parsed.error;
-        } catch {
-          // not JSON
+    if (kind === "cover" || kind === "video") {
+      const file = fileArray[0];
+      const setProgress = kind === "cover" ? setCoverProgress : setVideoProgress;
+      setProgress(0);
+      try {
+        const presignRes = await fetch(`/api/admin/listings/${initial.id}/media/presign`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slot: kind, contentType: file.type, size: file.size }),
+        });
+        if (!presignRes.ok) {
+          const d = await presignRes.json().catch(() => ({}));
+          setErr(d.error ?? `Upload failed (${presignRes.status})`);
+          return;
         }
-        const fileSummary = Array.from(files)
-          .map((f) => `${f.name} (${(f.size / (1024 * 1024)).toFixed(1)} MB, ${f.type || "unknown type"})`)
-          .join(", ");
-        const reason =
-          parsedError ??
-          (res.status === 413
-            ? `Vercel rejected the upload (HTTP 413) — body too large. The Hobby plan caps each upload at ${VERCEL_HOBBY_BODY_LIMIT_MB} MB.`
-            : text.trim().slice(0, 200) || `Upload failed (HTTP ${res.status})`);
-        setErr(`${reason} — files: ${fileSummary}`);
-        return;
+        const { uploadUrl, publicUrl, key } = await presignRes.json();
+        await putToR2(file, uploadUrl, file.type, setProgress);
+        const confirmRes = await fetch(`/api/admin/listings/${initial.id}/media/confirm`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slot: kind, publicUrl, key }),
+        });
+        if (!confirmRes.ok) {
+          const d = await confirmRes.json().catch(() => ({}));
+          setErr(d.error ?? `Confirm failed (${confirmRes.status})`);
+          return;
+        }
+        const data = await confirmRes.json();
+        setCoverUrl(data.cover_image_url ?? null);
+        setGalleryUrls(data.gallery_urls ?? []);
+        setVideoUrl(data.video_url ?? null);
+      } catch (err) {
+        setErr(err instanceof Error ? err.message : "Upload failed");
+      } finally {
+        setProgress(-1);
       }
-      const data = await res.json().catch(() => ({}));
-      setCoverUrl(data.cover_image_url ?? null);
-      setGalleryUrls(data.gallery_urls ?? []);
-      setVideoUrl(data.video_url ?? null);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Connection error";
-      setErr(msg);
-    } finally {
-      setUploading(false);
+    } else {
+      // gallery — upload each file independently, append-as-you-go
+      const initialProgress: Record<number, number> = {};
+      fileArray.forEach((_, i) => { initialProgress[i] = 0; });
+      setGalleryProgress(initialProgress);
+
+      await Promise.allSettled(
+        fileArray.map(async (file, i) => {
+          try {
+            const presignRes = await fetch(`/api/admin/listings/${initial.id}/media/presign`, {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ slot: "gallery", contentType: file.type, size: file.size }),
+            });
+            if (!presignRes.ok) {
+              const d = await presignRes.json().catch(() => ({}));
+              setGalleryError(d.error ?? `Upload failed for ${file.name}`);
+              return;
+            }
+            const { uploadUrl, publicUrl, key } = await presignRes.json();
+            await putToR2(file, uploadUrl, file.type, (pct) =>
+              setGalleryProgress((prev) => ({ ...prev, [i]: pct })),
+            );
+            const confirmRes = await fetch(`/api/admin/listings/${initial.id}/media/confirm`, {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ slot: "gallery", publicUrl, key }),
+            });
+            if (!confirmRes.ok) {
+              const d = await confirmRes.json().catch(() => ({}));
+              setGalleryError(d.error ?? `Confirm failed for ${file.name}`);
+              return;
+            }
+            const data = await confirmRes.json();
+            setGalleryUrls(data.gallery_urls ?? []);
+          } catch (err) {
+            setGalleryError(err instanceof Error ? err.message : `Upload failed for ${file.name}`);
+          } finally {
+            setGalleryProgress((prev) => {
+              const next = { ...prev };
+              delete next[i];
+              return next;
+            });
+          }
+        }),
+      );
+      setGalleryProgress({});
     }
   }
 
@@ -780,11 +826,15 @@ function ListingFormModal({
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
                     className="sr-only"
-                    disabled={coverUploading}
+                    disabled={coverProgress >= 0}
                     onChange={(e) => uploadMedia(e.target.files, "cover")}
                   />
                 </label>
-                {coverUploading && <p className="text-xs text-gray-500 animate-pulse">Uploading…</p>}
+                {coverProgress >= 0 && (
+                  <div className="w-full bg-gray-200 rounded h-1">
+                    <div className="bg-gold h-1 rounded transition-all" style={{ width: `${coverProgress}%` }} />
+                  </div>
+                )}
                 {coverError && <p className="text-xs text-red-500">{coverError}</p>}
               </div>
 
@@ -822,12 +872,24 @@ function ListingFormModal({
                       accept="image/jpeg,image/png,image/webp"
                       multiple
                       className="sr-only"
-                      disabled={galleryUploading}
+                      disabled={Object.keys(galleryProgress).length > 0}
                       onChange={(e) => uploadMedia(e.target.files, "gallery")}
                     />
                   </label>
                 )}
-                {galleryUploading && <p className="text-xs text-gray-500 animate-pulse">Uploading…</p>}
+                {Object.keys(galleryProgress).length > 0 && (
+                  <div className="w-full bg-gray-200 rounded h-1">
+                    <div
+                      className="bg-gold h-1 rounded transition-all"
+                      style={{
+                        width: `${Math.round(
+                          Object.values(galleryProgress).reduce((a, b) => a + b, 0) /
+                            Object.keys(galleryProgress).length,
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                )}
                 {galleryError && <p className="text-xs text-red-500">{galleryError}</p>}
               </div>
 
@@ -851,16 +913,20 @@ function ListingFormModal({
                 )}
                 <label className="inline-flex items-center gap-2 cursor-pointer rounded-md border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-600 hover:border-gold hover:text-gold transition-colors">
                   <Upload className="h-3.5 w-3.5" />
-                  {videoUrl ? "Replace video" : "Upload video (MP4/WebM, max 4.5 MB on Hobby tier)"}
+                  {videoUrl ? "Replace video" : "Upload video (MP4/WebM, up to 50 MB)"}
                   <input
                     type="file"
                     accept="video/mp4,video/webm"
                     className="sr-only"
-                    disabled={videoUploading}
+                    disabled={videoProgress >= 0}
                     onChange={(e) => uploadMedia(e.target.files, "video")}
                   />
                 </label>
-                {videoUploading && <p className="text-xs text-gray-500 animate-pulse">Uploading…</p>}
+                {videoProgress >= 0 && (
+                  <div className="w-full bg-gray-200 rounded h-1">
+                    <div className="bg-gold h-1 rounded transition-all" style={{ width: `${videoProgress}%` }} />
+                  </div>
+                )}
                 {videoError && <p className="text-xs text-red-500">{videoError}</p>}
               </div>
             </div>
