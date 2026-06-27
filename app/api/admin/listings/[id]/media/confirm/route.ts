@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, getRequestUser } from "@/lib/auth/token";
 import { getDb } from "@/lib/db/client";
-import { deleteFromR2, keyFromUrl } from "@/lib/r2";
+import { deleteFromR2, keyFromUrl, buildPublicUrl } from "@/lib/r2";
 import { type MediaKind, MAX_GALLERY, getMediaState } from "@/lib/media-constants";
+
+// Matches keys produced by buildR2Key: listings/<id>/<epoch13>-<hex16>.<ext>
+const VALID_KEY_RE = /^listings\/[^/]+\/\d{13}-[0-9a-f]{16}\.(jpg|png|webp|mp4|webm)$/;
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -22,14 +25,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  let body: { slot: unknown; publicUrl: unknown; key: unknown };
+  let body: { slot: unknown; key: unknown };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { slot, publicUrl, key } = body;
+  const { slot, key } = body;
 
   if (!slot || !["cover", "gallery", "video"].includes(slot as string)) {
     return NextResponse.json(
@@ -39,18 +42,19 @@ export async function POST(request: NextRequest, context: RouteContext) {
   }
   const mediaSlot = slot as MediaKind;
 
-  if (typeof publicUrl !== "string" || !publicUrl) {
-    return NextResponse.json({ error: "Missing 'publicUrl'" }, { status: 400 });
-  }
   if (typeof key !== "string" || !key) {
     return NextResponse.json({ error: "Missing 'key'" }, { status: 400 });
   }
 
-  // Verify the key belongs to this listing — prevents a presign issued for
-  // listing A from being confirmed into listing B's row.
-  if (!key.startsWith(`listings/${listingId}/`)) {
-    return NextResponse.json({ error: "Key does not belong to this listing" }, { status: 403 });
+  // Verify ownership: key must belong to this listing AND match the exact
+  // shape produced by buildR2Key (epoch13 + hex16 + known extension).
+  // This blocks path traversal, cross-listing writes, and arbitrary URL injection.
+  if (!key.startsWith(`listings/${listingId}/`) || !VALID_KEY_RE.test(key)) {
+    return NextResponse.json({ error: "Invalid key" }, { status: 403 });
   }
+
+  // Derive the public URL server-side — never trust the client-supplied value.
+  const publicUrl = buildPublicUrl(key);
 
   // Persist to DB
   if (mediaSlot === "cover") {

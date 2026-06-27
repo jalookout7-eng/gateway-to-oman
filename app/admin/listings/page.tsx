@@ -511,13 +511,13 @@ function ListingFormModal({
           setErr(d.error ?? `Upload failed (${presignRes.status})`);
           return;
         }
-        const { uploadUrl, publicUrl, key } = await presignRes.json();
+        const { uploadUrl, key } = await presignRes.json();
         await putToR2(file, uploadUrl, file.type, setProgress);
         const confirmRes = await fetch(`/api/admin/listings/${initial.id}/media/confirm`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ slot: kind, publicUrl, key }),
+          body: JSON.stringify({ slot: kind, key }),
         });
         if (!confirmRes.ok) {
           const d = await confirmRes.json().catch(() => ({}));
@@ -553,7 +553,7 @@ function ListingFormModal({
               setGalleryError(d.error ?? `Upload failed for ${file.name}`);
               return;
             }
-            const { uploadUrl, publicUrl, key } = await presignRes.json();
+            const { uploadUrl, key } = await presignRes.json();
             await putToR2(file, uploadUrl, file.type, (pct) =>
               setGalleryProgress((prev) => ({ ...prev, [i]: pct })),
             );
