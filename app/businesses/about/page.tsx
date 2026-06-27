@@ -114,7 +114,7 @@ export default function BusinessesAboutPage() {
         </h2>
         <p className="mt-3 text-base text-gray-300 max-w-xl mx-auto">
           Open the chat at the bottom of the page and Omar, our virtual marketplace
-          guide, can usually help you find the answers you're looking for. If not, our team
+          guide, can usually help you find the answers you&apos;re looking for. If not, our team
           will follow up directly.
         </p>
         <Link
