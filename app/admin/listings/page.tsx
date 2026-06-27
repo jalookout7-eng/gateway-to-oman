@@ -561,7 +561,7 @@ function ListingFormModal({
               method: "POST",
               credentials: "include",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ slot: "gallery", publicUrl, key }),
+              body: JSON.stringify({ slot: "gallery", key }),
             });
             if (!confirmRes.ok) {
               const d = await confirmRes.json().catch(() => ({}));
