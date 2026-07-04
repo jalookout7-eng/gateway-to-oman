@@ -272,7 +272,7 @@ export function getContextualGreeting(section?: string): string {
     businesses:
       "Welcome to the businesses-for-sale marketplace. Are you looking to buy a business to run yourself, or as an investment — and is moving to Oman part of the plan?",
     "businesses-listings":
-      "Browsing the listings? Tell me the kind of business you're after and your rough budget, and I'll tell you straight whether it's a fit — and what the move to Oman would involve.",
+      "Have a question about any of these listings, the buying process, or what owning a business in Oman actually involves? I'm here.",
   };
   return greetings[section ?? "default"] ?? greetings.default;
 }
@@ -323,11 +323,11 @@ const TEASER_VARIANTS: Record<string, string[]> = {
     "Café, gym, factory, retail — Oman has all of it. What budget and what kind of operator are you?",
   ],
   "businesses-listings": [
-    "Browsing the listings? Tell me your sector and budget and I'll flag the ones worth a closer look — plus the move-to-Oman side. Takes a minute.",
-    "Most listings look similar at first glance. I can shortlist the 2-3 that actually fit you in 4 questions.",
-    "Sector + budget + are-you-moving-to-Oman — those three answers narrow this list dramatically. Want me to do it?",
-    "Want to know which of these listings is overpriced and which is a real opportunity? I can flag it.",
-    "Don't waste a subscriber fee on the wrong listing. Tell me your criteria and I'll point you at the right ones first.",
+    "Question about any of these listings — price, process, what ownership in Oman actually involves? Ask me.",
+    "Not sure how the buying process works here? I can walk you through it.",
+    "Wondering what it takes to actually close on one of these? Ask me anything.",
+    "Questions about a specific listing, the access fee, or what life as a business owner in Oman looks like? I'm here.",
+    "Something on your mind about these listings? I can usually answer faster than sending an email.",
   ],
 };
 

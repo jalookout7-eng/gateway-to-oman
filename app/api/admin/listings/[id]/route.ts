@@ -17,6 +17,17 @@ export async function PATCH(
   const args: (string | number | null)[] = [];
 
   if (typeof body.title === "string") { fields.push("title = ?"); args.push(body.title.trim()); }
+  if (typeof body.category_slug === "string" && body.category_slug.trim()) {
+    const cat = await db.execute({
+      sql: "SELECT id FROM categories WHERE slug = ?",
+      args: [body.category_slug.trim()],
+    });
+    if (cat.rows.length === 0) {
+      return NextResponse.json({ error: `unknown category '${body.category_slug}'` }, { status: 400 });
+    }
+    fields.push("category_id = ?");
+    args.push(cat.rows[0].id as string);
+  }
   if ("status" in body && ["available", "reserved", "sold"].includes(body.status)) {
     fields.push("status = ?"); args.push(body.status);
   }

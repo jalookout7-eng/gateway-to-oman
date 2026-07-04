@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Mail, MessageSquare, Users, Tags } from "lucide-react";
+import { Mail, MessageSquare, Users, Tags, LayoutGrid } from "lucide-react";
 import { CollapsibleSection } from "@/components/admin/CollapsibleSection";
 import { AdminUsersSection } from "@/components/admin/AdminUsersSection";
 import { LeadOptionsSection } from "@/components/admin/LeadOptionsSection";
+import { CategoriesSection } from "@/components/admin/CategoriesSection";
 
 function authHeaders() {
   return { "Content-Type": "application/json" };
@@ -292,6 +293,15 @@ export default function SettingsPage() {
         defaultOpen={false}
       >
         <LeadOptionsSection />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Listing categories"
+        subtitle="Categories shown in the marketplace filter and listing form"
+        icon={<LayoutGrid className="h-4 w-4" />}
+        defaultOpen={false}
+      >
+        <CategoriesSection />
       </CollapsibleSection>
 
       <CollapsibleSection

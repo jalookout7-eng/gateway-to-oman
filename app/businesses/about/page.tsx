@@ -1,13 +1,5 @@
 import Link from "next/link";
-import {
-  ChevronLeft,
-  ShieldCheck,
-  Compass,
-  FileSearch,
-  Handshake,
-  HelpCircle,
-  ArrowRight,
-} from "lucide-react";
+import { ChevronLeft, HelpCircle, ArrowRight } from "lucide-react";
 
 export const metadata = {
   title: "How it works — Gateway to Oman Marketplace",
@@ -41,24 +33,24 @@ export default function BusinessesAboutPage() {
 
       <section className="mt-12 space-y-8">
         <Step
-          icon={<ShieldCheck className="h-5 w-5" />}
-          title="1. We vet every listing before it goes live."
-          body="Sellers come to us through referrals or direct contact. Before we publish their business, we meet them, review the CR (commercial registration), look at the financials, and check the reason for sale. If something doesn't add up, the listing doesn't go up. About a third of submissions don't make it through. The result: a smaller marketplace, but one where every listing is real."
+          n={1}
+          title="Request access"
+          body="Submit your details on the access form. Pay the one-time fee and our team activates your subscriber account within 24 hours."
         />
         <Step
-          icon={<FileSearch className="h-5 w-5" />}
-          title="2. The preview is free. The detail sits behind access."
-          body="Anyone can browse the marketplace and see the headline detail: category, location, age of the business, price range. To see the financials, the seller's contact details, and our internal notes, you pay a one-time subscriber fee. That fee covers the marketplace plus your initial advisory session with our team."
+          n={2}
+          title="Browse all available listings"
+          body="Full financials, ownership history, and contact paths unlocked. See the complete picture for every business in the marketplace."
         />
         <Step
-          icon={<Handshake className="h-5 w-5" />}
-          title="3. We connect you directly to the seller."
-          body="No broker chain, no anonymous intermediary. Once you've requested access and we've confirmed your fit, we pass your contact straight to the seller — and theirs to you. You negotiate directly. We don't take a cut of the deal."
+          n={3}
+          title="Consultation for acquiring"
+          body="Found a business you want? Book a consultation with our team. We'll walk you through fit, due-diligence questions, and the negotiation approach."
         />
         <Step
-          icon={<Compass className="h-5 w-5" />}
-          title="4. Structuring and licensing — we're available."
-          body="The friction that breaks most cross-border acquisitions in Oman is the CR transfer, sector licensing, and ownership structuring. Foreign-owned vs. local-partner, free zone vs. mainland, residency adjustments — this is where our 26 years of local relationships matter. We stay available through closing and beyond."
+          n={4}
+          title="Close with structure support"
+          body="When you&apos;re in serious negotiation, our team guides the CR transfer, licensing, and any ownership structuring you need."
         />
       </section>
 
@@ -121,11 +113,11 @@ export default function BusinessesAboutPage() {
   );
 }
 
-function Step({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
+function Step({ n, title, body }: { n: number; title: string; body: string }) {
   return (
     <div className="flex items-start gap-5">
-      <div className="inline-flex items-center justify-center rounded-lg bg-gold/10 p-3 text-gold flex-shrink-0">
-        {icon}
+      <div className="inline-flex items-center justify-center rounded-full bg-gold/10 text-gold font-bold text-lg w-10 h-10 flex-shrink-0">
+        {n}
       </div>
       <div>
         <h3 className="font-heading text-xl font-semibold text-navy">{title}</h3>
