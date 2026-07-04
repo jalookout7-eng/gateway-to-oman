@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Loader2 } from "lucide-react";
+import { trackEvent } from "@/lib/analytics/track";
 
 export function AccessRequestForm({ referredListingSlug }: { referredListingSlug?: string }) {
   const [name, setName] = useState("");
@@ -25,6 +26,9 @@ export function AccessRequestForm({ referredListingSlug }: { referredListingSlug
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Submission failed");
+      trackEvent("access_request_submit", {
+        referred_listing: referredListingSlug ?? "none",
+      });
       setSubmitted(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Submission failed");

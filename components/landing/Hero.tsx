@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { ShieldCheck, Users, Star } from "lucide-react";
 import { useEffect, useState } from "react";
+import { trackEvent } from "@/lib/analytics/track";
 
 const CALENDLY_URL = "https://calendly.com/alazizi/30min";
 
@@ -51,6 +52,7 @@ export function Hero() {
   // Button onClick the hero shipped with (Notes 3 item 5 — the CTA literally
   // had no handler before this).
   function scrollToOpportunities() {
+    trackEvent("cta_click", { surface: "home_hero", cta: "explore_opportunities" });
     const el = document.getElementById("opportunities");
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -126,6 +128,7 @@ export function Hero() {
             href={CALENDLY_URL}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => trackEvent("calendly_click", { surface: "home_hero" })}
             className="inline-flex h-12 items-center justify-center rounded-lg border-2 border-white/70 bg-white/10 backdrop-blur-sm px-8 text-base font-semibold text-white hover:bg-white hover:text-navy transition-all"
           >
             Book Free Consultation

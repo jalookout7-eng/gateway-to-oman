@@ -14,6 +14,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { COUNTRY_CODES, DEFAULT_COUNTRY } from "@/lib/countries";
+import { trackEvent } from "@/lib/analytics/track";
 
 type Mode = "signin" | "signup";
 type Step = "form" | "otp" | "success";
@@ -463,6 +464,7 @@ function OtpStep({
       }
       sessionStorage.removeItem("gto_pending_email");
       sessionStorage.removeItem("gto_pending_purpose");
+      trackEvent(mode === "signup" ? "marketplace_sign_up" : "marketplace_sign_in");
       // Re-render the server-rendered marketplace header so it picks up the
       // newly-set session cookie and swaps "Sign in" for the profile chip
       // (Notes 3 items 3 + 6). The router.refresh() runs in parallel with the

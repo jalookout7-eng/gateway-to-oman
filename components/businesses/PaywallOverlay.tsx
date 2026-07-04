@@ -1,6 +1,10 @@
+"use client";
+
 import Link from "next/link";
 import { Lock, LogIn, ShieldCheck, ArrowRight } from "lucide-react";
 import { formatOMR } from "@/lib/businesses/format";
+import { trackEvent } from "@/lib/analytics/track";
+import { TrackOnMount } from "@/components/analytics/TrackOnMount";
 
 /**
  * Overlay shown on top of a blurred listings grid when a visitor is not an
@@ -10,6 +14,7 @@ import { formatOMR } from "@/lib/businesses/format";
 export function PaywallOverlay({ fee }: { fee: number }) {
   return (
     <div className="absolute inset-0 z-20 flex items-start justify-center px-4 pt-12 sm:pt-20">
+      <TrackOnMount event="paywall_view" params={{ fee }} />
       <div className="w-full max-w-lg rounded-2xl bg-white/95 backdrop-blur ring-1 ring-gray-200 shadow-xl overflow-hidden">
         <div className="bg-gradient-to-br from-navy to-navy-light px-7 py-6 text-white">
           <span className="inline-flex items-center gap-2 rounded-full bg-gold/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-gold-light ring-1 ring-gold/30">
@@ -44,6 +49,7 @@ export function PaywallOverlay({ fee }: { fee: number }) {
         <div className="px-7 py-6 space-y-3">
           <Link
             href="/businesses/access"
+            onClick={() => trackEvent("cta_click", { surface: "paywall", cta: "request_access" })}
             className="flex w-full items-center justify-center gap-2 rounded-lg gold-gradient px-5 py-3 text-sm font-semibold text-white shadow-sm hover:shadow-md transition-shadow"
           >
             Request subscriber access
@@ -51,6 +57,7 @@ export function PaywallOverlay({ fee }: { fee: number }) {
           </Link>
           <Link
             href="/businesses/sign-in"
+            onClick={() => trackEvent("cta_click", { surface: "paywall", cta: "sign_in" })}
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
           >
             <LogIn className="h-4 w-4" />

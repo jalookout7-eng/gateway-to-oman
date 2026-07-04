@@ -1,8 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import type { Listing } from "@/lib/businesses/types";
 import { formatPriceRange, ageLabel } from "@/lib/businesses/format";
 import { StatusBadge } from "./StatusBadge";
 import { Briefcase, MapPin, Users, Calendar, ArrowRight } from "lucide-react";
+import { trackEvent } from "@/lib/analytics/track";
 
 const CATEGORY_GRADIENTS: Record<string, string> = {
   "cafe-restaurant": "from-orange-100 to-amber-50",
@@ -33,6 +36,13 @@ export function ListingCard({ listing, unlocked = false }: { listing: Listing; u
   return (
     <Link
       href={href}
+      onClick={() =>
+        trackEvent("listing_card_click", {
+          listing: listing.slug,
+          category: listing.category_slug,
+          unlocked,
+        })
+      }
       className="group block overflow-hidden rounded-xl bg-white ring-1 ring-gray-200 transition-all hover:ring-gold hover:shadow-lg"
     >
       <div className={`relative aspect-[16/10] bg-gradient-to-br ${gradient} flex items-center justify-center`}>

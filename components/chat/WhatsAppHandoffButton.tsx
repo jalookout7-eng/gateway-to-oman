@@ -1,4 +1,7 @@
+"use client";
+
 import { MessageCircle } from "lucide-react";
+import { trackEvent } from "@/lib/analytics/track";
 
 export function WhatsAppHandoffButton({ href }: { href: string }) {
   return (
@@ -7,6 +10,9 @@ export function WhatsAppHandoffButton({ href }: { href: string }) {
         href={href}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={() =>
+          trackEvent("whatsapp_click", { surface: "omar_chat", source: "handoff_button" })
+        }
         className="flex items-center justify-center gap-2 w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 transition-colors"
       >
         <MessageCircle className="h-4 w-4" />

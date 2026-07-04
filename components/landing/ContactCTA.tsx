@@ -2,6 +2,7 @@
 
 import { Mail, CalendarDays } from "lucide-react";
 import { ScrollAnimationWrapper } from "./ScrollAnimationWrapper";
+import { trackEvent } from "@/lib/analytics/track";
 
 const CALENDLY_URL = "https://calendly.com/alazizi/30min";
 
@@ -22,6 +23,7 @@ export function ContactCTA() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
             <a
               href="mailto:azizi@alazizigroup.com"
+              onClick={() => trackEvent("email_click", { surface: "home_contact" })}
               className="inline-flex items-center gap-2.5 px-8 py-4 rounded-lg gold-gradient text-white font-semibold text-lg shadow-lg shadow-gold/25 hover:shadow-xl hover:shadow-gold/30 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer font-body"
             >
               <Mail className="w-5 h-5" strokeWidth={1.5} />
@@ -31,6 +33,7 @@ export function ContactCTA() {
               href={CALENDLY_URL}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => trackEvent("calendly_click", { surface: "home_contact" })}
               className="inline-flex items-center gap-2.5 px-8 py-4 rounded-lg border-2 border-gold text-gold font-semibold text-lg hover:bg-gold hover:text-white transition-all duration-200 cursor-pointer font-body"
             >
               <CalendarDays className="w-5 h-5" strokeWidth={1.5} />

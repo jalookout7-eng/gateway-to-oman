@@ -6,6 +6,7 @@ import { getCurrentMarketplaceUser } from "@/lib/auth/marketplace-server";
 import { formatOMR, formatPriceRange, ageLabel } from "@/lib/businesses/format";
 import { StatusBadge } from "@/components/businesses/StatusBadge";
 import { InquireBlock } from "@/components/businesses/InquireBlock";
+import { TrackOnMount } from "@/components/analytics/TrackOnMount";
 import {
   ChevronLeft,
   MapPin,
@@ -53,6 +54,10 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+      <TrackOnMount
+        event="listing_view"
+        params={{ listing: listing.slug, category: listing.category_slug }}
+      />
       <Link
         href="/businesses"
         className="inline-flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gold transition-colors"

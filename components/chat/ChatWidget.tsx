@@ -177,6 +177,11 @@ export function ChatWidget() {
     setChatContext(modalConfig);
     setIsOpen(true);
     setIsClosed(false);
+    trackEvent("chat_opened", {
+      surface: resolveSurface(pathname ?? "/").page,
+      source: "opportunity_card",
+      topic: modalConfig.topic,
+    });
     if (messages.length === 0) {
       const fallback = getContextualGreeting(resolveSurface(pathname ?? "/").page);
       setMessages([{ role: "assistant", content: greetingFor(modalConfig, fallback) }]);
@@ -207,6 +212,10 @@ export function ChatWidget() {
       const userMessage: Message = { role: "user", content: text };
       setMessages((prev) => [...prev, userMessage]);
       setIsTyping(true);
+      trackEvent("chat_message_sent", {
+        surface: resolveSurface(pathname ?? "/").page,
+        exchange: exchangeCount + 1,
+      });
 
       try {
         const { surface } = resolveSurface(pathname ?? "/");

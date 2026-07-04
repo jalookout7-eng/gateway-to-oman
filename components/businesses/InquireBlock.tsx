@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { MessageCircle, Mail } from "lucide-react";
 import type { Listing } from "@/lib/businesses/types";
+import { trackEvent } from "@/lib/analytics/track";
 
 export function InquireBlock({ listing }: { listing: Listing }) {
   const [submitted, setSubmitted] = useState(false);
@@ -13,6 +14,10 @@ export function InquireBlock({ listing }: { listing: Listing }) {
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    trackEvent("inquire_submit", {
+      listing: listing.slug,
+      category: listing.category_slug,
+    });
     setSubmitted(true);
   }
 
@@ -28,6 +33,13 @@ export function InquireBlock({ listing }: { listing: Listing }) {
         href={`https://wa.me/?text=${whatsappMessage}`}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={() =>
+          trackEvent("whatsapp_click", {
+            surface: "listing_detail",
+            source: "inquire_block",
+            listing: listing.slug,
+          })
+        }
         className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-5 py-3 text-base font-semibold text-white shadow-sm hover:bg-emerald-600 transition-colors"
       >
         <MessageCircle className="h-5 w-5" />
