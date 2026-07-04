@@ -162,10 +162,24 @@ This keeps in-progress work isolated until reviewed. Use it for any change touch
 | **I** | Compliance lawyer review | Ahmed's | Pages have real Alazizi Global Projects entity + License 80962 + address — ready to send to a qualified Oman PDPL + GDPR lawyer |
 | **J** | Payment tracker → Drive | 5 min | Upload `assets/gto-payments-tracker.csv` to Drive, share with Ahmed |
 | **K** | `R2_PUBLIC_BASE_URL` trailing-space check | 2 min | Code defensively trims it; cleaner to fix the env value |
-| **L** | **GA4 Measurement ID** | 10 min | **JA's stated next priority.** Create GA4 property at <https://analytics.google.com>, copy `G-XXXXXXXXXX` ID, paste into Vercel as `NEXT_PUBLIC_GA_MEASUREMENT_ID`, redeploy. Mark `lead_submit` / `whatsapp_click` / `calendly_click` / `chat_opened` as conversions in GA4 Admin → Events. |
+| **L** | **GA4 Measurement ID** | 10 min | **JA's stated next priority.** Create GA4 property at <https://analytics.google.com>, copy `G-XXXXXXXXXX` ID, paste into Vercel as `NEXT_PUBLIC_GA_MEASUREMENT_ID`, redeploy. Mark `lead_submit` / `access_request_submit` / `inquire_submit` / `whatsapp_click` / `calendly_click` / `marketplace_sign_up` as key events in GA4 Admin → Events. **2026-07-03: full-coverage instrumentation shipped (uncommitted)** — landing CTAs, Omar (open / message / lead / hot-lead / handoff / booking), marketplace (card clicks, paywall views + CTAs, access request, OTP sign-up/in, listing views, inquiries) + new `components/analytics/TrackOnMount.tsx`. Complete event dictionary + activation steps: workspace client root `measurement/ga4-measurement-plan.md`. Build clean, 190/190 tests passing. |
 | **M** | Consent banner sub-batch | ~3-4 hrs | Deferred — JA "later, but priority." Closes the GA4-without-consent PDPL/GDPR gap created by L. Google Consent Mode v2 with `analytics_storage` defaulting to denied + Accept/Decline banner. |
 | **N** | Confirm sign-up enumeration trade-off (security audit A07-1) | 30 sec | The fix removes the "An account with that email exists" 409 error and returns a generic 200 instead. OWASP-recommended; slight UX downgrade for "I forgot I had an account" case. JA confirmed proceeding with the secure version — captured here so the decision isn't re-litigated. |
 | **O** | Click-test Vercel preview of Batch 17 (CSP + magic-byte sniff + topic allowlist + cron HTML escape + Resend masking) before promoting to prod | 10 min | CSP can visually break things if allowlist is wrong. Preview-deploy review is the gate before prod. JA-only action. |
+
+### Infrastructure gaps identified during 2026-06-28 review
+
+From a 9-question security/infrastructure audit. Items marked NO or PARTIAL below — revisit when bandwidth allows.
+
+| # | Item | Status | What's missing | Effort |
+|---|---|---|---|---|
+| **INF-1** | CORS on admin API | NO | No CORS headers on `/api/admin/*` routes — external origins can issue requests. Mitigated by SameSite=Strict cookies + requireAuth(), but explicit CORS rejection is missing. | ~30 min — add `Access-Control-Allow-Origin` header config in `next.config.js` or a middleware layer |
+| **INF-2** | Rate limiting on admin routes | PARTIAL | Sign-in, sign-up, OTP, access-request are rate-limited. Admin API endpoints (`/api/admin/*`) and several marketplace endpoints have no rate limit — credential stuffing on `/api/auth/login` is the main concern. | ~1 hr — add `rateLimit()` calls to `/api/auth/login` + key admin mutation routes |
+| **INF-3** | Production monitoring | NO | No Sentry, no Vercel error alerts, no uptime monitoring. Production crashes are silent — only discovered when a user reports it. | ~30 min — Sentry free tier (5K errors/mo); install `@sentry/nextjs`, add DSN env var |
+| **INF-4** | Zero-downtime rollback | NO | No scripted rollback. Vercel keeps all prior deployments accessible and you can re-alias any previous deploy via the Vercel dashboard in ~30 seconds — but it's manual, not scripted. | Low urgency — document the manual Vercel rollback steps; script with `vercel alias` CLI when needed |
+| **INF-5** | DB index gaps | PARTIAL | `marketplace_sessions.user_id` has no solo index (only composite key). `rate_limits(key, window_start)` has no index despite being the hottest query path (every rate-limit check). | ~15 min — add two `CREATE INDEX IF NOT EXISTS` statements to schema.sql + run migration |
+
+> Note: INF-3 (monitoring) is also listed in Scalability Phase 2 — same item, different framing. INF-4 rollback is operationally covered by Vercel's deployment history; the gap is documentation, not capability.
 
 ### Known gaps identified during 2026-05-29 review
 
@@ -341,7 +355,10 @@ The only one of these that's load-bearing in the short term:
 - `app/admin/leads/page.tsx` — main lead management (multi-select + bulk delete here)
 - `app/admin/inquiries/page.tsx` — marketplace access requests
 - `app/admin/intelligence/page.tsx` — owner-only analytics
-- `app/admin/settings/page.tsx` — Email config, Chatbot phase, Lead options CRUD, Admin users
+- `app/admin/settings/page.tsx` — Email config, Chatbot phase, Lead options CRUD, Listing categories CRUD, Admin users
+- `app/api/admin/categories/route.ts` — GET all categories (incl. inactive) + POST create
+- `app/api/admin/categories/[id]/route.ts` — PATCH update + DELETE (blocked if listings reference category)
+- `components/admin/CategoriesSection.tsx` — categories management UI (inline edit, active toggle, delete)
 - `components/admin/NotificationOptIn.tsx` — push subscription chip (iOS-compatible click handler)
 - `components/admin/LeadNotesTimeline.tsx` — notes timeline + Omar-AI auto-notes
 
@@ -493,11 +510,17 @@ Closes both HIGH findings + four MED quick wins from the 2026-05-30 audit:
 ### When user count starts climbing (scalability Phase 1)
 19. **Pagination on admin lists** + cache lookups + composite indexes + Speed Insights — 4 hr total
 
+### Infrastructure hardening (when bandwidth allows)
+20. **INF-1** CORS headers on admin API — ~30 min
+21. **INF-2** Rate-limit `/api/auth/login` + key admin routes — ~1 hr
+22. **INF-3** Sentry free tier — ~30 min (biggest operational win)
+23. **INF-5** Two missing DB indexes (rate_limits + marketplace_sessions) — ~15 min
+
 ### Whenever convenient (cleanup)
-20. Items F, J, K (env var delete, payment tracker upload, R2 trailing-space)
-21. Items B, C (click-test old batches)
-22. Item I (lawyer review — Ahmed's call)
-23. Low-priority security items (A02-1, A07-2, A09-1, A08-4, C-1, H-2/H-3/H-4)
+24. Items F, J, K (env var delete, payment tracker upload, R2 trailing-space)
+25. Items B, C (click-test old batches)
+26. Item I (lawyer review — Ahmed's call)
+27. Low-priority security items (A02-1, A07-2, A09-1, A08-4, C-1, H-2/H-3/H-4)
 
 ---
 
@@ -516,9 +539,15 @@ Don't read it for "what to do next" — that's all here.
 
 ---
 
-**Doc version:** v8.3 (presigned R2 uploads shipped + working)
-**Last updated:** June 27, 2026
+**Doc version:** v8.4 (categories management + infrastructure gaps logged)
+**Last updated:** June 28, 2026
 **Maintainer:** JA · JALAI
+
+### v8.4 changelog
+- **Categories management section** added to `/admin/settings`. New files: `app/api/admin/categories/route.ts` (GET + POST), `app/api/admin/categories/[id]/route.ts` (PATCH + DELETE with listing-ref guard), `components/admin/CategoriesSection.tsx`. Follows the same pattern as LeadOptionsSection — inline name edit, sort order, active toggle, hard-delete blocked if listings reference the category.
+- **Infrastructure gaps logged** (INF-1 to INF-5): CORS on admin API, rate-limiting gaps, no production monitoring, no scripted rollback, two missing DB indexes. See "Infrastructure gaps identified during 2026-06-28 review" table.
+- Key files reference updated with new category API routes.
+- Settings page description updated to include categories.
 
 ### v8.3 changelog
 - **Presigned direct-to-R2 uploads LIVE** (`dpl_GjoTELzWQDQf6BSCeDTV8MTaqQQR`, 2026-06-27). Video uploads confirmed working by JA. New files: `lib/media-constants.ts`, `lib/r2.ts` (refactored + presigner), `media/presign/route.ts`, `media/confirm/route.ts`. Legacy multipart POST removed. Caps: image 15 MB, video 50 MB. Real progress bar. 190/190 tests.
