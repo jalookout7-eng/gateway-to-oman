@@ -24,17 +24,27 @@ import { Suspense, useEffect } from "react";
  * The current component fires events unconditionally — known compliance gap
  * documented in HANDOVER §11.
  *
- * `/admin/*` is excluded entirely (gtag.js never loads there) so internal
- * dashboard usage doesn't pollute visitor analytics — the script itself is
- * gone, not just the manual page_view, so GA4 Enhanced Measurement can't
- * autotrack scroll/clicks on admin pages either.
+ * Pages/sections listed in EXCLUDED_PATHS are excluded entirely (gtag.js
+ * never loads there) so their usage doesn't pollute visitor analytics — the
+ * script itself is gone, not just the manual page_view, so GA4 Enhanced
+ * Measurement can't autotrack scroll/clicks there either. To stop tracking
+ * a new page or section, add its path below — no other changes needed.
+ * Each entry excludes that exact path AND everything under it
+ * (e.g. "/admin" also covers "/admin/leads", "/admin/settings", etc).
  *
  * To track custom conversions, import `trackEvent()` from `lib/analytics/track.ts`.
  */
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
-const isAdminRoute = (pathname: string | null) =>
-  pathname === "/admin" || (pathname?.startsWith("/admin/") ?? false);
+
+const EXCLUDED_PATHS = ["/admin"];
+
+const isExcludedRoute = (pathname: string | null) => {
+  if (!pathname) return false;
+  return EXCLUDED_PATHS.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
+  );
+};
 
 function GoogleAnalyticsInner() {
   const pathname = usePathname();
@@ -62,7 +72,7 @@ function GoogleAnalyticsInner() {
 
 export function GoogleAnalytics() {
   const pathname = usePathname();
-  if (!GA_ID || isAdminRoute(pathname)) return null;
+  if (!GA_ID || isExcludedRoute(pathname)) return null;
   return (
     <>
       <Script
