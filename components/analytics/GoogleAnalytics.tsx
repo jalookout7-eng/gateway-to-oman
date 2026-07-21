@@ -24,10 +24,17 @@ import { Suspense, useEffect } from "react";
  * The current component fires events unconditionally — known compliance gap
  * documented in HANDOVER §11.
  *
+ * `/admin/*` is excluded entirely (gtag.js never loads there) so internal
+ * dashboard usage doesn't pollute visitor analytics — the script itself is
+ * gone, not just the manual page_view, so GA4 Enhanced Measurement can't
+ * autotrack scroll/clicks on admin pages either.
+ *
  * To track custom conversions, import `trackEvent()` from `lib/analytics/track.ts`.
  */
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+const isAdminRoute = (pathname: string | null) =>
+  pathname === "/admin" || (pathname?.startsWith("/admin/") ?? false);
 
 function GoogleAnalyticsInner() {
   const pathname = usePathname();
@@ -54,7 +61,8 @@ function GoogleAnalyticsInner() {
 }
 
 export function GoogleAnalytics() {
-  if (!GA_ID) return null;
+  const pathname = usePathname();
+  if (!GA_ID || isAdminRoute(pathname)) return null;
   return (
     <>
       <Script

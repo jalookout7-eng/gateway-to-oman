@@ -25,7 +25,7 @@
 | **Tests** | 190/190 passing across 31 files |
 | **Build** | clean, 67 routes |
 
-What's running: Next.js 14.2 App Router on Vercel Pro, Anthropic Haiku 4.5 (Groq Llama 3.3 70B failover), Turso libSQL in Tokyo region, Resend transactional email (gatewaytooman.com domain verified), Cloudflare R2 for listing media (presigned direct-to-R2 uploads — browser uploads straight to R2, bypassing Vercel), Web Push notifications (VAPID), Google OAuth for marketplace sign-in, GA4 wiring shipped dormant (waiting for measurement ID).
+What's running: Next.js 14.2 App Router on Vercel Pro, Anthropic Haiku 4.5 (Groq Llama 3.3 70B failover), Turso libSQL in Tokyo region, Resend transactional email (gatewaytooman.com domain verified), Cloudflare R2 for listing media (presigned direct-to-R2 uploads — browser uploads straight to R2, bypassing Vercel), Web Push notifications (VAPID), Google OAuth for marketplace sign-in, GA4 live in production since 2026-07-04 (measurement ID set in Vercel); `/admin/*` excluded from tracking as of 2026-07-21.
 
 ---
 
@@ -162,8 +162,8 @@ This keeps in-progress work isolated until reviewed. Use it for any change touch
 | **I** | Compliance lawyer review | Ahmed's | Pages have real Alazizi Global Projects entity + License 80962 + address — ready to send to a qualified Oman PDPL + GDPR lawyer |
 | **J** | Payment tracker → Drive | 5 min | Upload `assets/gto-payments-tracker.csv` to Drive, share with Ahmed |
 | **K** | `R2_PUBLIC_BASE_URL` trailing-space check | 2 min | Code defensively trims it; cleaner to fix the env value |
-| **L** | **GA4 Measurement ID** | 10 min | **JA's stated next priority.** Create GA4 property at <https://analytics.google.com>, copy `G-XXXXXXXXXX` ID, paste into Vercel as `NEXT_PUBLIC_GA_MEASUREMENT_ID`, redeploy. Mark `lead_submit` / `access_request_submit` / `inquire_submit` / `whatsapp_click` / `calendly_click` / `marketplace_sign_up` as key events in GA4 Admin → Events. **2026-07-03: full-coverage instrumentation shipped (uncommitted)** — landing CTAs, Omar (open / message / lead / hot-lead / handoff / booking), marketplace (card clicks, paywall views + CTAs, access request, OTP sign-up/in, listing views, inquiries) + new `components/analytics/TrackOnMount.tsx`. Complete event dictionary + activation steps: workspace client root `measurement/ga4-measurement-plan.md`. Build clean, 190/190 tests passing. |
-| **M** | Consent banner sub-batch | ~3-4 hrs | Deferred — JA "later, but priority." Closes the GA4-without-consent PDPL/GDPR gap created by L. Google Consent Mode v2 with `analytics_storage` defaulting to denied + Accept/Decline banner. |
+| ~~**L**~~ | ~~GA4 Measurement ID~~ | Done | **DONE — measurement ID set in Vercel 2026-07-04, GA4 live in production.** Full-coverage instrumentation (landing CTAs, Omar, marketplace) shipped 2026-07-03. Event dictionary + activation steps: workspace client root `measurement/ga4-measurement-plan.md`. **2026-07-21: `/admin/*` excluded from tracking** — `components/analytics/GoogleAnalytics.tsx` now bails (no gtag.js load at all) on any admin route, so internal dashboard usage never reaches GA and Enhanced Measurement can't autotrack it either. |
+| **M** | Consent banner sub-batch | ~3-4 hrs | Deferred — JA "later, but priority." **Now live and collecting real visitor data with no consent gate (L shipped 2026-07-04)** — the PDPL/GDPR gap is no longer theoretical. Google Consent Mode v2 with `analytics_storage` defaulting to denied + Accept/Decline banner. Worth reprioritizing alongside item I (lawyer review) since both concern the same real-visitor data now flowing. |
 | **N** | Confirm sign-up enumeration trade-off (security audit A07-1) | 30 sec | The fix removes the "An account with that email exists" 409 error and returns a generic 200 instead. OWASP-recommended; slight UX downgrade for "I forgot I had an account" case. JA confirmed proceeding with the secure version — captured here so the decision isn't re-litigated. |
 | **O** | Click-test Vercel preview of Batch 17 (CSP + magic-byte sniff + topic allowlist + cron HTML escape + Resend masking) before promoting to prod | 10 min | CSP can visually break things if allowlist is wrong. Preview-deploy review is the gate before prod. JA-only action. |
 
@@ -402,7 +402,7 @@ See `assets/env-vars-private.md` (workspace-level, git-ignored) for the actual v
 - **Push:** `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_EMAIL`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
 - **Cron:** `CRON_SECRET`
 - **OAuth:** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- **Analytics (pending):** `NEXT_PUBLIC_GA_MEASUREMENT_ID` (item L)
+- **Analytics:** `NEXT_PUBLIC_GA_MEASUREMENT_ID` (live since 2026-07-04, item L done)
 
 **Email config (Resend/SendGrid/SMTP) lives in the `settings` DB table**, NOT env vars — set via `/admin/settings → Email configuration`.
 
@@ -500,11 +500,11 @@ Closes both HIGH findings + four MED quick wins from the 2026-05-30 audit:
 ### Half-day path (close visible UX gaps)
 13. **Source column** on `/admin/leads` table — 10 min
 14. **Auto-draft email on lead capture** — 2-3 hr — biggest single value-add (every lead gets a ready-to-send personalised follow-up)
-15. **GA4 Measurement ID env var** + redeploy (item L) — 10 min, JA priority
+15. ~~**GA4 Measurement ID env var** + redeploy (item L)~~ — DONE 2026-07-04
 
 ### Full-day path (analytics + tracking)
 16. Items above
-17. **Consent banner** (item M) — 3-4 hr — closes PDPL/GDPR gap from L
+17. **Consent banner** (item M) — 3-4 hr — closes PDPL/GDPR gap from L. **Higher priority now that L is live and collecting real visitor data with no consent gate.**
 18. **Hook A/B panel** on `/admin/intelligence` — 1 hr — start measuring teaser variants
 
 ### When user count starts climbing (scalability Phase 1)
@@ -539,9 +539,15 @@ Don't read it for "what to do next" — that's all here.
 
 ---
 
-**Doc version:** v8.4 (categories management + infrastructure gaps logged)
-**Last updated:** June 28, 2026
+**Doc version:** v8.5 (GA4 live + admin-tracking exclusion)
+**Last updated:** July 21, 2026
 **Maintainer:** JA · JALAI
+
+### v8.5 changelog
+- **GA4 confirmed live in production** — `NEXT_PUBLIC_GA_MEASUREMENT_ID` was set in Vercel 2026-07-04 (item L done, closing the last open item from v8.4's carry-forward list).
+- **`/admin/*` excluded from GA tracking.** `components/analytics/GoogleAnalytics.tsx` now checks the pathname and returns `null` for any admin route — gtag.js never loads there, so neither the manual `page_view` nor GA4 Enhanced Measurement's autotracking (scroll, outbound clicks) can fire on internal dashboard pages. Previously GA recorded admin page_views alongside real visitor traffic with no clean way to filter them out after the fact (GA4's free-tier Data Filters are IP-based only, not path-based). Fix is at the source instead of relying on reporting-side filters.
+- **Item M (consent banner) reprioritized** — no longer a theoretical gap; GA is live and collecting real visitor data with no PDPL/GDPR consent gate. Flagged alongside item I (lawyer review) as the two compliance items now touching real data.
+- Full event dictionary + GA4 activation history still lives in workspace client root `measurement/ga4-measurement-plan.md`.
 
 ### v8.4 changelog
 - **Categories management section** added to `/admin/settings`. New files: `app/api/admin/categories/route.ts` (GET + POST), `app/api/admin/categories/[id]/route.ts` (PATCH + DELETE with listing-ref guard), `components/admin/CategoriesSection.tsx`. Follows the same pattern as LeadOptionsSection — inline name edit, sort order, active toggle, hard-delete blocked if listings reference the category.
