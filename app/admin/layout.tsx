@@ -6,6 +6,8 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { NotificationOptIn } from "@/components/admin/NotificationOptIn";
+import { MobileMenuSheet } from "@/components/admin/MobileMenuSheet";
+import { MOBILE_BAR_HREFS, sheetItems, isSheetRoute } from "@/lib/admin/mobile-nav";
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Dashboard", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4" },
@@ -21,9 +23,6 @@ const NAV_ITEMS = [
   // direct URL (/admin/intelligence) only. See privacy/access note.
   { href: "/admin/settings", label: "Settings", icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" },
 ];
-
-// Mobile bottom nav shows the 5 most-used items; rest reachable via desktop sidebar or direct URL.
-const MOBILE_NAV_HREFS = new Set(["/admin", "/admin/leads", "/admin/listings", "/admin/inquiries", "/admin/calendar"]);
 
 type SessionUser = {
   id: string;
@@ -41,6 +40,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -61,6 +61,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       setChecking(false);
     })();
   }, []);
+
+  // Close the mobile menu sheet whenever navigation happens.
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
 
   // Push-notification opt-in is now handled by <NotificationOptIn /> below,
   // which requests permission inside a synchronous click handler. The
@@ -111,8 +116,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (checking) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-pulse text-gray-400">Loading...</div>
+      <div className="min-h-screen bg-navy flex items-center justify-center">
+        <Image
+          src="/gto-logo.png"
+          alt="Gateway to Oman"
+          width={200}
+          height={64}
+          priority
+          className="h-12 w-auto animate-pulse"
+        />
       </div>
     );
   }
@@ -293,9 +305,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Main content */}
       <main className="md:ml-60 pb-20 md:pb-0 min-h-screen"><div className="p-4 md:p-8">{children}</div></main>
 
-      {/* Mobile bottom nav */}
+      {/* Mobile bottom nav — 4 direct tabs + Menu (spec 2026-07-25) */}
       <nav className="fixed bottom-0 left-0 right-0 bg-navy border-t border-white/10 flex md:hidden z-40">
-        {NAV_ITEMS.filter((item) => MOBILE_NAV_HREFS.has(item.href)).map((item) => {
+        {NAV_ITEMS.filter((item) => MOBILE_BAR_HREFS.includes(item.href)).map((item) => {
           const active = pathname === item.href;
           return (
             <Link
@@ -312,7 +324,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </Link>
           );
         })}
+        <button
+          type="button"
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-expanded={menuOpen}
+          className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs transition-colors ${
+            menuOpen || isSheetRoute(pathname) ? "text-gold" : "text-white/60"
+          }`}
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          <span>Menu</span>
+        </button>
       </nav>
+      <MobileMenuSheet
+        items={sheetItems(NAV_ITEMS)}
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        pathname={pathname}
+      />
     </div>
   );
 }

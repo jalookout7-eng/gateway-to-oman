@@ -49,4 +49,13 @@ describe("MobileMenuSheet", () => {
     fireEvent.click(screen.getByLabelText("Close menu"));
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it("calls onClose when Escape is pressed", () => {
+    const onClose = vi.fn();
+    render(
+      <MobileMenuSheet items={ITEMS} open={true} onClose={onClose} pathname="/admin" />
+    );
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
 });
