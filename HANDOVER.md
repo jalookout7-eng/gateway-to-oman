@@ -4,7 +4,7 @@
 **Client:** Ahmed Al Azizi — Alazizi Global Projects (AGP)
 **Developer:** JA (JALAI)
 **Stage:** 04-build — active
-**Started:** April 2026 · **This handover written:** May 29, 2026 · **Last updated:** June 27, 2026 (presigned R2 uploads shipped)
+**Started:** April 2026 · **This handover written:** May 29, 2026 · **Last updated:** July 25, 2026 (mobile nav bottom sheet on preview; line endings normalized)
 
 > **Predecessor:** the full batch-by-batch history (v7.0 → v7.22) is preserved at
 > `docs/superpowers/archive/HANDOVER-v7.22-2026-05-29.md`. Consult it for code
@@ -18,12 +18,13 @@
 | | |
 |---|---|
 | **Live URLs** | <https://gatewaytooman.com> · <https://www.gatewaytooman.com> |
-| **Latest production deploy** | `dpl_GjoTELzWQDQf6BSCeDTV8MTaqQQR` (presigned R2 uploads, 2026-06-27) |
-| **Latest commit on `section-b-marketplace`** | `e4fbd96` (local + origin in sync) |
+| **Latest production deploy** | `dpl_AYwncWcPRSz78mgaBLQzG1Ex8dbH` (GA4 `/admin` exclusion, 2026-07-21) |
+| **On preview, awaiting JA click-test → prod** | Mobile nav bottom sheet + PWA pulsing-logo loading (commits `12c12fb`..`3142737`, deployed 2026-07-25). Prod push = `vercel deploy --prod --yes` after approval. |
+| **Latest commit on `section-b-marketplace`** | `3142737` (LOCAL ONLY — origin is at `f2c2786`; 9 commits unpushed, git credential needs fixing, see item Q) |
 | **Repo** | <https://github.com/jalookout7-eng/gateway-to-oman> (private) |
-| **Active branch** | `section-b-marketplace` (production deploys from here; `master` ~80 commits behind) |
-| **Tests** | 190/190 passing across 31 files |
-| **Build** | clean, 67 routes |
+| **Active branch** | `section-b-marketplace` (production deploys from here; `master` ~140 commits behind — consider making this the GitHub default branch) |
+| **Tests** | 202/202 passing across 33 files (component tests now supported via @vitejs/plugin-react) |
+| **Build** | clean, 85 routes · `tsc --noEmit` has 3 pre-existing test-file errors (not 2 as previously noted) |
 
 What's running: Next.js 14.2 App Router on Vercel Pro, Anthropic Haiku 4.5 (Groq Llama 3.3 70B failover), Turso libSQL in Tokyo region, Resend transactional email (gatewaytooman.com domain verified), Cloudflare R2 for listing media (presigned direct-to-R2 uploads — browser uploads straight to R2, bypassing Vercel), Web Push notifications (VAPID), Google OAuth for marketplace sign-in, GA4 live in production since 2026-07-04 (measurement ID set in Vercel); `/admin/*` excluded from tracking as of 2026-07-21.
 
@@ -166,6 +167,20 @@ This keeps in-progress work isolated until reviewed. Use it for any change touch
 | **M** | Consent banner sub-batch | ~3-4 hrs | Deferred — JA "later, but priority." **Now live and collecting real visitor data with no consent gate (L shipped 2026-07-04)** — the PDPL/GDPR gap is no longer theoretical. Google Consent Mode v2 with `analytics_storage` defaulting to denied + Accept/Decline banner. Worth reprioritizing alongside item I (lawyer review) since both concern the same real-visitor data now flowing. |
 | **N** | Confirm sign-up enumeration trade-off (security audit A07-1) | 30 sec | The fix removes the "An account with that email exists" 409 error and returns a generic 200 instead. OWASP-recommended; slight UX downgrade for "I forgot I had an account" case. JA confirmed proceeding with the secure version — captured here so the decision isn't re-litigated. |
 | **O** | Click-test Vercel preview of Batch 17 (CSP + magic-byte sniff + topic allowlist + cron HTML escape + Resend masking) before promoting to prod | 10 min | CSP can visually break things if allowlist is wrong. Preview-deploy review is the gate before prod. JA-only action. |
+| **P** | Finish mobile-nav preview click-test → approve prod | 5 min | Preview deployed 2026-07-25. JA already confirmed via WhatsApp in-app browser: bottom nav (Dashboard/Leads/Listings/Inquiries/Menu), sheet, gold active state all working. Remaining: PWA cold-open (pulsing logo), sheet-to-nav fit (~3px strip possible), Escape/backdrop dismiss. Then `vercel deploy --prod --yes`. Note: push-notification chip is NOT removed — it hides in browsers without web-push support (e.g. WhatsApp in-app browser); visible in Safari/PWA. |
+| **Q** | Fix git push credential + push 9 local commits | 5 min | Origin stuck at `f2c2786`; everything since (specs, plans, mobile-nav feature, line-ending normalization) is local-only. Keychain credential invalid; one-time PATs were revoked after use. Until pushed, GitHub is NOT a backup of current work. |
+
+### Queued build pipeline (specs approved + committed 2026-07-25, in `docs/superpowers/specs/`)
+
+Agreed execution order. Each gets its implementation plan written just-in-time before its build.
+
+| # | Project | Status | Notes |
+|---|---|---|---|
+| 1 | Mobile nav bottom sheet + PWA loading | **BUILT — on preview** (item P) | Plan: `docs/superpowers/plans/2026-07-25-mobile-admin-nav-and-pwa-loading.md`. 202/202 tests. |
+| 2 | Batch 16 security hardening (2 HIGH + 4 MED) | Spec ready | `2026-07-25-batch16-security-hardening-design.md`. Ships direct to prod (server-side only). |
+| 3 | GA4 consent banner (Consent Mode v2, opt-out model) | Spec ready | `2026-07-25-consent-banner-design.md`. JA decision: undecided visitors ARE tracked; Decline kills GA. Default is a one-line flip if lawyer review (item I) demands opt-in. Closes item M. |
+| 4 | Omar chat widget AWS-style redesign | Spec ready | `2026-07-25-chat-widget-aws-redesign-design.md`. Fixed teaser copy SUSPENDS the 5-variant hook A/B experiment (tracked as `<surface>-aws-1`). Button keeps current design; GTO navy/gold. |
+| 5 | Intake form page + timed popup | Brainstorm pending | Reuse the (security-reviewed, clean) intake-form UI from the ex-developer's dashboard package (`~/Downloads/gateway_to_oman_dashboard` — its Supabase backend is NOT used); wire into the existing `leads` table + `/api/leads` flow; standalone `/intake` page + timed popup on the main site. OPEN: popup timer (JA said both "10 seconds" and "15 minutes" at different points — resolve at brainstorm); leads-table schema additions (investment_timeline, purpose, location, residency, services); pricing to Ahmed (JA considering ~AED 350-400 one-time, separate from retainer). |
 
 ### Infrastructure gaps identified during 2026-06-28 review
 
@@ -186,6 +201,7 @@ From a 9-question security/infrastructure audit. Items marked NO or PARTIAL belo
 | Item | Severity | Effort | Description |
 |---|---|---|---|
 | **Source column missing on `/admin/leads` table** | Cosmetic | ~10 min | Data is in DB + API + filter dropdown; just not rendered as a column in the table. Add `<th>Source</th>` + `<td>{lead.source}</td>`. |
+| **Mobile overflow on `/admin/settings` lead options** | Cosmetic | ~30-60 min | JA screenshot 2026-07-25: Statuses + Qualifications rows overflow the right edge on mobile — the "active" checkbox and "+ Add" button are clipped off-screen. Pre-existing (not caused by the nav work). Fix: let rows wrap or stack the color/order/active controls on narrow viewports. JA: "fix the alignment later." |
 | **No auto-draft email on lead capture** | Real gap | ~2-3 hr | Currently drafts only auto-generate for booking confirmation + cron reminders. Generic lead-capture should also queue a personalised draft (using Anthropic Haiku + `summariseLead` pattern). Lands in the existing "Email Pending Approval" UI block. |
 | **Email approval workflow incomplete** | Real gap | ~half day | Backend + UI exist for auto-generated drafts only. Missing: (1) "Compose new email" button on each lead row, (2) central `/admin/emails` queue page showing all drafts across all leads, (3) edit-before-send capability. |
 
@@ -539,9 +555,18 @@ Don't read it for "what to do next" — that's all here.
 
 ---
 
-**Doc version:** v8.5 (GA4 live + admin-tracking exclusion)
-**Last updated:** July 21, 2026
+**Doc version:** v8.6 (mobile nav on preview + build pipeline queued + line endings fixed)
+**Last updated:** July 25, 2026
 **Maintainer:** JA · JALAI
+
+### v8.6 changelog
+- **Mobile admin nav rebuilt** (preview, item P): Calendar's 5th tab slot became a Menu tab opening a bottom sheet with Calendar, Sellers, Users, Conversations, Activity, Settings — all admin destinations now reachable on mobile. Escape/backdrop/re-tap/navigate/row-tap all dismiss. New: `lib/admin/mobile-nav.ts`, `components/admin/MobileMenuSheet.tsx`. Intelligence stays out of all navs (unchanged rule).
+- **PWA cold-open fix**: the auth-check "Loading..." gray text is now the GTO logo pulsing on navy, server-rendered so it shows pre-hydration. `manifest.json` already had the navy `background_color` (discovered during planning — no change needed).
+- **Repo line endings permanently fixed**: `.gitattributes` (`* text=auto`) added + full renormalization commit (`0ca7870`, whitespace-only, safety-verified). The phantom "160 modified files" `git status` noise is gone for good.
+- **Test infrastructure**: first component tests (@testing-library/react + @vitejs/plugin-react). Suite: 190 → 202 tests, 33 files.
+- **Build pipeline queued**: four approved specs committed (see "Queued build pipeline" section) — Batch 16 security, consent banner (opt-out model, JA decision), Omar widget AWS-style redesign (suspends hook A/B — JA decided knowingly), intake form + popup (brainstorm pending).
+- **Known issue logged**: `/admin/settings` lead-options rows overflow on mobile (Statuses + Qualifications) — cosmetic, deferred per JA.
+- Baseline corrections: tsc has **3** pre-existing test-file errors (previously noted as 2); build is **85** routes (previously 67 — stale figure).
 
 ### v8.5 changelog
 - **GA4 confirmed live in production** — `NEXT_PUBLIC_GA_MEASUREMENT_ID` was set in Vercel 2026-07-04 (item L done, closing the last open item from v8.4's carry-forward list).
