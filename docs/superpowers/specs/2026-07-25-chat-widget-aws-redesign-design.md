@@ -30,8 +30,8 @@ for possible revival.
 
 ## Closed state
 
-- **Chat button:** dark navy rounded-square (AWS-like proportions, ~radius-lg),
-  white chat-bubble outline icon. Replaces the current round gold button.
+- **Chat button:** KEEPS the current design (JA note 2026-07-25) — no AWS
+  restyle of the button itself. Only addition: the unread badge below.
 - **Unread badge:** red square badge with white "1", overlapping the button's
   top-right corner. Appears when the teaser fires; clears on open or dismiss.
 - **Teaser bar:** dark navy rounded bar with soft shadow, anchored above the
@@ -42,6 +42,9 @@ for possible revival.
   dismiss suppresses it for the session.
 
 ## Open state — idle (no conversation yet)
+
+(Branding: GTO navy/gold throughout — JA note 2026-07-25, consistent with the
+directive above. No AWS purple anywhere.)
 
 - **Header:** navy gradient block (deep navy → slightly lighter navy, gold
   underline accent), rounded top corners. Contents, top to bottom:
