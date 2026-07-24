@@ -47,6 +47,7 @@ export function MobileMenuSheet({
             <Link
               key={item.href}
               href={item.href}
+              onClick={onClose}
               aria-current={active ? "page" : undefined}
               className={`flex items-center gap-3 px-5 py-3.5 text-sm transition-colors ${
                 active ? "text-gold bg-gold/10" : "text-white/80 hover:bg-white/5"
