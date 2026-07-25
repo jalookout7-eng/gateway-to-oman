@@ -49,10 +49,10 @@ export async function POST(request: NextRequest) {
   const existing = await findUserByEmail(email);
   if (existing) {
     if (existing.email_verified) {
-      return NextResponse.json(
-        { error: "An account with that email exists. Try signing in instead." },
-        { status: 409 },
-      );
+      // A07-1: same success shape as a fresh sign-up so responses can't be
+      // used to enumerate accounts. Nothing is sent; the real owner's
+      // recoverable path is sign-in. Trade-off accepted by JA (item N).
+      return NextResponse.json({ ok: true, otp_sent: true });
     }
     // Existing unverified account — let them resend OTP.
     const code = await issueOtp(email, "signup");
