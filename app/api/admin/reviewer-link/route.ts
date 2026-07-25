@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/token";
+import { requireOwner } from "@/lib/auth/token";
 import { getReviewerToken, regenerateReviewerToken } from "@/lib/businesses/reviewer";
 
 function linkFor(request: NextRequest, token: string): string {
@@ -8,7 +8,7 @@ function linkFor(request: NextRequest, token: string): string {
 
 // GET — current reviewer link (created on first read if none exists yet).
 export async function GET(request: NextRequest) {
-  const authError = await requireAuth(request);
+  const authError = await requireOwner(request);
   if (authError) return authError;
   const token = await getReviewerToken();
   return NextResponse.json({ token, url: linkFor(request, token) });
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
 // POST — shuffle the token; old links stop working immediately.
 export async function POST(request: NextRequest) {
-  const authError = await requireAuth(request);
+  const authError = await requireOwner(request);
   if (authError) return authError;
   const token = await regenerateReviewerToken();
   return NextResponse.json({ token, url: linkFor(request, token) });

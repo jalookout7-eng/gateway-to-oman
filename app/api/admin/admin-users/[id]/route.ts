@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, getRequestUser } from "@/lib/auth/token";
+import { requireOwner, getRequestUser } from "@/lib/auth/token";
 import { getDb } from "@/lib/db/client";
 import { hashPassword } from "@/lib/auth/password";
 
@@ -7,12 +7,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const authError = await requireAuth(request);
+  const authError = await requireOwner(request);
   if (authError) return authError;
   const currentUser = await getRequestUser(request);
-  if (currentUser && currentUser.role !== "owner") {
-    return NextResponse.json({ error: "Only owners can update admin users" }, { status: 403 });
-  }
 
   const { id } = await params;
   const body = await request.json().catch(() => ({}));
@@ -69,12 +66,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const authError = await requireAuth(request);
+  const authError = await requireOwner(request);
   if (authError) return authError;
   const currentUser = await getRequestUser(request);
-  if (currentUser && currentUser.role !== "owner") {
-    return NextResponse.json({ error: "Only owners can delete admin users" }, { status: 403 });
-  }
 
   const { id } = await params;
   if (currentUser?.id === id) {

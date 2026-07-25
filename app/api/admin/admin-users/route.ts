@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, getRequestUser } from "@/lib/auth/token";
+import { requireAuth, requireOwner, getRequestUser } from "@/lib/auth/token";
 import { getDb } from "@/lib/db/client";
 import { hashPassword } from "@/lib/auth/password";
 
@@ -28,12 +28,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authError = await requireAuth(request);
+  const authError = await requireOwner(request);
   if (authError) return authError;
   const currentUser = await getRequestUser(request);
-  if (currentUser && currentUser.role !== "owner") {
-    return NextResponse.json({ error: "Only owners can add admin users" }, { status: 403 });
-  }
 
   const body = await request.json().catch(() => ({}));
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
