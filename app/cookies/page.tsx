@@ -15,13 +15,20 @@ export default function CookieNoticePage() {
       </section>
 
       <section>
-        <h2>Why we don&apos;t show a consent banner today</h2>
+        <h2>Analytics and your choice</h2>
         <p>
-          Today we use <strong>only strictly-necessary cookies</strong> &mdash; small pieces of data that are
-          essential for the Service to function (for example, to keep you signed in). Under the{" "}
+          We use <strong>Google Analytics</strong> to understand how visitors use this site (for example, which
+          pages are viewed and how the site is navigated), so we can improve it. When you first visit, a banner lets
+          you <strong>Accept</strong> or <strong>Decline</strong> analytics. If you Decline, analytics is disabled
+          and no analytics cookies are set on your device. Your choice is remembered for <strong>12 months</strong>,
+          after which we will ask again. You can change your mind at any time by clearing your browser&apos;s site
+          data for this domain, which will bring the banner back on your next visit.
+        </p>
+        <p>
+          Separately from analytics, we use <strong>only strictly-necessary cookies</strong> &mdash; small pieces of
+          data that are essential for the Service to function (for example, to keep you signed in). Under the{" "}
           <strong>Oman PDPL</strong> and the <strong>EU/UK GDPR</strong>, strictly-necessary cookies do not require
-          prior consent. If we introduce analytics, marketing, or other non-essential cookies in the future, we will
-          add a clear consent banner allowing you to accept or reject them before they are set.
+          prior consent.
         </p>
       </section>
 
@@ -49,11 +56,28 @@ export default function CookieNoticePage() {
               <td>Strictly necessary</td>
               <td>Minutes &mdash; cleared after sign-in completes</td>
             </tr>
+            <tr>
+              <td><code>_ga</code></td>
+              <td>Distinguishes unique visitors for Google Analytics</td>
+              <td>Analytics</td>
+              <td>2 years</td>
+            </tr>
+            <tr>
+              <td><code>_ga_&lt;container-id&gt;</code></td>
+              <td>Retains session state for Google Analytics</td>
+              <td>Analytics</td>
+              <td>2 years</td>
+            </tr>
           </tbody>
         </table>
         <p>
-          We do <strong>not</strong> use cookies for advertising, third-party tracking, profiling, or cross-site
-          analytics.
+          The <code>_ga</code> and <code>_ga_&lt;container-id&gt;</code> cookies are set only if you have not
+          declined analytics in the consent banner. If you Decline (or have not yet been asked), they are not set;
+          if you later Accept, they are set from that point on. See &ldquo;Analytics and your choice&rdquo; above.
+        </p>
+        <p>
+          We use Google Analytics to understand overall site usage; we do <strong>not</strong> use cookies for
+          advertising, third-party tracking, or profiling.
         </p>
       </section>
 

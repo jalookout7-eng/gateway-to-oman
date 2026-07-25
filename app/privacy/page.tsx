@@ -122,7 +122,12 @@ export default function PrivacyPolicyPage() {
             </tr>
             <tr>
               <td><strong>Google LLC</strong></td>
-              <td>Sign-in with Google (if you choose to use it) &mdash; receives the OAuth sign-in flow</td>
+              <td>
+                Sign-in with Google (if you choose to use it) &mdash; receives the OAuth sign-in flow; and website
+                analytics (Google Analytics) &mdash; receives usage data such as pages viewed and general device/
+                browser information, subject to the analytics consent choice described in our{" "}
+                <a href="/cookies">Cookie Notice</a>
+              </td>
               <td>United States and global</td>
             </tr>
             <tr>
@@ -204,8 +209,9 @@ export default function PrivacyPolicyPage() {
       <section>
         <h2>9. Cookies</h2>
         <p>
-          We use only strictly-necessary session cookies (for authentication and sign-in flows). See our{" "}
-          <a href="/cookies">Cookie Notice</a> for details.
+          We use strictly-necessary session cookies (for authentication and sign-in flows) and, subject to your
+          consent choice, Google Analytics cookies to understand how the Service is used. See our{" "}
+          <a href="/cookies">Cookie Notice</a> for details, including how to accept or decline analytics.
         </p>
       </section>
 
