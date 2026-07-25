@@ -6,12 +6,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChatMessages, type Message } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
 import { LeadCaptureForm } from "./LeadCaptureForm";
+import { ChatIdlePanel } from "@/components/chat/ChatIdlePanel";
 import { getContextualGreeting, pickTeaserVariant } from "@/lib/ai/prompts";
 import { resolveSurface } from "@/lib/ai/surface";
 import { useChatModal, type ChatModalConfig } from "@/lib/context/ChatModalContext";
 import { WhatsAppHandoffButton } from "./WhatsAppHandoffButton";
 import { trackEvent } from "@/lib/analytics/track";
-import { MessageCircle, CalendarDays, MessageSquare } from "lucide-react";
+import { MessageCircle, CalendarDays, MessageSquare, Minus } from "lucide-react";
 
 const CALENDLY_URL = "https://calendly.com/alazizi/30min";
 const KEEP_CHAT_MAX_EXCHANGES = 7;
@@ -159,11 +160,10 @@ export function ChatWidget() {
       surface: resolveSurface(pathname ?? "/").page,
       hook_variant: teaserVariant.variantId,
     });
-    if (messages.length === 0) {
-      const greeting = getContextualGreeting(resolveSurface(pathname ?? "/").page);
-      setMessages([{ role: "assistant", content: greeting }]);
-    }
-  }, [messages.length, pathname, teaserVariant.variantId]);
+    // No greeting is seeded here any more: with zero messages the widget
+    // shows ChatIdlePanel, which is the greeting now. The opportunity-card
+    // effect below still seeds its topic greeting, so that path skips idle.
+  }, [pathname, teaserVariant.variantId]);
 
   // Bridge from the ChatModalContext: when an opportunity card (or any other
   // caller) fires openModal({intent, topic}), open this floating widget with
@@ -448,7 +448,7 @@ export function ChatWidget() {
       <AnimatePresence>
         {!isOpen && (
           <motion.button
-            className="gto-floating-action fixed bottom-6 right-6 h-14 w-14 rounded-full gold-gradient shadow-lg shadow-gold/30 flex items-center justify-center text-white z-50 hover:shadow-xl transition-all"
+            className="gto-floating-action relative fixed bottom-6 right-6 h-14 w-14 rounded-full gold-gradient shadow-lg shadow-gold/30 flex items-center justify-center text-white z-50 hover:shadow-xl transition-all"
             onClick={handleOpen}
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -458,6 +458,14 @@ export function ChatWidget() {
             title="Chat with Omar"
           >
             <MessageCircle className="h-6 w-6" strokeWidth={2} />
+            {showTeaser && !teaserDismissed && (
+              <span
+                aria-hidden="true"
+                className="absolute -top-1 -right-1 h-5 w-5 rounded-md bg-red-500 text-white text-[11px] font-bold flex items-center justify-center shadow"
+              >
+                1
+              </span>
+            )}
           </motion.button>
         )}
       </AnimatePresence>
@@ -466,8 +474,8 @@ export function ChatWidget() {
       <AnimatePresence>
         {showTeaser && !teaserDismissed && !isOpen && (
           <motion.div
-            className="fixed bottom-24 right-6 z-50 w-[320px] max-w-[calc(100vw-3rem)]
-              rounded-2xl bg-white shadow-2xl ring-1 ring-gray-200 overflow-hidden"
+            className="fixed bottom-24 right-6 z-50 w-[360px] max-w-[calc(100vw-3rem)]
+              rounded-2xl bg-navy shadow-2xl overflow-hidden"
             initial={{ opacity: 0, y: 12, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.96 }}
@@ -476,38 +484,17 @@ export function ChatWidget() {
             <button
               onClick={() => setTeaserDismissed(true)}
               aria-label="Dismiss"
-              className="absolute top-2 right-2 p-1.5 rounded-md text-gray-400 hover:text-navy hover:bg-gray-100 transition-colors z-10"
+              className="absolute top-2.5 right-2.5 p-1 rounded-md text-white/60 hover:text-white hover:bg-white/10 transition-colors z-10"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M18 6L6 18M6 6l12 12" />
               </svg>
             </button>
 
-            <div className="p-4 pr-9">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full gold-gradient ring-2 ring-gold/20 flex items-center justify-center flex-shrink-0">
-                  <MessageCircle className="h-5 w-5 text-white" />
-                </div>
-                <div className="leading-tight">
-                  <p className="font-semibold text-navy text-sm">Omar</p>
-                  <p className="text-xs text-gray-500 flex items-center gap-1.5">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Gateway to Oman
-                  </p>
-                </div>
-              </div>
-
-              <p className="mt-3 text-sm text-gray-700 leading-relaxed">
-                {teaserVariant.text}
-              </p>
-
-              <button
-                onClick={handleOpen}
-                className="mt-3 w-full gold-gradient text-white text-sm font-semibold py-2.5 rounded-lg shadow-sm hover:shadow-md transition-all"
-              >
-                Chat with Omar
-              </button>
-            </div>
+            <button onClick={handleOpen} className="w-full text-left flex gap-3 p-4 pr-9">
+              <MessageCircle className="h-6 w-6 text-gold flex-shrink-0 mt-0.5" strokeWidth={2} />
+              <p className="text-sm text-white leading-relaxed">{teaserVariant.text}</p>
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -526,122 +513,126 @@ export function ChatWidget() {
             exit={{ opacity: 0, y: 16, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 320, damping: 28 }}
           >
-            {/* Header */}
-            <div className="gold-gradient px-4 py-3.5 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="h-9 w-9 rounded-full bg-white/20 ring-2 ring-white/30 flex items-center justify-center flex-shrink-0">
-                  <MessageCircle className="h-4 w-4 text-white" />
-                </div>
-                <div className="leading-tight min-w-0">
-                  <p className="text-white font-semibold text-sm truncate">Omar</p>
-                  <p className="text-white/85 text-xs flex items-center gap-1.5">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-300 animate-pulse" />
-                    Gateway to Oman
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsOpen(false)}
-                aria-label="Close chat"
-                className="text-white/85 hover:text-white p-1.5 -m-1 rounded-md hover:bg-white/10 transition-colors flex-shrink-0"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Messages — sentinel ref lives INSIDE this component's scroll
-                container so scrollIntoView() actually scrolls the message
-                list, not the page (Notes 4 chat scroll bug fix). */}
-            <ChatMessages messages={messages} isTyping={isTyping} ref={messagesEndRef} />
-
-            {/* Pre-capture opt-in prompt — replaces the surprise modal pattern. */}
-            {showCapturePrompt && !leadCaptured && (
-              <div className="mx-3 mb-2 rounded-lg border border-gold/30 bg-gold/5 p-3">
-                <p className="text-sm text-navy">
-                  Before we go further — can I share your details with the team so they can
-                  follow up properly? It takes about 30 seconds.
-                </p>
-                <div className="mt-3 flex gap-2">
+            {messages.length === 0 ? (
+              <ChatIdlePanel onStart={sendMessage} onMinimize={() => setIsOpen(false)} />
+            ) : (
+              <>
+                {/* Header */}
+                <div className="bg-navy px-4 py-3.5 flex items-center justify-between flex-shrink-0 border-b-2 border-gold/60">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-9 w-9 rounded-full gold-gradient flex items-center justify-center flex-shrink-0">
+                      <MessageCircle className="h-4 w-4 text-white" />
+                    </div>
+                    <div className="leading-tight min-w-0">
+                      <p className="text-white font-semibold text-sm truncate">Ask Omar</p>
+                      <p className="text-white/70 text-xs flex items-center gap-1.5">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        Gateway to Oman
+                      </p>
+                    </div>
+                  </div>
                   <button
-                    onClick={() => handleCaptureDecision(true)}
-                    className="flex-1 gold-gradient text-white text-sm font-semibold py-2 rounded-lg hover:shadow-md transition-shadow"
+                    onClick={() => setIsOpen(false)}
+                    aria-label="Minimize chat"
+                    className="text-white/80 hover:text-white p-1.5 -m-1 rounded-md hover:bg-white/10 transition-colors flex-shrink-0"
                   >
-                    Yes, share my details
-                  </button>
-                  <button
-                    onClick={() => handleCaptureDecision(false)}
-                    className="px-3 text-sm font-medium text-gray-600 hover:text-navy"
-                  >
-                    Not yet
+                    <Minus className="h-5 w-5" />
                   </button>
                 </div>
-              </div>
+
+                {/* Messages — sentinel ref lives INSIDE this component's scroll
+                    container so scrollIntoView() actually scrolls the message
+                    list, not the page (Notes 4 chat scroll bug fix). */}
+                <ChatMessages messages={messages} isTyping={isTyping} ref={messagesEndRef} />
+
+                {/* Pre-capture opt-in prompt — replaces the surprise modal pattern. */}
+                {showCapturePrompt && !leadCaptured && (
+                  <div className="mx-3 mb-2 rounded-lg border border-gold/30 bg-gold/5 p-3">
+                    <p className="text-sm text-navy">
+                      Before we go further — can I share your details with the team so they can
+                      follow up properly? It takes about 30 seconds.
+                    </p>
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={() => handleCaptureDecision(true)}
+                        className="flex-1 gold-gradient text-white text-sm font-semibold py-2 rounded-lg hover:shadow-md transition-shadow"
+                      >
+                        Yes, share my details
+                      </button>
+                      <button
+                        onClick={() => handleCaptureDecision(false)}
+                        className="px-3 text-sm font-medium text-gray-600 hover:text-navy"
+                      >
+                        Not yet
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Lead capture form — only when explicitly accepted. */}
+                {showCaptureForm && !leadCaptured && conversationId && (
+                  <LeadCaptureForm
+                    conversationId={conversationId}
+                    segment={detectedSegment}
+                    interest={detectedInterest}
+                    onSubmit={handleLeadSubmit}
+                  />
+                )}
+
+                {/* Post-capture continue-or-close choice. */}
+                {showPostCaptureChoice && (
+                  <div className="mx-3 mb-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handlePostCaptureDecision(true)}
+                        className="flex-1 gold-gradient text-white text-sm font-semibold py-2 rounded-lg hover:shadow-md transition-shadow"
+                      >
+                        Keep chatting
+                      </button>
+                      <button
+                        onClick={() => handlePostCaptureDecision(false)}
+                        className="px-3 text-sm font-medium text-gray-600 hover:text-navy"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* HOT-lead inline CTAs — surfaced when Omar grades a keep-chat
+                    visitor as high-intent. Two clean buttons, each logs to
+                    lead_notes when clicked. */}
+                {showHotLeadCtas && (
+                  <div className="mx-3 mb-2 rounded-lg border border-gold/40 bg-gradient-to-r from-gold/10 to-amber-50 p-3">
+                    <p className="text-sm text-navy font-medium">
+                      Sounds like a strong fit. Want to take the next step?
+                    </p>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button
+                        onClick={handleCalendlyClick}
+                        className="inline-flex items-center justify-center gap-1.5 gold-gradient text-white text-xs font-semibold py-2.5 rounded-lg hover:shadow-md transition-shadow"
+                      >
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        Book consultation
+                      </button>
+                      <button
+                        onClick={handleWhatsAppClick}
+                        className="inline-flex items-center justify-center gap-1.5 bg-emerald-500 text-white text-xs font-semibold py-2.5 rounded-lg hover:bg-emerald-600 transition-colors"
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        WhatsApp Ahmed
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* WhatsApp handoff from the chat reply itself (existing path). */}
+                {whatsappUrl && <WhatsAppHandoffButton href={whatsappUrl} />}
+
+                {/* Input — stays available except when chat is closed. */}
+                {!isClosed && <ChatInput onSend={sendMessage} disabled={isTyping} />}
+              </>
             )}
-
-            {/* Lead capture form — only when explicitly accepted. */}
-            {showCaptureForm && !leadCaptured && conversationId && (
-              <LeadCaptureForm
-                conversationId={conversationId}
-                segment={detectedSegment}
-                interest={detectedInterest}
-                onSubmit={handleLeadSubmit}
-              />
-            )}
-
-            {/* Post-capture continue-or-close choice. */}
-            {showPostCaptureChoice && (
-              <div className="mx-3 mb-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handlePostCaptureDecision(true)}
-                    className="flex-1 gold-gradient text-white text-sm font-semibold py-2 rounded-lg hover:shadow-md transition-shadow"
-                  >
-                    Keep chatting
-                  </button>
-                  <button
-                    onClick={() => handlePostCaptureDecision(false)}
-                    className="px-3 text-sm font-medium text-gray-600 hover:text-navy"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* HOT-lead inline CTAs — surfaced when Omar grades a keep-chat
-                visitor as high-intent. Two clean buttons, each logs to
-                lead_notes when clicked. */}
-            {showHotLeadCtas && (
-              <div className="mx-3 mb-2 rounded-lg border border-gold/40 bg-gradient-to-r from-gold/10 to-amber-50 p-3">
-                <p className="text-sm text-navy font-medium">
-                  Sounds like a strong fit. Want to take the next step?
-                </p>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button
-                    onClick={handleCalendlyClick}
-                    className="inline-flex items-center justify-center gap-1.5 gold-gradient text-white text-xs font-semibold py-2.5 rounded-lg hover:shadow-md transition-shadow"
-                  >
-                    <CalendarDays className="h-3.5 w-3.5" />
-                    Book consultation
-                  </button>
-                  <button
-                    onClick={handleWhatsAppClick}
-                    className="inline-flex items-center justify-center gap-1.5 bg-emerald-500 text-white text-xs font-semibold py-2.5 rounded-lg hover:bg-emerald-600 transition-colors"
-                  >
-                    <MessageSquare className="h-3.5 w-3.5" />
-                    WhatsApp Ahmed
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* WhatsApp handoff from the chat reply itself (existing path). */}
-            {whatsappUrl && <WhatsAppHandoffButton href={whatsappUrl} />}
-
-            {/* Input — stays available except when chat is closed. */}
-            {!isClosed && <ChatInput onSend={sendMessage} disabled={isTyping} />}
           </motion.div>
         )}
       </AnimatePresence>
