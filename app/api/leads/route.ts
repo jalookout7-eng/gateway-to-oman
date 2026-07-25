@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth/token";
 import { sendPushNotification } from "@/lib/push/notify";
 import { scoreLead } from "@/lib/ai/scoring";
 import { summariseLead, type LeadFacts } from "@/lib/ai/lead-summary";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 async function scoreLeadFromConversation(
   leadId: string,
@@ -111,6 +112,27 @@ async function generateLeadSummary(
 
 export async function POST(request: NextRequest) {
   try {
+    // A04-1: public endpoint that fans out to AI + push on every hit — cap it.
+    // Two windows: burst (5/10min) and daily (15/24h) per IP. Deliberately NOT
+    // a silent per-IP dedupe: shared IPs (office/family NAT) submit legitimate
+    // distinct leads, so repeats inside the caps stay allowed and over-cap gets
+    // an honest 429 instead of a silently discarded lead.
+    const ip = getClientIp(request);
+    const rlBurst = await rateLimit("lead_capture", ip, 5, 600);
+    if (!rlBurst.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please slow down." },
+        { status: 429, headers: { "Retry-After": String(rlBurst.retryAfterSec) } },
+      );
+    }
+    const rlDay = await rateLimit("lead_capture_day", ip, 15, 86400);
+    if (!rlDay.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please slow down." },
+        { status: 429, headers: { "Retry-After": String(rlDay.retryAfterSec) } },
+      );
+    }
+
     const { name, email, phone, countryCode, conversationId, segment, interests } =
       await request.json();
 
@@ -128,6 +150,22 @@ export async function POST(request: NextRequest) {
     }
 
     const db = getDb();
+
+    // A04-1 dedupe: same email within 24h → return the existing lead's id in
+    // the normal success shape and skip the AI/push fan-out entirely (mirrors
+    // the M-6 access-request pattern; silent so probers learn nothing).
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      .toISOString().replace("T", " ").slice(0, 19);
+    const dupe = await db.execute({
+      sql: `SELECT id FROM leads WHERE email = ? AND created_at >= ? LIMIT 1`,
+      args: [email, oneDayAgo],
+    });
+    if (dupe.rows.length > 0) {
+      return NextResponse.json(
+        { success: true, id: String(dupe.rows[0].id) },
+        { status: 201 },
+      );
+    }
 
     const result = await db.execute({
       sql: `INSERT INTO leads (name, email, phone, country_code, conversation_id, segment, interests)
