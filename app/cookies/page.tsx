@@ -18,11 +18,12 @@ export default function CookieNoticePage() {
         <h2>Analytics and your choice</h2>
         <p>
           We use <strong>Google Analytics</strong> to understand how visitors use this site (for example, which
-          pages are viewed and how the site is navigated), so we can improve it. When you first visit, a banner lets
-          you <strong>Accept</strong> or <strong>Decline</strong> analytics. If you Decline, analytics is disabled
-          and no analytics cookies are set on your device. Your choice is remembered for <strong>12 months</strong>,
-          after which we will ask again. You can change your mind at any time by clearing your browser&apos;s site
-          data for this domain, which will bring the banner back on your next visit.
+          pages are viewed and how the site is navigated), so we can improve it. Analytics runs from the moment you
+          arrive, and a banner lets you <strong>Accept</strong> or <strong>Decline</strong> it. If you Decline,
+          analytics is switched off for your visit and no further analytics cookies are set from that point on.
+          Your choice is remembered for <strong>12 months</strong>, after which we will ask again. You can change
+          your mind at any time by clearing your browser&apos;s site data for this domain, which will bring the
+          banner back on your next visit.
         </p>
         <p>
           Separately from analytics, we use <strong>only strictly-necessary cookies</strong> &mdash; small pieces of
@@ -71,9 +72,9 @@ export default function CookieNoticePage() {
           </tbody>
         </table>
         <p>
-          The <code>_ga</code> and <code>_ga_&lt;container-id&gt;</code> cookies are set only if you have not
-          declined analytics in the consent banner. If you Decline (or have not yet been asked), they are not set;
-          if you later Accept, they are set from that point on. See &ldquo;Analytics and your choice&rdquo; above.
+          The <code>_ga</code> and <code>_ga_&lt;container-id&gt;</code> cookies are set unless you decline
+          analytics in the consent banner. If you Decline, analytics is switched off and these cookies are no
+          longer used; if you Accept, they continue to be used. See &ldquo;Analytics and your choice&rdquo; above.
         </p>
         <p>
           We use Google Analytics to understand overall site usage; we do <strong>not</strong> use cookies for
