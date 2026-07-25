@@ -38,7 +38,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
   const userAgent = request.headers.get("user-agent");
-  const token = await createMarketplaceSession(user.id, ip, userAgent);
+  // Preserve original semantics: session stores null when IP is unknown, not the string "unknown"
+  const sessionIp = ip === "unknown" ? null : ip;
+  const token = await createMarketplaceSession(user.id, sessionIp, userAgent);
 
   const response = NextResponse.json({
     ok: true,
