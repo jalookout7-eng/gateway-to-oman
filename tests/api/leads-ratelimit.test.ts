@@ -95,4 +95,15 @@ describe("POST /api/leads — rate limits + dedupe (A04-1)", () => {
     const res = await POST(makeRequest("fresh@example.com", "198.51.100.99"));
     expect(res.status).toBe(201);
   });
+
+  it("two racing submissions of the same email produce exactly one lead row", async () => {
+    const [r1, r2] = await Promise.all([
+      POST(makeRequest("race@example.com", "203.0.113.61")),
+      POST(makeRequest("race@example.com", "198.51.100.62")),
+    ]);
+    expect(r1.status).toBe(201);
+    expect(r2.status).toBe(201);
+    const rows = await db.execute("SELECT COUNT(*) AS n FROM leads WHERE email = 'race@example.com'");
+    expect(Number(rows.rows[0].n)).toBe(1);
+  });
 });

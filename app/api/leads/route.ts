@@ -156,20 +156,16 @@ export async function POST(request: NextRequest) {
     // the M-6 access-request pattern; silent so probers learn nothing).
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
       .toISOString().replace("T", " ").slice(0, 19);
-    const dupe = await db.execute({
-      sql: `SELECT id FROM leads WHERE email = ? AND created_at >= ? LIMIT 1`,
-      args: [email, oneDayAgo],
-    });
-    if (dupe.rows.length > 0) {
-      return NextResponse.json(
-        { success: true, id: String(dupe.rows[0].id) },
-        { status: 201 },
-      );
-    }
 
+    // A04-1 dedupe, atomic: the WHERE NOT EXISTS guard and the INSERT are one
+    // statement, so two racing same-email submissions cannot both insert
+    // (deliberately no transaction — libsql HTTP transactions are fragile here,
+    // and no UNIQUE constraint — the same email >24h apart is legitimate).
     const result = await db.execute({
       sql: `INSERT INTO leads (name, email, phone, country_code, conversation_id, segment, interests)
-            VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+            SELECT ?, ?, ?, ?, ?, ?, ?
+            WHERE NOT EXISTS (SELECT 1 FROM leads WHERE email = ? AND created_at >= ?)
+            RETURNING id`,
       args: [
         name,
         email,
@@ -178,8 +174,23 @@ export async function POST(request: NextRequest) {
         conversationId ?? null,
         segment ?? null,
         interests ?? null,
+        email,
+        oneDayAgo,
       ],
     });
+
+    // Zero rows returned = the NOT EXISTS guard fired: this email already has
+    // a lead inside 24h. Silent success with the existing id; skip the fan-out.
+    if (result.rows.length === 0) {
+      const existing = await db.execute({
+        sql: `SELECT id FROM leads WHERE email = ? AND created_at >= ? LIMIT 1`,
+        args: [email, oneDayAgo],
+      });
+      return NextResponse.json(
+        { success: true, id: String(existing.rows[0]?.id ?? "") },
+        { status: 201 },
+      );
+    }
 
     // Update conversation outcome
     if (conversationId) {
