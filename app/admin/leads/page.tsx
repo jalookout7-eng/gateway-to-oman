@@ -595,20 +595,32 @@ function AddLeadModal({ isOpen, onClose, onAdded }: { isOpen: boolean; onClose: 
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
-    await fetch("/api/leads", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ name, email, phone }),
-    });
-    setSubmitting(false);
-    setName(""); setEmail(""); setPhone("");
-    onClose();
-    onAdded();
+    setError(null);
+    try {
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name, email, phone }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? res.statusText ?? "Failed to add lead");
+        return;
+      }
+      setName(""); setEmail(""); setPhone("");
+      onClose();
+      onAdded();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Connection error");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -617,6 +629,7 @@ function AddLeadModal({ isOpen, onClose, onAdded }: { isOpen: boolean; onClose: 
         <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
         <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         <Input label="Phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        {error && <p className="text-sm text-red-600">{error}</p>}
         <Button type="submit" variant="gold" size="sm" className="w-full" disabled={submitting}>
           {submitting ? "Adding..." : "Add Lead"}
         </Button>

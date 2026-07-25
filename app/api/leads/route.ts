@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db/client";
-import { requireAuth } from "@/lib/auth/token";
+import { requireAuth, getRequestUser } from "@/lib/auth/token";
 import { sendPushNotification } from "@/lib/push/notify";
 import { scoreLead } from "@/lib/ai/scoring";
 import { summariseLead, type LeadFacts } from "@/lib/ai/lead-summary";
@@ -112,25 +112,33 @@ async function generateLeadSummary(
 
 export async function POST(request: NextRequest) {
   try {
+    // Admin-entered leads (AddLeadModal) hit this same endpoint. The caps and
+    // dedupe exist to stop public abuse — applying them to the owner
+    // transcribing inquiries would silently discard real data.
+    const adminUser = await getRequestUser(request);
+    const isAdmin = adminUser !== null;
+
     // A04-1: public endpoint that fans out to AI + push on every hit — cap it.
     // Two windows: burst (5/10min) and daily (15/24h) per IP. Deliberately NOT
     // a silent per-IP dedupe: shared IPs (office/family NAT) submit legitimate
     // distinct leads, so repeats inside the caps stay allowed and over-cap gets
     // an honest 429 instead of a silently discarded lead.
     const ip = getClientIp(request);
-    const rlBurst = await rateLimit("lead_capture", ip, 5, 600);
-    if (!rlBurst.allowed) {
-      return NextResponse.json(
-        { error: "Too many requests. Please slow down." },
-        { status: 429, headers: { "Retry-After": String(rlBurst.retryAfterSec) } },
-      );
-    }
-    const rlDay = await rateLimit("lead_capture_day", ip, 15, 86400);
-    if (!rlDay.allowed) {
-      return NextResponse.json(
-        { error: "Too many requests. Please slow down." },
-        { status: 429, headers: { "Retry-After": String(rlDay.retryAfterSec) } },
-      );
+    if (!isAdmin) {
+      const rlBurst = await rateLimit("lead_capture", ip, 5, 600);
+      if (!rlBurst.allowed) {
+        return NextResponse.json(
+          { error: "Too many requests. Please slow down." },
+          { status: 429, headers: { "Retry-After": String(rlBurst.retryAfterSec) } },
+        );
+      }
+      const rlDay = await rateLimit("lead_capture_day", ip, 15, 86400);
+      if (!rlDay.allowed) {
+        return NextResponse.json(
+          { error: "Too many requests. Please slow down." },
+          { status: 429, headers: { "Retry-After": String(rlDay.retryAfterSec) } },
+        );
+      }
     }
 
     const { name, email, phone, countryCode, conversationId, segment, interests } =
@@ -153,7 +161,13 @@ export async function POST(request: NextRequest) {
 
     // A04-1 dedupe: same email within 24h → return the existing lead's id in
     // the normal success shape and skip the AI/push fan-out entirely (mirrors
-    // the M-6 access-request pattern; silent so probers learn nothing).
+    // the M-6 access-request pattern; silent so probers learn nothing). Scoped
+    // to source = 'main' (this route's implicit source) so it can't collide
+    // with marketplace sign-up / access-request / CSV-import leads that share
+    // the same table — see app/api/businesses/access-request/route.ts for the
+    // pattern this mirrors. Skipped entirely for authenticated admins: the
+    // AddLeadModal reuses this endpoint to transcribe real inquiries, and a
+    // same-email repeat there is legitimate data, not abuse.
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
       .toISOString().replace("T", " ").slice(0, 19);
 
@@ -161,29 +175,35 @@ export async function POST(request: NextRequest) {
     // statement, so two racing same-email submissions cannot both insert
     // (deliberately no transaction — libsql HTTP transactions are fragile here,
     // and no UNIQUE constraint — the same email >24h apart is legitimate).
+    const dedupeGuardSql = isAdmin
+      ? ""
+      : `WHERE NOT EXISTS (SELECT 1 FROM leads WHERE email = ? AND source = 'main' AND created_at >= ?)`;
     const result = await db.execute({
       sql: `INSERT INTO leads (name, email, phone, country_code, conversation_id, segment, interests)
             SELECT ?, ?, ?, ?, ?, ?, ?
-            WHERE NOT EXISTS (SELECT 1 FROM leads WHERE email = ? AND created_at >= ?)
+            ${dedupeGuardSql}
             RETURNING id`,
-      args: [
-        name,
-        email,
-        phone ?? null,
-        countryCode ?? null,
-        conversationId ?? null,
-        segment ?? null,
-        interests ?? null,
-        email,
-        oneDayAgo,
-      ],
+      args: isAdmin
+        ? [name, email, phone ?? null, countryCode ?? null, conversationId ?? null, segment ?? null, interests ?? null]
+        : [
+            name,
+            email,
+            phone ?? null,
+            countryCode ?? null,
+            conversationId ?? null,
+            segment ?? null,
+            interests ?? null,
+            email,
+            oneDayAgo,
+          ],
     });
 
-    // Zero rows returned = the NOT EXISTS guard fired: this email already has
-    // a lead inside 24h. Silent success with the existing id; skip the fan-out.
-    if (result.rows.length === 0) {
+    // Zero rows returned = the NOT EXISTS guard fired (admins never hit this —
+    // there is no guard clause in that branch): this email already has a lead
+    // inside 24h. Silent success with the existing id; skip the fan-out.
+    if (!isAdmin && result.rows.length === 0) {
       const existing = await db.execute({
-        sql: `SELECT id FROM leads WHERE email = ? AND created_at >= ? LIMIT 1`,
+        sql: `SELECT id FROM leads WHERE email = ? AND source = 'main' AND created_at >= ? LIMIT 1`,
         args: [email, oneDayAgo],
       });
       return NextResponse.json(
