@@ -6,6 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import {
   effectiveConsent,
   CONSENT_CHANGE_EVENT,
+  CONSENT_STORAGE_KEY,
   type ConsentValue,
 } from "@/lib/analytics/consent";
 
@@ -109,19 +110,52 @@ export function GoogleAnalytics() {
 
   useEffect(() => {
     setConsent(effectiveConsent());
-    const onChange = (e: Event) => {
-      const next = (e as CustomEvent<ConsentValue>).detail;
+
+    const applyConsent = (next: ConsentValue) => {
       setConsent(next);
-      // Tell gtag immediately if it is already on the page. The script itself
-      // cannot be unloaded mid-session — this stops collection now, and the
-      // tag simply never loads on subsequent page loads.
-      const w = window as unknown as { gtag?: (...args: unknown[]) => void };
+      const w = window as unknown as {
+        gtag?: (...args: unknown[]) => void;
+        [key: `ga-disable-${string}`]: boolean | undefined;
+      };
+      // Tell gtag immediately if it is already on the page. This flips
+      // Consent Mode's analytics_storage signal going forward — it does NOT
+      // retroactively erase hits already sent, and the script tag itself
+      // stays loaded for the rest of this page view (it simply never loads
+      // again on a later page load once Decline persists).
       if (typeof w.gtag === "function") {
         w.gtag("consent", "update", { analytics_storage: next });
       }
+      // Google's documented per-property kill switch (gtag.js checks this
+      // before every hit). Consent Mode alone isn't enough on a live
+      // Decline: GA4 Enhanced Measurement and trackEvent() calls keep firing
+      // cookieless pings as long as gtag.js is loaded, and this flag is what
+      // actually stops those. Reset to false on a later Accept in the same
+      // session so re-enabling works without a reload.
+      if (GA_ID) {
+        w[`ga-disable-${GA_ID}`] = next === "denied";
+      }
+    };
+
+    const onChange = (e: Event) => {
+      applyConsent((e as CustomEvent<ConsentValue>).detail);
     };
     window.addEventListener(CONSENT_CHANGE_EVENT, onChange);
-    return () => window.removeEventListener(CONSENT_CHANGE_EVENT, onChange);
+
+    // Cross-tab: writeConsent() only dispatches CONSENT_CHANGE_EVENT in the
+    // tab that made the choice. The browser's `storage` event fires in every
+    // OTHER open tab once the localStorage write lands (never in the
+    // writing tab), so this is what keeps a Decline in tab B from leaving
+    // tab A's already-loaded gtag instance collecting until its next load.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== CONSENT_STORAGE_KEY) return;
+      applyConsent(effectiveConsent());
+    };
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      window.removeEventListener(CONSENT_CHANGE_EVENT, onChange);
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
   if (!GA_ID || isExcludedRoute(pathname)) return null;
