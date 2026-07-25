@@ -43,7 +43,7 @@ export function WhatsAppFloatingButton() {
       // Position: same bottom edge as Omar's button (bottom-6 right-6 is
       // 24px). The Omar button is 56px wide (h-14 w-14). Adding a 12px gap
       // means our right edge is at 24 + 56 + 12 = 92px. We use right-[92px].
-      className="fixed bottom-6 right-[92px] h-14 w-14 rounded-full shadow-lg flex items-center justify-center text-white z-50 hover:shadow-xl transition-all"
+      className="gto-floating-action fixed bottom-6 right-[92px] h-14 w-14 rounded-full shadow-lg flex items-center justify-center text-white z-50 hover:shadow-xl transition-all"
       style={{ backgroundColor: "#25D366" }}
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}

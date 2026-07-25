@@ -4,6 +4,7 @@ import { ChatWidget } from "@/components/chat/ChatWidget";
 import { ChatModalProvider } from "@/lib/context/ChatModalContext";
 import { WhatsAppFloatingButton } from "@/components/chat/WhatsAppFloatingButton";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
+import { ConsentBanner } from "@/components/analytics/ConsentBanner";
 import "./globals.css";
 
 const bodoniModa = Bodoni_Moda({
@@ -54,9 +55,10 @@ export default function RootLayout({
           <ChatWidget />
         </ChatModalProvider>
         {/* Google Analytics 4 (Notes 7). No-op until NEXT_PUBLIC_GA_MEASUREMENT_ID
-            is set in Vercel env. Consent banner is deferred — known compliance
-            gap until that lands. See HANDOVER §11. */}
+            is set in Vercel env. Consent banner (spec 2026-07-25) gates
+            analytics via Consent Mode v2 — see lib/analytics/consent.ts. */}
         <GoogleAnalytics />
+        <ConsentBanner />
       </body>
     </html>
   );

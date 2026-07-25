@@ -34,3 +34,10 @@
 .animate-sheet-up {
   animation: sheet-up 0.2s ease-out;
 }
+
+/* Consent banner (spec 2026-07-25): lift the floating actions clear of the
+   bar while it is visible, so it can never cover the chat/WhatsApp buttons
+   on mobile. Removed the moment a choice is made. */
+body.consent-banner-open .gto-floating-action {
+  bottom: 6.5rem;
+}
