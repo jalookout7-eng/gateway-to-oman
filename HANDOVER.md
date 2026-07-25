@@ -4,7 +4,7 @@
 **Client:** Ahmed Al Azizi — Alazizi Global Projects (AGP)
 **Developer:** JA (JALAI)
 **Stage:** 04-build — active
-**Started:** April 2026 · **This handover written:** May 29, 2026 · **Last updated:** July 25, 2026 (mobile nav bottom sheet on preview; line endings normalized)
+**Started:** April 2026 · **This handover written:** May 29, 2026 · **Last updated:** July 25, 2026 (JALAI workspace standards linked; mobile nav on preview)
 
 > **Predecessor:** the full batch-by-batch history (v7.0 → v7.22) is preserved at
 > `docs/superpowers/archive/HANDOVER-v7.22-2026-05-29.md`. Consult it for code
@@ -19,11 +19,11 @@
 |---|---|
 | **Live URLs** | <https://gatewaytooman.com> · <https://www.gatewaytooman.com> |
 | **Latest production deploy** | `dpl_AYwncWcPRSz78mgaBLQzG1Ex8dbH` (GA4 `/admin` exclusion, 2026-07-21) |
-| **On preview, awaiting JA click-test → prod** | Mobile nav bottom sheet + PWA pulsing-logo loading (commits `12c12fb`..`3142737`, deployed 2026-07-25). Prod push = `vercel deploy --prod --yes` after approval. |
-| **Latest commit on `section-b-marketplace`** | `3142737` (LOCAL ONLY — origin is at `f2c2786`; 9 commits unpushed, git credential needs fixing, see item Q) |
+| **Awaiting JA click-test → prod** | (1) Mobile nav bottom sheet + PWA pulsing-logo loading — ON PREVIEW (`12c12fb`..`3142737`). (2) **Batch 16 security hardening** — built + reviewed, NOT yet deployed anywhere (`7301704`..`cc36d5c`). Both ship in ONE `vercel deploy --prod --yes` once the nav is approved. |
+| **Latest commit on `section-b-marketplace`** | `cc36d5c` (LOCAL ONLY — origin is at `f2c2786`; 20+ commits unpushed, git credential needs fixing, see item Q) |
 | **Repo** | <https://github.com/jalookout7-eng/gateway-to-oman> (private) |
 | **Active branch** | `section-b-marketplace` (production deploys from here; `master` ~140 commits behind — consider making this the GitHub default branch) |
-| **Tests** | 202/202 passing across 33 files (component tests now supported via @vitejs/plugin-react) |
+| **Tests** | 229/229 passing across 38 files (component tests now supported via @vitejs/plugin-react) |
 | **Build** | clean, 85 routes · `tsc --noEmit` has 3 pre-existing test-file errors (not 2 as previously noted) |
 
 What's running: Next.js 14.2 App Router on Vercel Pro, Anthropic Haiku 4.5 (Groq Llama 3.3 70B failover), Turso libSQL in Tokyo region, Resend transactional email (gatewaytooman.com domain verified), Cloudflare R2 for listing media (presigned direct-to-R2 uploads — browser uploads straight to R2, bypassing Vercel), Web Push notifications (VAPID), Google OAuth for marketplace sign-in, GA4 live in production since 2026-07-04 (measurement ID set in Vercel); `/admin/*` excluded from tracking as of 2026-07-21.
@@ -177,7 +177,7 @@ Agreed execution order. Each gets its implementation plan written just-in-time b
 | # | Project | Status | Notes |
 |---|---|---|---|
 | 1 | Mobile nav bottom sheet + PWA loading | **BUILT — on preview** (item P) | Plan: `docs/superpowers/plans/2026-07-25-mobile-admin-nav-and-pwa-loading.md`. 202/202 tests. |
-| 2 | Batch 16 security hardening (2 HIGH + 4 MED) | Spec ready | `2026-07-25-batch16-security-hardening-design.md`. Ships direct to prod (server-side only). |
+| 2 | Batch 16 security hardening (2 HIGH + 4 MED) | **BUILT — awaiting deploy with item P** | 11 commits `7301704`..`cc36d5c`. All 6 audit findings closed + fix wave. Plan: `docs/superpowers/plans/2026-07-25-batch16-security-hardening.md`. 229/229 tests. Ships in the SAME prod deploy as the mobile nav. |
 | 3 | GA4 consent banner (Consent Mode v2, opt-out model) | Spec ready | `2026-07-25-consent-banner-design.md`. JA decision: undecided visitors ARE tracked; Decline kills GA. Default is a one-line flip if lawyer review (item I) demands opt-in. Closes item M. |
 | 4 | Omar chat widget AWS-style redesign | Spec ready | `2026-07-25-chat-widget-aws-redesign-design.md`. Fixed teaser copy SUSPENDS the 5-variant hook A/B experiment (tracked as `<surface>-aws-1`). Button keeps current design; GTO navy/gold. |
 | 5 | Intake form page + timed popup | Brainstorm pending | Reuse the (security-reviewed, clean) intake-form UI from the ex-developer's dashboard package (`~/Downloads/gateway_to_oman_dashboard` — its Supabase backend is NOT used); wire into the existing `leads` table + `/api/leads` flow; standalone `/intake` page + timed popup on the main site. DECIDED 2026-07-25: popup fires at **15 seconds** on-site; price to Ahmed is **AED 400 one-time**, billed separately from the retainer. Remaining for brainstorm: leads-table schema additions (investment_timeline, purpose, location, residency, services), popup dismissal/suppression behavior, GA events for the new surface. |
@@ -239,16 +239,26 @@ Full audit pass across security headers, OWASP Top 10, and credential/data leaka
 
 ### Open findings (planned for Batch 16 + 17)
 
-**🔴 Batch 16 — ships direct to prod (server-side only, no UX changes)**
+**✅ Batch 16 — BUILT 2026-07-25 (commits `7301704`..`cc36d5c`), awaiting the item-P deploy. All six findings below are CLOSED.**
+
+Implementation notes worth keeping (deviations from the original audit prescriptions, all deliberate):
+- **A04-1** shipped as burst (5/10min) + daily (15/24h) IP caps returning 429, NOT the audit's "silent per-IP dedupe" — silent per-IP discard would have thrown away legitimate leads from shared/NAT IPs. Email dedupe (24h) is silent as designed, and is **scoped to `source='main'`** so a marketplace signup can't swallow a same-day Omar chat lead.
+- **Admin lead entry bypasses both caps and the dedupe** (`getRequestUser` check at the top of `/api/leads` POST). Without this, Ahmed transcribing WhatsApp inquiries would have hit 429s and silent no-ops. `AddLeadModal` now surfaces errors instead of closing as if it succeeded.
+- **A08-1**: `decodeIdToken` is DELETED. `verifyGoogleIdToken` verifies signature against Google's JWKS + issuer/audience/expiry, pinned to RS256, with a fail-closed guard when `GOOGLE_CLIENT_ID` is unset — **jose silently skips audience validation on a falsy value**, so the naive `?? ""` form would have accepted a Google-signed token minted for any OAuth client.
+- **A01-2 consequence**: non-owner admins now get 403 reading the reviewer link; `ReviewerLinkCard` renders nothing for them rather than spinning forever.
+- Post-deploy watch item: `lead_capture_day` 429 volume. TikTok-driven GCC mobile traffic often shares CGNAT IPs — every 429 there is a turned-away lead. Raise the daily cap from 15 toward ~50 if they appear.
+
+| # | OWASP | Sev | Location | Issue | Fix |
+|---|-------|-----|----------|-------|-----|
 
 | # | OWASP | Sev | Location | Issue | Fix |
 |---|---|---|---|---|---|
-| A04-1 | A04 Insecure Design | **HIGH** | `app/api/leads/route.ts` POST | Public lead-capture has NO rate limit. Each POST triggers Anthropic AI calls + push notifications. Burnable. | `rateLimit("lead_capture", ip, 5, 600)` + 24-h email+IP dedupe |
-| A04-2 | A04 Insecure Design | **HIGH** | `app/api/businesses/verify-otp/route.ts` | No IP-level rate limit; per-OTP 5-attempt cap can be reset by re-issuance | `rateLimit("verify_otp", ip, 20, 600)` |
-| A07-1 | A07 AuthN Failures | MED | `app/api/businesses/sign-up/route.ts:51-56` | 409 "Account exists" vs 200 = direct email enumeration | Always return generic 200; OTP delivery is the real signal. **Trade-off accepted by JA (item N).** |
-| A01-1 | A01 Broken Access Control | MED | `app/api/admin/admin-users/route.ts` + `[id]/route.ts` | Uses `requireAuth()` + inline owner check (two failure paths) | Swap to `requireOwner()`; drop inline check |
-| A01-2 | A01 Broken Access Control | MED | `app/api/admin/reviewer-link/route.ts` | Any admin role can rotate reviewer link | Swap to `requireOwner()` |
-| A08-1 | A08 SW/Data Integrity | MED | `lib/auth/google.ts:42-57` `decodeIdToken()` | Google `id_token` decoded WITHOUT signature verification (was deferred audit item M-2) | Add `jose`, verify `iss`/`aud`/`exp`/signature against Google JWKS in `/api/businesses/google/callback` |
+| ~~A04-1~~ CLOSED | A04 Insecure Design | **HIGH** | `app/api/leads/route.ts` POST | Public lead-capture has NO rate limit. Each POST triggers Anthropic AI calls + push notifications. Burnable. | `rateLimit("lead_capture", ip, 5, 600)` + 24-h email+IP dedupe |
+| ~~A04-2~~ CLOSED | A04 Insecure Design | **HIGH** | `app/api/businesses/verify-otp/route.ts` | No IP-level rate limit; per-OTP 5-attempt cap can be reset by re-issuance | `rateLimit("verify_otp", ip, 20, 600)` |
+| ~~A07-1~~ CLOSED | A07 AuthN Failures | MED | `app/api/businesses/sign-up/route.ts:51-56` | 409 "Account exists" vs 200 = direct email enumeration | Always return generic 200; OTP delivery is the real signal. **Trade-off accepted by JA (item N).** |
+| ~~A01-1~~ CLOSED | A01 Broken Access Control | MED | `app/api/admin/admin-users/route.ts` + `[id]/route.ts` | Uses `requireAuth()` + inline owner check (two failure paths) | Swap to `requireOwner()`; drop inline check |
+| ~~A01-2~~ CLOSED | A01 Broken Access Control | MED | `app/api/admin/reviewer-link/route.ts` | Any admin role can rotate reviewer link | Swap to `requireOwner()` |
+| ~~A08-1~~ CLOSED | A08 SW/Data Integrity | MED | `lib/auth/google.ts:42-57` `decodeIdToken()` | Google `id_token` decoded WITHOUT signature verification (was deferred audit item M-2) | Add `jose`, verify `iss`/`aud`/`exp`/signature against Google JWKS in `/api/businesses/google/callback` |
 
 **🟡 Batch 17 — ships to Vercel preview first; JA click-tests (item O); then prod**
 
@@ -293,6 +303,19 @@ Full audit pass across security headers, OWASP Top 10, and credential/data leaka
 ### Predecessor audit reference
 
 The original first-pass security audit (v7.5, document at `delivery/shared/gto-security-audit-2026-05-24.md`) ranked High priorities 1-4 (all closed in Batch 2), Medium M-2 (now becomes A08-1 above), Low L-1+L-5 (both closed). The 2026-05-30 audit supersedes it.
+
+---
+
+## 📐 JALAI workspace standards (adopted 2026-07-25)
+
+The delivery workspace now carries formal security + scalability standards, derived largely from this project's audits. This project stays on its grandfathered layout, but future work here follows them:
+
+| Standard | Where | What it means for GTO |
+|---|---|---|
+| Security checklist (Major/Minor + build-type profiles) | workspace `delivery/_config/security-checklist.md` | New features checked against the Major list as they're built. GTO profiles: **AI automation + marketplace** |
+| Security review playbook | workspace `delivery/_playbooks/security-review.md` | Future audits follow this process (grade HIGH/MED/LOW, zero HIGH before prod, dated audit file). The 2026-05-30 audit + Batches 16/17 already match its shape |
+| Scalability roadmap (~1000 concurrent) | workspace `delivery/_config/scalability-1000-users.md` | Complements the phased roadmap below; its Tier 2 (load test at 1000 VU, quota math, kill switch) runs before any scale-up marketing push |
+| Backup discipline | workspace `delivery/_playbooks/build.md` §Backups | **Every session ends with a push to GitHub.** Once live: three copies always in sync — local (playground) / GitHub (true backup) / Vercel (live). ⚠️ Item Q (9 unpushed commits) is an active violation of this standard — fixing the git credential is now the top hygiene item, not optional cleanup |
 
 ---
 
@@ -555,9 +578,19 @@ Don't read it for "what to do next" — that's all here.
 
 ---
 
-**Doc version:** v8.6 (mobile nav on preview + build pipeline queued + line endings fixed)
+**Doc version:** v8.7 (JALAI workspace standards linked)
 **Last updated:** July 25, 2026
 **Maintainer:** JA · JALAI
+
+### v8.7 changelog
+- **JALAI workspace standards section added** (see 📐 above): security checklist + review playbook + 1000-concurrent scalability roadmap + backup discipline now formalized at workspace level (`delivery/_config/` + `delivery/_playbooks/`), largely derived from this project's own audits. GTO profiles: AI automation + marketplace.
+- **Item Q escalated**: 9 unpushed commits now violate the backup standard (every session ends pushed; live = local/GitHub/prod in sync) — fix the git credential first.
+
+### v8.7 changelog
+- **Batch 16 security hardening BUILT** (11 commits `7301704`..`cc36d5c`, not yet deployed). All six 2026-05-30 audit findings closed: both HIGH rate-limit gaps, sign-up enumeration, two owner-gate items, and Google id_token signature verification. Details + deliberate deviations in the Security state section.
+- **Two silent-data-loss paths caught in review before shipping** — worth remembering, because both were introduced by the hardening itself: (1) the new public-endpoint caps also applied to Ahmed's own admin "Add Lead" modal, which would have swallowed transcribed inquiries with no error shown; (2) the 24h email dedupe was unscoped across lead sources, so a marketplace signup would have silently discarded a same-day Omar chat lead. Both fixed; both now have regression tests.
+- **A plan-level security defect caught by an implementer**: the plan's own `audience: process.env.GOOGLE_CLIENT_ID ?? ""` would have made jose skip audience validation entirely (it treats a falsy audience as "don't check"), accepting Google-signed tokens minted for any OAuth client. Now fails closed, pinned to RS256, and tested.
+- Suite: 202 → 229 tests across 38 files. tsc baseline unchanged at 3 pre-existing test-file errors; build clean at 85 routes.
 
 ### v8.6 changelog
 - **Mobile admin nav rebuilt** (preview, item P): Calendar's 5th tab slot became a Menu tab opening a bottom sheet with Calendar, Sellers, Users, Conversations, Activity, Settings — all admin destinations now reachable on mobile. Escape/backdrop/re-tap/navigate/row-tap all dismiss. New: `lib/admin/mobile-nav.ts`, `components/admin/MobileMenuSheet.tsx`. Intelligence stays out of all navs (unchanged rule).
