@@ -1,3 +1,5 @@
+import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
+
 export const GOOGLE_STATE_COOKIE = "gto_google_oauth_state";
 
 const GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -38,12 +40,35 @@ export type GoogleIdentity = {
   email_verified: boolean;
 };
 
-/** Decode the (already-trusted, freshly-exchanged) id_token payload. */
-export function decodeIdToken(idToken: string): GoogleIdentity | null {
-  const parts = idToken.split(".");
-  if (parts.length !== 3) return null;
+const GOOGLE_JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
+// Google issues both forms; both are legitimate.
+const GOOGLE_ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
+
+let remoteJwks: JWTVerifyGetKey | null = null;
+function googleJwks(): JWTVerifyGetKey {
+  if (!remoteJwks) remoteJwks = createRemoteJWKSet(new URL(GOOGLE_JWKS_URL));
+  return remoteJwks;
+}
+
+/**
+ * Verify a Google id_token's signature against Google's JWKS and check
+ * iss / aud / exp (A08-1 — replaces the decode-only path). The jwks
+ * parameter exists as a test seam; production callers use the default.
+ */
+export async function verifyGoogleIdToken(
+  idToken: string,
+  jwks: JWTVerifyGetKey = googleJwks(),
+): Promise<GoogleIdentity | null> {
+  // jose treats a falsy `audience` option as "skip the audience check" — never
+  // pass it an empty string, or a misconfigured deployment (GOOGLE_CLIENT_ID
+  // unset) would accept a validly-signed Google token issued for ANY client.
+  const audience = process.env.GOOGLE_CLIENT_ID;
+  if (!audience) return null;
   try {
-    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+    const { payload } = await jwtVerify(idToken, jwks, {
+      issuer: GOOGLE_ISSUERS,
+      audience,
+    });
     if (!payload.email || !payload.sub) return null;
     return {
       email: String(payload.email),

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   GOOGLE_STATE_COOKIE,
-  decodeIdToken,
+  verifyGoogleIdToken,
   exchangeGoogleCode,
   googleConfigured,
   googleRedirectUri,
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
   });
   if (!tokens?.id_token) return fail(request, "google_failed");
 
-  const identity = decodeIdToken(tokens.id_token);
+  const identity = await verifyGoogleIdToken(tokens.id_token);
   if (!identity || !identity.email_verified) return fail(request, "google_failed");
 
   const userId = await upsertGoogleUser({

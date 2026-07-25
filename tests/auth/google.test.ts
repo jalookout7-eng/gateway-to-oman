@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   buildGoogleAuthUrl,
-  decodeIdToken,
   googleRedirectUri,
   googleConfigured,
 } from "@/lib/auth/google";
@@ -38,32 +37,6 @@ describe("googleRedirectUri", () => {
     expect(googleRedirectUri("http://localhost:3000/api/businesses/google/start")).toBe(
       "http://localhost:3000/api/businesses/google/callback",
     );
-  });
-});
-
-describe("decodeIdToken", () => {
-  function makeJwt(payload: object): string {
-    const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
-    return `header.${body}.signature`;
-  }
-
-  it("decodes a valid id_token payload", () => {
-    const jwt = makeJwt({ email: "buyer@example.com", name: "A Buyer", sub: "9988", email_verified: true });
-    expect(decodeIdToken(jwt)).toEqual({
-      email: "buyer@example.com",
-      name: "A Buyer",
-      sub: "9988",
-      email_verified: true,
-    });
-  });
-
-  it("returns null for a malformed token", () => {
-    expect(decodeIdToken("not-a-jwt")).toBeNull();
-  });
-
-  it("returns null when email or sub is missing", () => {
-    expect(decodeIdToken(makeJwt({ name: "No Email", sub: "1" }))).toBeNull();
-    expect(decodeIdToken(makeJwt({ email: "x@y.com", name: "No Sub" }))).toBeNull();
   });
 });
 
