@@ -19,11 +19,11 @@
 |---|---|
 | **Live URLs** | <https://gatewaytooman.com> · <https://www.gatewaytooman.com> |
 | **Latest production deploy** | `dpl_AYwncWcPRSz78mgaBLQzG1Ex8dbH` (GA4 `/admin` exclusion, 2026-07-21) |
-| **Awaiting JA click-test → prod** | (1) Mobile nav bottom sheet + PWA pulsing-logo loading — ON PREVIEW (`12c12fb`..`3142737`). (2) **Batch 16 security hardening** — built + reviewed, NOT yet deployed anywhere (`7301704`..`cc36d5c`). Both ship in ONE `vercel deploy --prod --yes` once the nav is approved. |
-| **Latest commit on `section-b-marketplace`** | `cc36d5c` (LOCAL ONLY — origin is at `f2c2786`; 20+ commits unpushed, git credential needs fixing, see item Q) |
+| **Awaiting JA click-test → prod** | (1) Mobile nav bottom sheet + PWA pulsing-logo loading — ON PREVIEW (`12c12fb`..`3142737`). (2) **Batch 16 security hardening** (`7301704`..`cc36d5c`). (3) **GA4 consent banner + rewritten legal pages** (`88b1b2f`..`69cea3c`). (2) and (3) are built + reviewed but NOT deployed anywhere. All three ship in ONE `vercel deploy --prod --yes` once the nav is approved. |
+| **Latest commit on `section-b-marketplace`** | `69cea3c` (LOCAL ONLY — origin is at `f2c2786`; 35+ commits unpushed, git credential needs fixing, see item Q) |
 | **Repo** | <https://github.com/jalookout7-eng/gateway-to-oman> (private) |
 | **Active branch** | `section-b-marketplace` (production deploys from here; `master` ~140 commits behind — consider making this the GitHub default branch) |
-| **Tests** | 229/229 passing across 38 files (component tests now supported via @vitejs/plugin-react) |
+| **Tests** | 259/259 passing across 43 files (component tests now supported via @vitejs/plugin-react) |
 | **Build** | clean, 85 routes · `tsc --noEmit` has 3 pre-existing test-file errors (not 2 as previously noted) |
 
 What's running: Next.js 14.2 App Router on Vercel Pro, Anthropic Haiku 4.5 (Groq Llama 3.3 70B failover), Turso libSQL in Tokyo region, Resend transactional email (gatewaytooman.com domain verified), Cloudflare R2 for listing media (presigned direct-to-R2 uploads — browser uploads straight to R2, bypassing Vercel), Web Push notifications (VAPID), Google OAuth for marketplace sign-in, GA4 live in production since 2026-07-04 (measurement ID set in Vercel); `/admin/*` excluded from tracking as of 2026-07-21.
@@ -164,7 +164,7 @@ This keeps in-progress work isolated until reviewed. Use it for any change touch
 | **J** | Payment tracker → Drive | 5 min | Upload `assets/gto-payments-tracker.csv` to Drive, share with Ahmed |
 | **K** | `R2_PUBLIC_BASE_URL` trailing-space check | 2 min | Code defensively trims it; cleaner to fix the env value |
 | ~~**L**~~ | ~~GA4 Measurement ID~~ | Done | **DONE — measurement ID set in Vercel 2026-07-04, GA4 live in production.** Full-coverage instrumentation (landing CTAs, Omar, marketplace) shipped 2026-07-03. Event dictionary + activation steps: workspace client root `measurement/ga4-measurement-plan.md`. **2026-07-21: `/admin/*` excluded from tracking** — `components/analytics/GoogleAnalytics.tsx` now bails (no gtag.js load at all) on any admin route, so internal dashboard usage never reaches GA and Enhanced Measurement can't autotrack it either. |
-| **M** | Consent banner sub-batch | ~3-4 hrs | Deferred — JA "later, but priority." **Now live and collecting real visitor data with no consent gate (L shipped 2026-07-04)** — the PDPL/GDPR gap is no longer theoretical. Google Consent Mode v2 with `analytics_storage` defaulting to denied + Accept/Decline banner. Worth reprioritizing alongside item I (lawyer review) since both concern the same real-visitor data now flowing. |
+| ~~**M**~~ | ~~Consent banner sub-batch~~ | Done (build) | **BUILT 2026-07-25** (commits `88b1b2f`..`69cea3c`), awaiting the item-P deploy. Consent Mode v2, **opt-out model per JA**: analytics runs from arrival, Decline switches it off (sets `ga-disable-*` + `consent update`, and gtag never loads on later page loads), choice kept 12 months. `CONSENT_DEFAULT` in `lib/analytics/consent.ts` is a **one-line flip to opt-in** if the lawyer (item I) requires it. **`/privacy` and `/cookies` were rewritten in the same batch** — they previously said we used only strictly-necessary cookies and had a section titled "Why we don't show a consent banner today", both false since GA went live 2026-07-04. Send the updated pages to the lawyer with item I. |
 | **N** | Confirm sign-up enumeration trade-off (security audit A07-1) | 30 sec | The fix removes the "An account with that email exists" 409 error and returns a generic 200 instead. OWASP-recommended; slight UX downgrade for "I forgot I had an account" case. JA confirmed proceeding with the secure version — captured here so the decision isn't re-litigated. |
 | **O** | Click-test Vercel preview of Batch 17 (CSP + magic-byte sniff + topic allowlist + cron HTML escape + Resend masking) before promoting to prod | 10 min | CSP can visually break things if allowlist is wrong. Preview-deploy review is the gate before prod. JA-only action. |
 | **P** | Finish mobile-nav preview click-test → approve prod | 5 min | Preview deployed 2026-07-25. JA already confirmed via WhatsApp in-app browser: bottom nav (Dashboard/Leads/Listings/Inquiries/Menu), sheet, gold active state all working. Remaining: PWA cold-open (pulsing logo), sheet-to-nav fit (~3px strip possible), Escape/backdrop dismiss. Then `vercel deploy --prod --yes`. Note: push-notification chip is NOT removed — it hides in browsers without web-push support (e.g. WhatsApp in-app browser); visible in Safari/PWA. |
@@ -178,7 +178,7 @@ Agreed execution order. Each gets its implementation plan written just-in-time b
 |---|---|---|---|
 | 1 | Mobile nav bottom sheet + PWA loading | **BUILT — on preview** (item P) | Plan: `docs/superpowers/plans/2026-07-25-mobile-admin-nav-and-pwa-loading.md`. 202/202 tests. |
 | 2 | Batch 16 security hardening (2 HIGH + 4 MED) | **BUILT — awaiting deploy with item P** | 11 commits `7301704`..`cc36d5c`. All 6 audit findings closed + fix wave. Plan: `docs/superpowers/plans/2026-07-25-batch16-security-hardening.md`. 229/229 tests. Ships in the SAME prod deploy as the mobile nav. |
-| 3 | GA4 consent banner (Consent Mode v2, opt-out model) | Spec ready | `2026-07-25-consent-banner-design.md`. JA decision: undecided visitors ARE tracked; Decline kills GA. Default is a one-line flip if lawyer review (item I) demands opt-in. Closes item M. |
+| 3 | GA4 consent banner (Consent Mode v2, opt-out model) | **BUILT — awaiting deploy with item P** (9 commits `88b1b2f`..`69cea3c`) | `2026-07-25-consent-banner-design.md`. JA decision: undecided visitors ARE tracked; Decline kills GA. Default is a one-line flip if lawyer review (item I) demands opt-in. Closes item M. |
 | 4 | Omar chat widget AWS-style redesign | Spec ready | `2026-07-25-chat-widget-aws-redesign-design.md`. Fixed teaser copy SUSPENDS the 5-variant hook A/B experiment (tracked as `<surface>-aws-1`). Button keeps current design; GTO navy/gold. |
 | 5 | Intake form page + timed popup | Brainstorm pending | Reuse the (security-reviewed, clean) intake-form UI from the ex-developer's dashboard package (`~/Downloads/gateway_to_oman_dashboard` — its Supabase backend is NOT used); wire into the existing `leads` table + `/api/leads` flow; standalone `/intake` page + timed popup on the main site. DECIDED 2026-07-25: popup fires at **15 seconds** on-site; price to Ahmed is **AED 400 one-time**, billed separately from the retainer. Remaining for brainstorm: leads-table schema additions (investment_timeline, purpose, location, residency, services), popup dismissal/suppression behavior, GA events for the new surface. |
 
@@ -578,13 +578,25 @@ Don't read it for "what to do next" — that's all here.
 
 ---
 
-**Doc version:** v8.7 (JALAI workspace standards linked)
+**Doc version:** v8.8 (consent banner built; legal pages corrected)
 **Last updated:** July 25, 2026
 **Maintainer:** JA · JALAI
+
+### v8.8 changelog
+- **GA4 consent banner BUILT** (9 commits `88b1b2f`..`69cea3c`, not yet deployed) — closes item M. Consent Mode v2, opt-out per JA: analytics runs from arrival, the banner offers equal-weight Accept/Decline, Decline switches GA off for the session (`ga-disable-*` + `consent update`) and prevents the tag loading on later page loads, cross-tab aware, choice kept 12 months. `CONSENT_DEFAULT` is a one-line flip to opt-in if the lawyer requires it.
+- **`/privacy` and `/cookies` rewritten** — they were factually wrong the moment GA went live on 2026-07-04: the Cookie Notice had a section titled "Why we don't show a consent banner today" promising opt-in-before-set, no `_ga` rows, and a claim we ran no cross-site analytics; Privacy §9 said only strictly-necessary cookies. Now accurate ("analytics runs from the moment you arrive"), with `_ga` rows and Google Analytics listed as a processor. **Send these updated pages to the lawyer with item I.**
+- **Review caught two things worth remembering:** the banner would have covered the Omar chat's message input on mobile for every undecided visitor (z-index above the chat panel — the site's primary lead flow); and the first legal rewrite introduced a NEW false sentence claiming cookies aren't set before a visitor is asked, which is the opposite of opt-out. Both fixed before shipping.
+- Suite: 229 → 259 tests across 43 files. tsc baseline unchanged (3 pre-existing); build clean at 85 routes.
 
 ### v8.7 changelog
 - **JALAI workspace standards section added** (see 📐 above): security checklist + review playbook + 1000-concurrent scalability roadmap + backup discipline now formalized at workspace level (`delivery/_config/` + `delivery/_playbooks/`), largely derived from this project's own audits. GTO profiles: AI automation + marketplace.
 - **Item Q escalated**: 9 unpushed commits now violate the backup standard (every session ends pushed; live = local/GitHub/prod in sync) — fix the git credential first.
+
+### v8.8 changelog
+- **GA4 consent banner BUILT** (9 commits `88b1b2f`..`69cea3c`, not yet deployed) — closes item M. Consent Mode v2, opt-out per JA: analytics runs from arrival, the banner offers equal-weight Accept/Decline, Decline switches GA off for the session (`ga-disable-*` + `consent update`) and prevents the tag loading on later page loads, cross-tab aware, choice kept 12 months. `CONSENT_DEFAULT` is a one-line flip to opt-in if the lawyer requires it.
+- **`/privacy` and `/cookies` rewritten** — they were factually wrong the moment GA went live on 2026-07-04: the Cookie Notice had a section titled "Why we don't show a consent banner today" promising opt-in-before-set, no `_ga` rows, and a claim we ran no cross-site analytics; Privacy §9 said only strictly-necessary cookies. Now accurate ("analytics runs from the moment you arrive"), with `_ga` rows and Google Analytics listed as a processor. **Send these updated pages to the lawyer with item I.**
+- **Review caught two things worth remembering:** the banner would have covered the Omar chat's message input on mobile for every undecided visitor (z-index above the chat panel — the site's primary lead flow); and the first legal rewrite introduced a NEW false sentence claiming cookies aren't set before a visitor is asked, which is the opposite of opt-out. Both fixed before shipping.
+- Suite: 229 → 259 tests across 43 files. tsc baseline unchanged (3 pre-existing); build clean at 85 routes.
 
 ### v8.7 changelog
 - **Batch 16 security hardening BUILT** (11 commits `7301704`..`cc36d5c`, not yet deployed). All six 2026-05-30 audit findings closed: both HIGH rate-limit gaps, sign-up enumeration, two owner-gate items, and Google id_token signature verification. Details + deliberate deviations in the Security state section.
