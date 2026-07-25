@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi } from "vitest";
 import { SignJWT, generateKeyPair, createLocalJWKSet, exportJWK, type JWTVerifyGetKey } from "jose";
 import { verifyGoogleIdToken } from "@/lib/auth/google";
 
@@ -93,5 +93,15 @@ describe("verifyGoogleIdToken (A08-1)", () => {
   it("returns null when the payload is missing email or sub", async () => {
     const token = await signToken({ payload: { email: undefined } });
     expect(await verifyGoogleIdToken(token, jwks)).toBeNull();
+  });
+
+  it("fails closed when GOOGLE_CLIENT_ID is unset, even for an otherwise-valid token", async () => {
+    vi.stubEnv("GOOGLE_CLIENT_ID", "");
+    try {
+      const token = await signToken({});
+      expect(await verifyGoogleIdToken(token, jwks)).toBeNull();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
