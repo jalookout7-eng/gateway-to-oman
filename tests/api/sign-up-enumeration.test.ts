@@ -32,9 +32,14 @@ vi.mock("@/lib/email/otp", () => ({
 }));
 
 const findUserMock = vi.fn();
+
+const { createUserMock } = vi.hoisted(() => ({
+  createUserMock: vi.fn(async () => "user-id-1"),
+}));
+
 vi.mock("@/lib/auth/marketplace", () => ({
   findUserByEmail: (...args: unknown[]) => findUserMock(...args),
-  createUser: vi.fn(async () => "user-id-1"),
+  createUser: createUserMock,
   issueOtp: vi.fn(async () => "123456"),
 }));
 
@@ -59,7 +64,10 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await db.execute("DELETE FROM rate_limits");
+  await db.execute("DELETE FROM leads");
+  await db.execute("DELETE FROM activity_log");
   sendOtpMock.mockClear();
+  createUserMock.mockClear();
   findUserMock.mockReset();
 });
 
@@ -71,6 +79,11 @@ describe("POST /api/businesses/sign-up — enumeration fix (A07-1)", () => {
     const body = await res.json();
     expect(body).toEqual({ ok: true, otp_sent: true });
     expect(sendOtpMock).not.toHaveBeenCalled();
+    expect(createUserMock).not.toHaveBeenCalled();
+    const leadRows = await db.execute("SELECT COUNT(*) AS n FROM leads");
+    expect(Number(leadRows.rows[0].n)).toBe(0);
+    const logRows = await db.execute("SELECT COUNT(*) AS n FROM activity_log");
+    expect(Number(logRows.rows[0].n)).toBe(0);
   });
 
   it("returns the same shape for a fresh email (and does send the OTP)", async () => {
