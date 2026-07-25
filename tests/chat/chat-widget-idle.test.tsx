@@ -75,6 +75,29 @@ describe("ChatWidget idle panel", () => {
     expect(screen.getByRole("link", { name: /disclaimer/i }).getAttribute("href")).toBe("/terms");
   });
 
+  it("shows an accessible unread cue on the floating button once the teaser fires", async () => {
+    const { ChatWidget } = await import("@/components/chat/ChatWidget");
+    render(<ChatWidget />);
+
+    // Before any scroll, the floating button's label carries no unread cue.
+    expect(screen.getByRole("button", { name: "Chat with Omar" })).toBeTruthy();
+
+    // Drive the existing 30%-scroll-depth trigger (unchanged logic in
+    // ChatWidget) by giving jsdom a scrollable document, then dispatching a
+    // scroll event past the 0.3 threshold.
+    Object.defineProperty(document.documentElement, "scrollHeight", {
+      configurable: true,
+      value: 2000,
+    });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 1000 });
+    Object.defineProperty(window, "scrollY", { configurable: true, value: 400 });
+    fireEvent.scroll(window);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Chat with Omar — 1 new message" })).toBeTruthy(),
+    );
+  });
+
   it("does not render at all on admin routes", async () => {
     pathnameMock.mockReturnValue("/admin/leads");
     const { ChatWidget } = await import("@/components/chat/ChatWidget");

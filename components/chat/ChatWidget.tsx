@@ -448,14 +448,18 @@ export function ChatWidget() {
       <AnimatePresence>
         {!isOpen && (
           <motion.button
-            className="gto-floating-action relative fixed bottom-6 right-6 h-14 w-14 rounded-full gold-gradient shadow-lg shadow-gold/30 flex items-center justify-center text-white z-50 hover:shadow-xl transition-all"
+            className="gto-floating-action fixed bottom-6 right-6 h-14 w-14 rounded-full gold-gradient shadow-lg shadow-gold/30 flex items-center justify-center text-white z-50 hover:shadow-xl transition-all"
             onClick={handleOpen}
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
             whileHover={{ scale: 1.05 }}
-            aria-label="Chat with Omar"
-            title="Chat with Omar"
+            aria-label={
+              showTeaser && !teaserDismissed ? "Chat with Omar — 1 new message" : "Chat with Omar"
+            }
+            title={
+              showTeaser && !teaserDismissed ? "Chat with Omar — 1 new message" : "Chat with Omar"
+            }
           >
             <MessageCircle className="h-6 w-6" strokeWidth={2} />
             {showTeaser && !teaserDismissed && (
@@ -493,7 +497,7 @@ export function ChatWidget() {
 
             <button onClick={handleOpen} className="w-full text-left flex gap-3 p-4 pr-9">
               <MessageCircle className="h-6 w-6 text-gold flex-shrink-0 mt-0.5" strokeWidth={2} />
-              <p className="text-sm text-white leading-relaxed">{teaserVariant.text}</p>
+              <span className="block text-sm text-white leading-relaxed">{teaserVariant.text}</span>
             </button>
           </motion.div>
         )}
