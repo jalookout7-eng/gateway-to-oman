@@ -26,7 +26,7 @@ vi.mock("@/lib/db/client", () => ({
   getDb: () => db,
 }));
 
-const sendOtpMock = vi.fn(async () => undefined);
+const sendOtpMock = vi.fn(async (..._args: unknown[]) => undefined);
 vi.mock("@/lib/email/otp", () => ({
   sendOtpEmail: (...args: unknown[]) => sendOtpMock(...args),
 }));

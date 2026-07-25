@@ -29,12 +29,14 @@ export function LeadCaptureForm({
   const [countryCode, setCountryCode] = useState("+971");
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email) return;
 
     setSubmitting(true);
+    setError(null);
     try {
       const res = await fetch("/api/leads", {
         method: "POST",
@@ -52,7 +54,16 @@ export function LeadCaptureForm({
 
       if (res.ok) {
         onSubmit({ name, email, phone, countryCode });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(
+          res.status === 429
+            ? "Too many requests. Please wait a moment and try again."
+            : (data.error ?? "Something went wrong. Please try again.")
+        );
       }
+    } catch {
+      setError("Connection error. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -98,6 +109,7 @@ export function LeadCaptureForm({
           className="flex-1"
         />
       </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
       <Button
         type="submit"
         variant="gold"

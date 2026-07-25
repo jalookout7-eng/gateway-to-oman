@@ -11,14 +11,23 @@ export function ReviewerLinkCard() {
   const [url, setUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [shuffling, setShuffling] = useState(false);
+  // null = still loading, false = failed/forbidden (render nothing), true = ok
+  const [ok, setOk] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/reviewer-link", { headers: authHeaders(), credentials: "include" })
-      .then((r) => r.json())
-      .then((data) => {
-        if (typeof data.url === "string") setUrl(data.url);
+      .then((r) => {
+        if (!r.ok) {
+          setOk(false);
+          return null;
+        }
+        setOk(true);
+        return r.json();
       })
-      .catch(() => undefined);
+      .then((data) => {
+        if (data && typeof data.url === "string") setUrl(data.url);
+      })
+      .catch(() => setOk(false));
   }, []);
 
   async function copy() {
@@ -49,6 +58,11 @@ export function ReviewerLinkCard() {
       setShuffling(false);
     }
   }
+
+  // The endpoint 403s for non-owner admins (intended — owner-only surface).
+  // Render nothing rather than a spinner that never resolves into a card
+  // they can't use anyway.
+  if (ok === false) return null;
 
   return (
     <div className="rounded-xl bg-white ring-1 ring-gray-200 shadow-sm p-5">
