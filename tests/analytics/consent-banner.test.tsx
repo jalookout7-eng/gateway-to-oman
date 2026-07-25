@@ -8,10 +8,24 @@ vi.mock("next/navigation", () => ({
   usePathname: () => pathnameMock(),
 }));
 
+// jsdom does not implement ResizeObserver. Stub a minimal version so the
+// component's self-measuring effect can construct and use one without
+// throwing — the test only relies on the ONE synchronous height write the
+// component makes on mount (see ConsentBanner.tsx), never on this stub
+// actually firing a resize callback.
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
 beforeEach(() => {
   localStorage.clear();
   document.body.className = "";
+  document.body.style.cssText = "";
   pathnameMock.mockReturnValue("/");
+  (globalThis as unknown as { ResizeObserver: typeof ResizeObserverStub }).ResizeObserver =
+    ResizeObserverStub;
 });
 
 afterEach(cleanup);
@@ -70,5 +84,36 @@ describe("ConsentBanner", () => {
     await waitFor(() => expect(document.body.classList.contains("consent-banner-open")).toBe(true));
     fireEvent.click(screen.getByRole("button", { name: /^accept$/i }));
     await waitFor(() => expect(document.body.classList.contains("consent-banner-open")).toBe(false));
+  });
+
+  it("publishes the measured banner height as --consent-banner-h while visible, and clears it after a choice", async () => {
+    render(<ConsentBanner />);
+    await waitFor(() => screen.getByRole("region", { name: /cookie consent/i }));
+    // The component sets this once synchronously on mount (in addition to
+    // wiring up a ResizeObserver for later changes), so it's observable
+    // here even though the ResizeObserverStub never fires a callback.
+    await waitFor(() =>
+      expect(document.body.style.getPropertyValue("--consent-banner-h")).not.toBe(""),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /^decline$/i }));
+    await waitFor(() =>
+      expect(document.body.style.getPropertyValue("--consent-banner-h")).toBe(""),
+    );
+  });
+
+  it("shows again once a stored choice is older than the 12-month max age", async () => {
+    const THIRTEEN_MONTHS_MS = 13 * 30 * 24 * 60 * 60 * 1000;
+    localStorage.setItem(
+      CONSENT_STORAGE_KEY,
+      JSON.stringify({
+        value: "granted",
+        at: new Date(Date.now() - THIRTEEN_MONTHS_MS).toISOString(),
+      }),
+    );
+    render(<ConsentBanner />);
+    await waitFor(() => expect(screen.getByRole("region", { name: /cookie consent/i })).toBeTruthy());
+    expect(screen.getByRole("button", { name: /^accept$/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^decline$/i })).toBeTruthy();
   });
 });

@@ -37,7 +37,12 @@
 
 /* Consent banner (spec 2026-07-25): lift the floating actions clear of the
    bar while it is visible, so it can never cover the chat/WhatsApp buttons
-   on mobile. Removed the moment a choice is made. */
+   on mobile. --consent-banner-h is written by ConsentBanner.tsx's
+   ResizeObserver to the banner's real measured height (it wraps to 2-3
+   lines on narrow phones), so the lift tracks reality instead of a
+   hardcoded guess; the 6.5rem fallback only applies before the first
+   measurement lands. Both the class and the property are removed the
+   moment a choice is made. */
 body.consent-banner-open .gto-floating-action {
-  bottom: 6.5rem;
+  bottom: calc(var(--consent-banner-h, 6.5rem) + 0.75rem);
 }
