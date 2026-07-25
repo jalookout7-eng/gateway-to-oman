@@ -15,9 +15,9 @@
  *   - `chat_opened`              when Omar floating button is opened
  *   - `listing_view`             when a listing detail page loads
  *
- * Once consent banner ships (currently deferred — see GoogleAnalytics.tsx)
- * these calls will respect `analytics_storage` consent automatically — gtag
- * buffers events until consent is granted.
+ * The consent banner is live (see GoogleAnalytics.tsx) and gtag respects
+ * `analytics_storage` automatically, so these calls need no per-call
+ * consent guard.
  */
 
 type GtagWindow = Window & {

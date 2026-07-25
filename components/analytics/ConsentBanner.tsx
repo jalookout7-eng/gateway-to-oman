@@ -60,7 +60,14 @@ export function ConsentBanner() {
     if (el && typeof ResizeObserver !== "undefined") {
       observer = new ResizeObserver((entries) => {
         const entry = entries[0];
-        if (entry) setHeight(entry.contentRect.height);
+        if (!entry) return;
+        // borderBoxSize, NOT contentRect: contentRect excludes padding
+        // (this banner's py-3), so it undercounts the real height by
+        // ~24px — and since real browsers fire this callback right after
+        // observe(), that wrong value would immediately overwrite the
+        // correct getBoundingClientRect() write below.
+        const height = entry.borderBoxSize?.[0]?.blockSize ?? el.getBoundingClientRect().height;
+        setHeight(height);
       });
       observer.observe(el);
     }
