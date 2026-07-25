@@ -2,7 +2,12 @@
 
 import Script from "next/script";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
+import {
+  effectiveConsent,
+  CONSENT_CHANGE_EVENT,
+  type ConsentValue,
+} from "@/lib/analytics/consent";
 
 /**
  * Google Analytics 4 (Notes 7).
@@ -17,12 +22,13 @@ import { Suspense, useEffect } from "react";
  * component renders nothing — safe to commit + deploy with no value set;
  * the integration "turns on" the moment the env var lands and is redeployed.
  *
- * Consent banner — DEFERRED (Notes 7 — JA "later, but priority"). Once the
- * banner ships, the gating pattern is:
- *   1. Initialise gtag with Consent Mode v2 defaults (analytics_storage='denied')
- *   2. On Accept click, call `gtag('consent', 'update', {analytics_storage:'granted'})`
- * The current component fires events unconditionally — known compliance gap
- * documented in HANDOVER §11.
+ * Consent is live via `lib/analytics/consent.ts` (spec
+ * 2026-07-25-consent-banner-design.md). Opt-out by default: with no stored
+ * choice, gtag loads with Consent Mode v2 defaults reflecting
+ * `CONSENT_DEFAULT`, and the banner asks. Decline stops collection
+ * immediately via `gtag('consent', 'update', ...)` — but the script itself
+ * cannot be unloaded mid-session once it's on the page; it simply never
+ * loads again on subsequent page loads.
  *
  * Pages/sections listed in EXCLUDED_PATHS are excluded entirely (gtag.js
  * never loads there) so their usage doesn't pollute visitor analytics — the
@@ -39,12 +45,36 @@ const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
 const EXCLUDED_PATHS = ["/admin"];
 
-const isExcludedRoute = (pathname: string | null) => {
+export const isExcludedRoute = (pathname: string | null) => {
   if (!pathname) return false;
   return EXCLUDED_PATHS.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`)
   );
 };
+
+/**
+ * The gtag bootstrap. Consent Mode v2 defaults are set BEFORE `config` —
+ * that ordering is the whole point: gtag applies the defaults to everything
+ * that follows, so a denied default never collects. Ad storage is denied
+ * unconditionally; this property runs no ads product.
+ */
+export function buildGtagInit(gaId: string, analyticsStorage: ConsentValue): string {
+  return `
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    window.gtag = gtag;
+    gtag('consent', 'default', {
+      analytics_storage: '${analyticsStorage}',
+      ad_storage: 'denied',
+      ad_user_data: 'denied',
+      ad_personalization: 'denied'
+    });
+    gtag('js', new Date());
+    // page_path is set per-event by GoogleAnalyticsInner so we don't
+    // also fire it here on the initial config call.
+    gtag('config', '${gaId}', { send_page_view: false });
+  `;
+}
 
 function GoogleAnalyticsInner() {
   const pathname = usePathname();
@@ -72,7 +102,31 @@ function GoogleAnalyticsInner() {
 
 export function GoogleAnalytics() {
   const pathname = usePathname();
+  // null = not yet read (pre-mount). localStorage is unavailable during SSR,
+  // so consent is resolved in an effect; rendering scripts before that would
+  // desync hydration.
+  const [consent, setConsent] = useState<ConsentValue | null>(null);
+
+  useEffect(() => {
+    setConsent(effectiveConsent());
+    const onChange = (e: Event) => {
+      const next = (e as CustomEvent<ConsentValue>).detail;
+      setConsent(next);
+      // Tell gtag immediately if it is already on the page. The script itself
+      // cannot be unloaded mid-session — this stops collection now, and the
+      // tag simply never loads on subsequent page loads.
+      const w = window as unknown as { gtag?: (...args: unknown[]) => void };
+      if (typeof w.gtag === "function") {
+        w.gtag("consent", "update", { analytics_storage: next });
+      }
+    };
+    window.addEventListener(CONSENT_CHANGE_EVENT, onChange);
+    return () => window.removeEventListener(CONSENT_CHANGE_EVENT, onChange);
+  }, []);
+
   if (!GA_ID || isExcludedRoute(pathname)) return null;
+  if (consent === null || consent === "denied") return null;
+
   return (
     <>
       <Script
@@ -82,17 +136,7 @@ export function GoogleAnalytics() {
       <Script
         id="gtag-init"
         strategy="afterInteractive"
-        dangerouslySetInnerHTML={{
-          __html: `
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            window.gtag = gtag;
-            gtag('js', new Date());
-            // page_path is set per-event by GoogleAnalyticsInner so we don't
-            // also fire it here on the initial config call.
-            gtag('config', '${GA_ID}', { send_page_view: false });
-          `,
-        }}
+        dangerouslySetInnerHTML={{ __html: buildGtagInit(GA_ID, consent) }}
       />
       {/* useSearchParams() requires a Suspense boundary in the App Router. */}
       <Suspense fallback={null}>
