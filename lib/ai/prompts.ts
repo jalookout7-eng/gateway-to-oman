@@ -332,18 +332,24 @@ const TEASER_VARIANTS: Record<string, string[]> = {
 };
 
 /**
- * Pick a teaser variant for the given section. Returns the displayed text and
- * a stable variantId we persist with the conversation. Visitor sees one of
- * up to 5 variants per page; we accumulate which ones convert.
+ * The teaser shown above the Omar button.
+ *
+ * 2026-07-26: the 5-variant A/B rotation is SUSPENDED in favour of one fixed
+ * line (AWS-style widget redesign, JA's approved copy). The variant id keeps
+ * the `<surface>-<n>` shape so `conversations.hook_variant_id` and the
+ * conversion query in HANDOVER §Hook A/B keep working, and earlier variant
+ * data stays comparable. TEASER_VARIANTS below is intentionally left in place
+ * for when the experiment resumes — do not delete it.
  */
+export const AWS_TEASER_TEXT =
+  "Hi, I can connect you with a GTO representative or answer questions you have on your move to Oman or business search in Oman.";
+
 export function pickTeaserVariant(section?: string): {
   text: string;
   variantId: string;
 } {
   const key = section ?? "default";
-  const variants = TEASER_VARIANTS[key] ?? TEASER_VARIANTS.default;
-  const index = Math.floor(Math.random() * variants.length);
-  return { text: variants[index], variantId: `${key}-${index + 1}` };
+  return { text: AWS_TEASER_TEXT, variantId: `${key}-aws-1` };
 }
 
 /**
