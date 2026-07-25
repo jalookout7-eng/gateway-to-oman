@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyOtp, findUserByEmail, createMarketplaceSession, marketplaceCookieOptions, MARKETPLACE_SESSION_COOKIE } from "@/lib/auth/marketplace";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  // A04-2: IP-level cap so per-OTP attempt limits can't be reset by re-issuance.
+  const ip = getClientIp(request);
+  const rl = await rateLimit("verify_otp", ip, 20, 600);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+    );
+  }
+
   const body = await request.json().catch(() => ({}));
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const code = typeof body.code === "string" ? body.code.trim() : "";
@@ -26,7 +37,6 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
   const userAgent = request.headers.get("user-agent");
   const token = await createMarketplaceSession(user.id, ip, userAgent);
 
