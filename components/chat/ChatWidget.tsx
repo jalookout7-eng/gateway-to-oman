@@ -14,6 +14,7 @@ import { useChatModal, type ChatModalConfig } from "@/lib/context/ChatModalConte
 import { useVisualViewportHeight } from "@/lib/chat/use-visual-viewport";
 import { WhatsAppHandoffButton } from "./WhatsAppHandoffButton";
 import { trackEvent } from "@/lib/analytics/track";
+import { markChatEngaged } from "@/lib/intake/popup";
 import { MessageCircle, CalendarDays, MessageSquare, Minus } from "lucide-react";
 
 const CALENDLY_URL = "https://calendly.com/alazizi/30min";
@@ -168,6 +169,10 @@ export function ChatWidget() {
   ]);
 
   const handleOpen = useCallback(() => {
+    // A visitor who opens Omar is already engaged: suppress the timed
+    // intake popup for the rest of this session so a modal form never
+    // lands on top of a live conversation.
+    markChatEngaged();
     setIsOpen(true);
     trackEvent("chat_opened", {
       surface: resolveSurface(pathname ?? "/").page,

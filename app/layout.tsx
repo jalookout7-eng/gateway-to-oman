@@ -5,6 +5,7 @@ import { ChatModalProvider } from "@/lib/context/ChatModalContext";
 import { WhatsAppFloatingButton } from "@/components/chat/WhatsAppFloatingButton";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import { ConsentBanner } from "@/components/analytics/ConsentBanner";
+import { IntakePopup } from "@/components/intake/IntakePopup";
 import "./globals.css";
 
 const bodoniModa = Bodoni_Moda({
@@ -59,6 +60,10 @@ export default function RootLayout({
             analytics via Consent Mode v2 — see lib/analytics/consent.ts. */}
         <GoogleAnalytics />
         <ConsentBanner />
+        {/* Timed intake popup (spec 2026-07-26). Mounted globally like the
+            consent banner; it gates itself to "/" and "/businesses" and
+            renders nothing anywhere else, including /admin. */}
+        <IntakePopup />
       </body>
     </html>
   );
