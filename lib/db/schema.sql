@@ -537,3 +537,23 @@ CREATE TABLE IF NOT EXISTS lead_notes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_lead_notes_lead ON lead_notes(lead_id, created_at);
+
+-- ---------------------------------------------------------------------------
+-- Intake form fields (spec 2026-07-26, plan 2026-07-27)
+--
+-- Additive and nullable: existing rows keep NULL, and `npm run migrate`
+-- skips "duplicate column" errors so re-running is safe. First-class
+-- columns rather than one JSON blob, so every answer is filterable.
+--
+-- services_needed is the one exception: it is genuinely multi-value, so it
+-- stores a JSON array of strings (read it with JSON.parse, defaulting to []).
+-- country_of_residence is distinct from country_code, which is a dial code
+-- (+968) rendered beside the phone number.
+-- ---------------------------------------------------------------------------
+ALTER TABLE leads ADD COLUMN country_of_residence TEXT;
+ALTER TABLE leads ADD COLUMN investment_timeline TEXT;
+ALTER TABLE leads ADD COLUMN investment_purpose TEXT;
+ALTER TABLE leads ADD COLUMN preferred_location TEXT;
+ALTER TABLE leads ADD COLUMN residency_interest TEXT;
+ALTER TABLE leads ADD COLUMN services_needed TEXT;
+ALTER TABLE leads ADD COLUMN additional_comments TEXT;
