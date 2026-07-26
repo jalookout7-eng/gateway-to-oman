@@ -7,6 +7,7 @@ import { ChatMessages, type Message } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
 import { LeadCaptureForm } from "./LeadCaptureForm";
 import { ChatIdlePanel } from "@/components/chat/ChatIdlePanel";
+import { ChatHeaderMenu } from "@/components/chat/ChatHeaderMenu";
 import { getContextualGreeting, pickTeaserVariant } from "@/lib/ai/prompts";
 import { resolveSurface } from "@/lib/ai/surface";
 import { useChatModal, type ChatModalConfig } from "@/lib/context/ChatModalContext";
@@ -111,6 +112,11 @@ export function ChatWidget() {
   const [keepChatActive, setKeepChatActive] = useState(false);
   const [keepChatExchanges, setKeepChatExchanges] = useState(0);
   const [showHotLeadCtas, setShowHotLeadCtas] = useState(false);
+  // Set by the header menu's "Connect with a representative" action so
+  // Task 5 can label the resulting lead `connect` instead of hot/warm/cold.
+  // Reset on close-session and after a successful capture (see
+  // handleLeadSubmit / handleCloseSession below).
+  const [connectRequested, setConnectRequested] = useState(false);
 
   const [teaserVariant] = useState(() =>
     pickTeaserVariant(resolveSurface(pathname ?? "/").page),
@@ -395,6 +401,9 @@ export function ChatWidget() {
   const handleLeadSubmit = useCallback(() => {
     setLeadCaptured(true);
     setShowCaptureForm(false);
+    // Successful capture consumes the connect-menu request — Task 5 only
+    // needs it to label THIS lead `connect`; it shouldn't leak forward.
+    setConnectRequested(false);
     trackEvent("lead_submit", {
       surface: resolveSurface(pathname ?? "/").page,
       hook_variant: teaserVariant.variantId,
@@ -431,6 +440,47 @@ export function ChatWidget() {
     },
     [logEvent],
   );
+
+  // Header-menu "Connect with a representative" — skips Omar's opt-in
+  // prompt (notes #14's "no surprise modal" doesn't apply here: the visitor
+  // explicitly asked for a human) and jumps straight to the capture form.
+  // Mirrors the existing handleCaptureDecision(true) path so both never
+  // show at once.
+  const handleConnectRequest = useCallback(() => {
+    setShowCapturePrompt(false);
+    setShowCaptureForm(true);
+    setConnectRequested(true);
+  }, []);
+
+  // Header-menu "Close session" — deliberately more destructive than the
+  // minimize (Minus) button, which only hides the widget and preserves
+  // everything. This ENDS the conversation so the next open starts clean
+  // on the idle panel: message history, conversation id, every
+  // capture/post-capture/hot-lead flag, and the per-conversation signals
+  // that feed the next lead capture (segment/interest) or gate the input
+  // (isClosed) or would otherwise leak into a "fresh" session (whatsappUrl,
+  // exchangeCount, chatContext, connectRequested) all get wiped.
+  const handleCloseSession = useCallback(() => {
+    setMessages([]);
+    setConversationId(null);
+    setIsClosed(false);
+    setIsTyping(false);
+    setExchangeCount(0);
+    setWhatsappUrl(null);
+    setDetectedSegment(null);
+    setDetectedInterest(null);
+    setChatContext(null);
+    setShowCapturePrompt(false);
+    setCaptureDeferred(false);
+    setShowCaptureForm(false);
+    setLeadCaptured(false);
+    setShowPostCaptureChoice(false);
+    setKeepChatActive(false);
+    setKeepChatExchanges(0);
+    setShowHotLeadCtas(false);
+    setConnectRequested(false);
+    setIsOpen(false);
+  }, []);
 
   const handleWhatsAppClick = useCallback(() => {
     logEvent("whatsapp_click");
@@ -532,9 +582,10 @@ export function ChatWidget() {
                 {/* Header */}
                 <div className="bg-navy px-4 py-3.5 flex items-center justify-between flex-shrink-0 border-b-2 border-gold/60">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-9 w-9 rounded-full gold-gradient flex items-center justify-center flex-shrink-0">
-                      <MessageCircle className="h-4 w-4 text-white" />
-                    </div>
+                    <ChatHeaderMenu
+                      onConnect={handleConnectRequest}
+                      onCloseSession={handleCloseSession}
+                    />
                     <div className="leading-tight min-w-0">
                       <p className="text-white font-semibold text-sm truncate">Ask Omar</p>
                       <p className="text-white/70 text-xs flex items-center gap-1.5">
