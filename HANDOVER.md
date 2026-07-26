@@ -13,17 +13,17 @@
 
 ---
 
-## Status — June 27, 2026
+## Status — July 27, 2026
 
 | | |
 |---|---|
-| **Live URLs** | <https://gatewaytooman.com> · <https://www.gatewaytooman.com> |
-| **Latest production deploy** | `dpl_AYwncWcPRSz78mgaBLQzG1Ex8dbH` (GA4 `/admin` exclusion, 2026-07-21) |
-| **Awaiting JA click-test → prod** | SIX features built + reviewed, none live: (1) mobile nav bottom sheet + PWA loading — ON PREVIEW (`12c12fb`..`3142737`); (2) Batch 16 security hardening (`7301704`..`cc36d5c`); (3) GA4 consent banner + rewritten legal pages (`88b1b2f`..`69cea3c`); (4) Omar widget AWS-style redesign (`6e165eb`..`b5755f5`); (5) mobile + chat polish (`6e78749`..`a3d2f78`); (6) intake form + timed popup (`7f8c305`..`626faeb`). (2)-(6) are not deployed anywhere, not even preview. **Deploy plan: run `npm run migrate` FIRST (intake columns), then one `vercel deploy --yes` preview → click-test the widget, banner, intake page and popup on mobile AND desktop → one `vercel deploy --prod --yes`.** |
-| **Latest commit on `section-b-marketplace`** | `626faeb` (LOCAL ONLY — origin is at `f2c2786`; ~67 commits unpushed, git credential needs fixing, see item Q) |
+| **Live URLs** | <https://gatewaytooman.com> · <https://www.gatewaytooman.com> (apex 307-redirects to www, longstanding and correct) |
+| **Latest production deploy** | `dpl_GMqimqryvFWNEAFhgMFfysefupwa` (2026-07-27) — **the six-feature backlog is now LIVE**. Verified post-deploy: `/`, `/businesses`, `/intake`, `/privacy` all 200, and `/intake` renders the form. |
+| **Backlog cleared** | Everything that had stacked up since 2026-07-21 shipped in this one deploy: mobile nav + PWA loading, Batch 16 security hardening, GA4 consent banner + rewritten legal pages, Omar AWS-style redesign, mobile + chat polish, intake form + timed popup. |
+| **Latest commit on `section-b-marketplace`** | `11e89d4` — **pushed. 0 unpushed commits.** Item Q is closed: 69 commits landed (`f2c2786..11e89d4`) on 2026-07-27 using a one-time PAT. The PAT was never written to `.git/config` (verified) and JA was told to revoke it. |
 | **Repo** | <https://github.com/jalookout7-eng/gateway-to-oman> (private) |
 | **Active branch** | `section-b-marketplace` (production deploys from here; `master` ~140 commits behind — consider making this the GitHub default branch) |
-| **Tests** | 391/391 passing across 57 files (component tests supported via @vitejs/plugin-react) |
+| **Tests** | 400/400 passing across 57 files (component tests supported via @vitejs/plugin-react) |
 | **Build** | clean, 88 routes · `tsc --noEmit` has 3 pre-existing test-file errors (not 2 as previously noted) |
 
 What's running: Next.js 14.2 App Router on Vercel Pro, Anthropic Haiku 4.5 (Groq Llama 3.3 70B failover), Turso libSQL in Tokyo region, Resend transactional email (gatewaytooman.com domain verified), Cloudflare R2 for listing media (presigned direct-to-R2 uploads — browser uploads straight to R2, bypassing Vercel), Web Push notifications (VAPID), Google OAuth for marketplace sign-in, GA4 live in production since 2026-07-04 (measurement ID set in Vercel); `/admin/*` excluded from tracking as of 2026-07-21.
@@ -167,8 +167,10 @@ This keeps in-progress work isolated until reviewed. Use it for any change touch
 | ~~**M**~~ | ~~Consent banner sub-batch~~ | Done (build) | **BUILT 2026-07-25** (commits `88b1b2f`..`69cea3c`), awaiting the item-P deploy. Consent Mode v2, **opt-out model per JA**: analytics runs from arrival, Decline switches it off (sets `ga-disable-*` + `consent update`, and gtag never loads on later page loads), choice kept 12 months. `CONSENT_DEFAULT` in `lib/analytics/consent.ts` is a **one-line flip to opt-in** if the lawyer (item I) requires it. **`/privacy` and `/cookies` were rewritten in the same batch** — they previously said we used only strictly-necessary cookies and had a section titled "Why we don't show a consent banner today", both false since GA went live 2026-07-04. Send the updated pages to the lawyer with item I. |
 | **N** | Confirm sign-up enumeration trade-off (security audit A07-1) | 30 sec | The fix removes the "An account with that email exists" 409 error and returns a generic 200 instead. OWASP-recommended; slight UX downgrade for "I forgot I had an account" case. JA confirmed proceeding with the secure version — captured here so the decision isn't re-litigated. |
 | **O** | Click-test Vercel preview of Batch 17 (CSP + magic-byte sniff + topic allowlist + cron HTML escape + Resend masking) before promoting to prod | 10 min | CSP can visually break things if allowlist is wrong. Preview-deploy review is the gate before prod. JA-only action. |
-| **P** | Finish mobile-nav preview click-test → approve prod | 5 min | Preview deployed 2026-07-25. JA already confirmed via WhatsApp in-app browser: bottom nav (Dashboard/Leads/Listings/Inquiries/Menu), sheet, gold active state all working. Remaining: PWA cold-open (pulsing logo), sheet-to-nav fit (~3px strip possible), Escape/backdrop dismiss. Then `vercel deploy --prod --yes`. Note: push-notification chip is NOT removed — it hides in browsers without web-push support (e.g. WhatsApp in-app browser); visible in Safari/PWA. |
-| **Q** | Fix git push credential + push 9 local commits | 5 min | Origin stuck at `f2c2786`; everything since (specs, plans, mobile-nav feature, line-ending normalization) is local-only. Keychain credential invalid; one-time PATs were revoked after use. Until pushed, GitHub is NOT a backup of current work. |
+| ~~**P**~~ | ~~Click-test → approve prod~~ | Done | **DONE 2026-07-27.** All six features click-tested on preview and promoted to production (`dpl_GMqimqryvFWNEAFhgMFfysefupwa`). Note: push-notification chip is NOT removed — it hides in browsers without web-push support (e.g. WhatsApp in-app browser); visible in Safari/PWA. |
+| ~~**Q**~~ | ~~Fix git push credential~~ | Done | **DONE 2026-07-27.** 69 commits pushed (`f2c2786..11e89d4`) with a one-time PAT supplied by JA, used inline and never written to `.git/config` (verified after). GitHub is a real backup again. **The underlying keychain credential is still broken** — the next session will need another one-time PAT unless JA fixes it. Worth doing properly: a credential in Keychain, or `gh auth login`. |
+| **R** | Revoke the 2026-07-27 PAT | 1 min | The token was pasted into a chat transcript and has push access to a private repo. Revoke at GitHub → Settings → Developer settings → Fine-grained tokens, if not already done. |
+| **S** | Decide what AI Summary should do for `/intake` leads | 15 min | **JA flagged this 2026-07-27 and deferred it deliberately.** Intake leads have no conversation, so `/api/intake` passes the structured answers into `summariseLead()`'s transcript slot. That prompt was written to summarise an Omar chat, so the output may read oddly for form data (it expects VISITOR/OMAR turns). Options: (a) leave it, (b) a separate intake-specific prompt, (c) skip the AI summary entirely for intake leads, since the detail page already shows every answer verbatim in the Investment Profile card and the summary may add nothing. **Look at a few real intake summaries in `/admin/leads` before choosing.** |
 
 ### Queued build pipeline (specs approved + committed 2026-07-25, in `docs/superpowers/specs/`)
 
@@ -176,11 +178,11 @@ Agreed execution order. Each gets its implementation plan written just-in-time b
 
 | # | Project | Status | Notes |
 |---|---|---|---|
-| 1 | Mobile nav bottom sheet + PWA loading | **BUILT — on preview** (item P) | Plan: `docs/superpowers/plans/2026-07-25-mobile-admin-nav-and-pwa-loading.md`. 202/202 tests. |
-| 2 | Batch 16 security hardening (2 HIGH + 4 MED) | **BUILT — awaiting deploy with item P** | 11 commits `7301704`..`cc36d5c`. All 6 audit findings closed + fix wave. Plan: `docs/superpowers/plans/2026-07-25-batch16-security-hardening.md`. 229/229 tests. Ships in the SAME prod deploy as the mobile nav. |
-| 3 | GA4 consent banner (Consent Mode v2, opt-out model) | **BUILT — awaiting deploy with item P** (9 commits `88b1b2f`..`69cea3c`) | `2026-07-25-consent-banner-design.md`. JA decision: undecided visitors ARE tracked; Decline kills GA. Default is a one-line flip if lawyer review (item I) demands opt-in. Closes item M. |
-| 4 | Omar chat widget AWS-style redesign | **BUILT — awaiting deploy with item P** (6 commits `6e165eb`..`b5755f5`) | `2026-07-25-chat-widget-aws-redesign-design.md`. Fixed teaser copy SUSPENDS the 5-variant hook A/B experiment (tracked as `<surface>-aws-1`). Button keeps current design; GTO navy/gold. |
-| 5 | Intake form page + timed popup | **BUILT — awaiting deploy with item P** (5 commits `7f8c305`..`626faeb`) | Plan: `docs/superpowers/plans/2026-07-27-intake-form-and-popup.md`. 391/391 tests. ⚠️ **`npm run migrate` must run against production Turso before the deploy** — the seven new `leads` columns do not exist there yet. Brief + decisions in the section below the table; deviations recorded in the v9.2 changelog. |
+| 1 | Mobile nav bottom sheet + PWA loading | **LIVE 2026-07-27** | Plan: `docs/superpowers/plans/2026-07-25-mobile-admin-nav-and-pwa-loading.md`. 202/202 tests. |
+| 2 | Batch 16 security hardening (2 HIGH + 4 MED) | **LIVE 2026-07-27** | 11 commits `7301704`..`cc36d5c`. All 6 audit findings closed + fix wave. Plan: `docs/superpowers/plans/2026-07-25-batch16-security-hardening.md`. 229/229 tests. Ships in the SAME prod deploy as the mobile nav. |
+| 3 | GA4 consent banner (Consent Mode v2, opt-out model) | **LIVE 2026-07-27** (9 commits `88b1b2f`..`69cea3c`) | `2026-07-25-consent-banner-design.md`. JA decision: undecided visitors ARE tracked; Decline kills GA. Default is a one-line flip if lawyer review (item I) demands opt-in. Closes item M. |
+| 4 | Omar chat widget AWS-style redesign | **LIVE 2026-07-27** (6 commits `6e165eb`..`b5755f5`) | `2026-07-25-chat-widget-aws-redesign-design.md`. Fixed teaser copy SUSPENDS the 5-variant hook A/B experiment (tracked as `<surface>-aws-1`). Button keeps current design; GTO navy/gold. |
+| 5 | Intake form page + timed popup | **LIVE 2026-07-27** (6 commits `7f8c305`..`11e89d4`) | Plan: `docs/superpowers/plans/2026-07-27-intake-form-and-popup.md`. 400/400 tests. Migration applied to production 2026-07-27 (seven `leads` columns + the `intake` qualification option, both verified live). Brief + decisions in the section below the table; deviations recorded in the v9.2 changelog. |
 
 ### Intake form + popup — full brief (JA decisions, 2026-07-26)
 
@@ -195,7 +197,7 @@ Agreed execution order. Each gets its implementation plan written just-in-time b
 
 **2. `/intake` page** — a standalone, shareable link for Ahmed to send directly to prospects.
 
-**3. Timed popup** — fires at **15 seconds** on-site. Scope is narrow and deliberate:
+**3. Timed popup** — fires at **8 seconds** on-site (was 15; JA shortened it 2026-07-27). Scope is narrow and deliberate:
 - ONLY on the main site homepage (`gatewaytooman.com/`) and the marketplace home (`/businesses`).
 - NOT on any other page, and never on `/admin`.
 - Dismissal lasts the **session only** (reappears on a later visit).
@@ -203,7 +205,7 @@ Agreed execution order. Each gets its implementation plan written just-in-time b
 
 **4. Admin lead detail — merge, don't duplicate.** JA: "the previous developer had thought through the design well in the admin backend as well. just click on a lead and get all the additional information of the lead." Requirement: clicking a lead opens a **separate detail page** showing everything about that lead, the way the ex-developer's dashboard did it. Merge whatever maps onto what already exists (conversations, segment, qualification, status, notes timeline, AI summary); anything that does not map becomes a new field displayed on that page. Study `~/Downloads/gateway_to_oman_dashboard`'s client-detail route before designing this — JA explicitly likes that layout.
 
-**5. Still to decide during planning:** GA events for the new surface; whether intake submissions get their own `source` value (recommend yes, e.g. `source='intake'`, so they are separable from Omar-captured leads in reporting).
+**5. RESOLVED during the build:** intake submissions carry `source='intake'` and their own qualification tier `intake` (labelled "from /intake"), so they are fully separable from Omar-captured leads. GA events shipped as `intake_popup_shown`, `intake_popup_dismissed`, and `intake_submit` (the last carries `location: page | popup`). Remaining open question is the AI summary, item S.
 
 ### Infrastructure gaps identified during 2026-06-28 review
 
@@ -601,9 +603,22 @@ Don't read it for "what to do next" — that's all here.
 
 ---
 
-**Doc version:** v9.2 (intake form + popup BUILT; six features queued for one deploy)
+**Doc version:** v9.3 (six-feature backlog SHIPPED to production; repo pushed; items P and Q closed)
 **Last updated:** July 27, 2026
 **Maintainer:** JA · JALAI
+
+### v9.3 changelog
+- **The whole backlog went live** in one deploy, `dpl_GMqimqryvFWNEAFhgMFfysefupwa`. Six features that had been stacking since 2026-07-21: mobile admin nav + PWA loading, Batch 16 security hardening, GA4 consent banner + rewritten legal pages, Omar AWS-style redesign, mobile + chat polish, and the intake form + popup. Post-deploy checks: `/`, `/businesses`, `/intake`, `/privacy` all 200 on www, and `/intake` renders the form. Closes item P.
+- **Item Q closed.** 69 commits pushed (`f2c2786..11e89d4`). GitHub is a genuine backup again for the first time in weeks. The PAT was passed inline on the push URL and never persisted; `.git/config` was checked afterwards and is clean. **The underlying keychain credential is still broken** — see the revised item Q.
+- **JA click-test round on the intake popup** (all shipped in `11e89d4`):
+  - **The close button was unreachable on a laptop.** Root cause was not the form's length: the dialog was vertically centred (`items-center`), and a centred flex child taller than the viewport overflows ABOVE the scroll origin, so no amount of scrolling reaches its top. Now top-aligned at every width. Worth remembering, this is a recurring modal trap.
+  - Desktop also widened to `sm:max-w-2xl` with tighter padding and a shorter comments box (a CSS height override, because `rows` is not responsive). **Every change is behind `sm:` — JA said the mobile layout was already right, so nothing below 640px moved.**
+  - **Popup delay 15s → 8s.**
+  - **Omar now picks up the visitors the form loses.** Closing the popup without submitting fires a `gto:intake-dismissed` event; the widget shows its teaser 3 seconds later. A successful submit never fires it, so nobody who filled the form in gets chased by a chat prompt.
+  - **Omar is hidden entirely on `/intake`** (no button, no teaser), joining `/businesses/sign-in` and `/businesses/access` in `HIDDEN_PATHS`. Same reasoning: do not put a chat prompt in front of someone already filling a form.
+- **Qualification tiers renamed and split, per JA:** `connect` is now labelled **"from connect"**, and intake leads get their own **`intake`** tier labelled **"from /intake"** (teal, sort order 6). Deliberately two tiers rather than one, because JA named them separately and the leads table is where he sees which inbound route produced a lead. The relabel needed an explicit idempotent `UPDATE` — `INSERT OR IGNORE` cannot change a row that already exists in production. Both verified live.
+- **Open question logged, not resolved: AI Summary for intake leads (item S).** JA: "i'm not sure about AI Summary for /intake leads but leave it for now." The summary prompt was written for chat transcripts and intake leads have none, so the structured answers are passed into the transcript slot. Judge it against real submissions before changing anything.
+- Suite: 391 → **400 tests across 57 files**. tsc baseline unchanged (3 pre-existing). Build clean at 88 routes.
 
 ### v9.2 changelog
 - **Intake form + timed popup BUILT** (commits `7f8c305`..`626faeb`, not deployed). Plan: `docs/superpowers/plans/2026-07-27-intake-form-and-popup.md`. Closes queued pipeline item 5. Three implementers ran in parallel against the plan; the controller held all git so they could not race the index.
