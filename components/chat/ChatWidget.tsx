@@ -10,6 +10,7 @@ import { ChatIdlePanel } from "@/components/chat/ChatIdlePanel";
 import { getContextualGreeting, pickTeaserVariant } from "@/lib/ai/prompts";
 import { resolveSurface } from "@/lib/ai/surface";
 import { useChatModal, type ChatModalConfig } from "@/lib/context/ChatModalContext";
+import { useVisualViewportHeight } from "@/lib/chat/use-visual-viewport";
 import { WhatsAppHandoffButton } from "./WhatsAppHandoffButton";
 import { trackEvent } from "@/lib/analytics/track";
 import { MessageCircle, CalendarDays, MessageSquare, Minus } from "lucide-react";
@@ -117,6 +118,11 @@ export function ChatWidget() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hasTriggeredTeaser = useRef(false);
 
+  // Visible viewport height while the on-screen keyboard is up (else null —
+  // see lib/chat/use-visual-viewport.ts). Overrides the panel's `h-[88dvh]`
+  // only while shrunk, so the input stays above the keyboard.
+  const keyboardHeight = useVisualViewportHeight();
+
   // Scroll trigger — show the teaser bubble at 30% scroll depth
   useEffect(() => {
     function onScroll() {
@@ -152,6 +158,7 @@ export function ChatWidget() {
     showCaptureForm,
     showPostCaptureChoice,
     showHotLeadCtas,
+    keyboardHeight,
   ]);
 
   const handleOpen = useCallback(() => {
@@ -512,6 +519,7 @@ export function ChatWidget() {
               sm:inset-x-auto sm:bottom-6 sm:right-6 sm:top-auto
               sm:w-[380px] sm:h-[600px] sm:max-h-[calc(100dvh-3rem)]
               sm:rounded-2xl sm:border sm:border-gray-200"
+            style={keyboardHeight ? { height: `${keyboardHeight}px`, maxHeight: `${keyboardHeight}px` } : undefined}
             initial={{ opacity: 0, y: 16, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.98 }}
