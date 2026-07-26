@@ -19,12 +19,12 @@
 |---|---|
 | **Live URLs** | <https://gatewaytooman.com> · <https://www.gatewaytooman.com> |
 | **Latest production deploy** | `dpl_AYwncWcPRSz78mgaBLQzG1Ex8dbH` (GA4 `/admin` exclusion, 2026-07-21) |
-| **Awaiting JA click-test → prod** | FOUR features built + reviewed, none live: (1) mobile nav bottom sheet + PWA loading — ON PREVIEW (`12c12fb`..`3142737`); (2) Batch 16 security hardening (`7301704`..`cc36d5c`); (3) GA4 consent banner + rewritten legal pages (`88b1b2f`..`69cea3c`); (4) Omar widget AWS-style redesign (`6e165eb`..`b5755f5`). (2)-(4) are not deployed anywhere, not even preview. **Deploy plan: one `vercel deploy --yes` preview → click-test the widget + banner on mobile AND desktop → one `vercel deploy --prod --yes`.** |
-| **Latest commit on `section-b-marketplace`** | `88290d8` (LOCAL ONLY — origin is at `f2c2786`; ~55 commits unpushed, git credential needs fixing, see item Q) |
+| **Awaiting JA click-test → prod** | SIX features built + reviewed, none live: (1) mobile nav bottom sheet + PWA loading — ON PREVIEW (`12c12fb`..`3142737`); (2) Batch 16 security hardening (`7301704`..`cc36d5c`); (3) GA4 consent banner + rewritten legal pages (`88b1b2f`..`69cea3c`); (4) Omar widget AWS-style redesign (`6e165eb`..`b5755f5`); (5) mobile + chat polish (`6e78749`..`a3d2f78`); (6) intake form + timed popup (`7f8c305`..`626faeb`). (2)-(6) are not deployed anywhere, not even preview. **Deploy plan: run `npm run migrate` FIRST (intake columns), then one `vercel deploy --yes` preview → click-test the widget, banner, intake page and popup on mobile AND desktop → one `vercel deploy --prod --yes`.** |
+| **Latest commit on `section-b-marketplace`** | `626faeb` (LOCAL ONLY — origin is at `f2c2786`; ~67 commits unpushed, git credential needs fixing, see item Q) |
 | **Repo** | <https://github.com/jalookout7-eng/gateway-to-oman> (private) |
 | **Active branch** | `section-b-marketplace` (production deploys from here; `master` ~140 commits behind — consider making this the GitHub default branch) |
-| **Tests** | 324/324 passing across 50 files (component tests now supported via @vitejs/plugin-react) |
-| **Build** | clean, 85 routes · `tsc --noEmit` has 3 pre-existing test-file errors (not 2 as previously noted) |
+| **Tests** | 391/391 passing across 57 files (component tests supported via @vitejs/plugin-react) |
+| **Build** | clean, 88 routes · `tsc --noEmit` has 3 pre-existing test-file errors (not 2 as previously noted) |
 
 What's running: Next.js 14.2 App Router on Vercel Pro, Anthropic Haiku 4.5 (Groq Llama 3.3 70B failover), Turso libSQL in Tokyo region, Resend transactional email (gatewaytooman.com domain verified), Cloudflare R2 for listing media (presigned direct-to-R2 uploads — browser uploads straight to R2, bypassing Vercel), Web Push notifications (VAPID), Google OAuth for marketplace sign-in, GA4 live in production since 2026-07-04 (measurement ID set in Vercel); `/admin/*` excluded from tracking as of 2026-07-21.
 
@@ -180,7 +180,7 @@ Agreed execution order. Each gets its implementation plan written just-in-time b
 | 2 | Batch 16 security hardening (2 HIGH + 4 MED) | **BUILT — awaiting deploy with item P** | 11 commits `7301704`..`cc36d5c`. All 6 audit findings closed + fix wave. Plan: `docs/superpowers/plans/2026-07-25-batch16-security-hardening.md`. 229/229 tests. Ships in the SAME prod deploy as the mobile nav. |
 | 3 | GA4 consent banner (Consent Mode v2, opt-out model) | **BUILT — awaiting deploy with item P** (9 commits `88b1b2f`..`69cea3c`) | `2026-07-25-consent-banner-design.md`. JA decision: undecided visitors ARE tracked; Decline kills GA. Default is a one-line flip if lawyer review (item I) demands opt-in. Closes item M. |
 | 4 | Omar chat widget AWS-style redesign | **BUILT — awaiting deploy with item P** (6 commits `6e165eb`..`b5755f5`) | `2026-07-25-chat-widget-aws-redesign-design.md`. Fixed teaser copy SUSPENDS the 5-variant hook A/B experiment (tracked as `<surface>-aws-1`). Button keeps current design; GTO navy/gold. |
-| 5 | Intake form page + timed popup | **NEXT — fully specced by JA 2026-07-26, ready to plan** | See the dedicated section below the table. |
+| 5 | Intake form page + timed popup | **BUILT — awaiting deploy with item P** (5 commits `7f8c305`..`626faeb`) | Plan: `docs/superpowers/plans/2026-07-27-intake-form-and-popup.md`. 391/391 tests. ⚠️ **`npm run migrate` must run against production Turso before the deploy** — the seven new `leads` columns do not exist there yet. Brief + decisions in the section below the table; deviations recorded in the v9.2 changelog. |
 
 ### Intake form + popup — full brief (JA decisions, 2026-07-26)
 
@@ -601,10 +601,24 @@ Don't read it for "what to do next" — that's all here.
 
 ---
 
-**Doc version:** v9.1 (intake brief captured; five features queued for one deploy)
-**Last updated:** July 25, 2026
+**Doc version:** v9.2 (intake form + popup BUILT; six features queued for one deploy)
+**Last updated:** July 27, 2026
 **Maintainer:** JA · JALAI
 
+### v9.2 changelog
+- **Intake form + timed popup BUILT** (commits `7f8c305`..`626faeb`, not deployed). Plan: `docs/superpowers/plans/2026-07-27-intake-form-and-popup.md`. Closes queued pipeline item 5. Three implementers ran in parallel against the plan; the controller held all git so they could not race the index.
+- **Seven new `leads` columns, not the five in the brief.** The previous developer's form also carries "Country of Residence" and "Additional Comments", and neither had a home: `country_code` is a dial code rendered beside the phone number, and `interests` renders as a short string in a table column, so a prose paragraph would have corrupted both. They became `country_of_residence` and `additional_comments`. All seven are nullable and additive, so existing rows are untouched.
+- **Real merges into existing columns, not just new fields.** The stated purpose also populates `interests` and maps to `segment` via `PURPOSE_TO_SEGMENT` (Business Setup to entrepreneur, Retirement Planning to retiree, and so on). Intake leads therefore work with the existing segment filter, the dashboard donut, and the intelligence queries without any of those knowing intake exists.
+- **`source = 'intake'`, `qualification = 'connect'`.** Resolves the open item from the brief. Connect is correct (the visitor asked to be contacted before anything graded them, and "Cold" would push a real inbound enquiry down Ahmed's triage list); `source` keeps them separable from Omar-captured connect leads in reporting. A dedicated `/api/intake` route rather than a `source` parameter on `/api/leads`, so source is never browser-controlled.
+- **Popup scope is exact:** fires at 15s on `/` and `/businesses` only, never elsewhere, never on `/admin`. Dismissal is session-only (sessionStorage); submission is permanent (localStorage). **A visitor who has opened Omar never sees it** — one sessionStorage marker set in `ChatWidget.handleOpen`, because dropping a modal form over a live conversation would interrupt the primary lead flow to sell the secondary one. Renders at `z-[60]`, above the consent banner (z-40) and chat (z-50).
+- **Admin lead detail page** at `/admin/leads/[id]`, modelled on the previous developer's client-detail layout that JA liked: wide left column of information cards, narrow right sidebar with CRM controls, notes timeline, and delete. Row click on the leads list now navigates there, and the two inline expanders were removed (merge, do not duplicate).
+- **Defect caught in the plan before it shipped:** removing the inline expander also removed the ONLY UI for sending a pending draft follow-up email. The detail page as specced did not render it even though the endpoint returned it, so Ahmed would have silently lost the "Send to <lead>" button. An Email Pending Approval card was added to the detail page.
+- **Two plan-test bugs caught by implementers:** the transcript test inserted into `conversations` without `session_id` (NOT NULL, no default); and the 16px-input test's selector also matched the deliberately hidden honeypot field. Both fixed in the tests, not worked around in the code.
+- **Lint caught what tsc did not:** `const { score_breakdown: _omit, ...lead }` passed typecheck but failed `npm run build` on `@typescript-eslint/no-unused-vars`, which this repo enforces even for underscore-prefixed bindings. Rewritten as copy-then-delete. Worth remembering: a green `tsc --noEmit` does not mean the build passes.
+- **Still to do before this ships: `npm run migrate` against production Turso.** The seven columns must exist before the deploy serves `/api/intake`. Additive and nullable, so it cannot affect existing rows, but it has NOT been run yet.
+- Suite: 324 → **391 tests across 57 files**. tsc baseline unchanged (3 pre-existing). Build clean at **88 routes** (85 + `/intake`, `/api/intake`, `/admin/leads/[id]`).
+- Housekeeping: a duplicated v9.0/v8.9/v8.8 changelog block was removed from this file, and the colliding second `v8.7` heading renamed to `v8.75`.
+
 ### v9.0 changelog
 - **Mobile + chat polish batch** (commits `6e78749`..`a3d2f78`, preview only) from JA's click-test of the four-feature preview. Seven fixes:
   - **Em dashes gone.** Root cause was `lib/ai/prompts.ts` carrying ~78 of them, so Omar mirrored the style. Prompt cleaned (count now 0), an explicit voice rule added, and `normaliseDashes()` applied inside `stripSignals` so any that leak are converted before the reply is persisted or shown.
@@ -631,35 +645,9 @@ Don't read it for "what to do next" — that's all here.
 - **Review caught two things worth remembering:** the banner would have covered the Omar chat's message input on mobile for every undecided visitor (z-index above the chat panel — the site's primary lead flow); and the first legal rewrite introduced a NEW false sentence claiming cookies aren't set before a visitor is asked, which is the opposite of opt-out. Both fixed before shipping.
 - Suite: 229 → 259 tests across 43 files. tsc baseline unchanged (3 pre-existing); build clean at 85 routes.
 
-### v8.7 changelog
+### v8.75 changelog
 - **JALAI workspace standards section added** (see 📐 above): security checklist + review playbook + 1000-concurrent scalability roadmap + backup discipline now formalized at workspace level (`delivery/_config/` + `delivery/_playbooks/`), largely derived from this project's own audits. GTO profiles: AI automation + marketplace.
 - **Item Q escalated**: 9 unpushed commits now violate the backup standard (every session ends pushed; live = local/GitHub/prod in sync) — fix the git credential first.
-
-### v9.0 changelog
-- **Mobile + chat polish batch** (commits `6e78749`..`a3d2f78`, preview only) from JA's click-test of the four-feature preview. Seven fixes:
-  - **Em dashes gone.** Root cause was `lib/ai/prompts.ts` carrying ~78 of them, so Omar mirrored the style. Prompt cleaned (count now 0), an explicit voice rule added, and `normaliseDashes()` applied inside `stripSignals` so any that leak are converted before the reply is persisted or shown.
-  - **Markdown renders.** Omar's `**bold**` was displaying as literal asterisks in production since launch (`ChatMessages` rendered raw text). Now parsed to React elements — deliberately no markdown library and no `dangerouslySetInnerHTML`, so untrusted model output can never inject HTML.
-  - **Mobile keyboard.** The panel is sized in `dvh`, which does not shrink when the iOS keyboard opens, so the input and newest messages were pushed behind it. A `visualViewport` hook now sizes the open panel to the visible area and re-pins the latest message.
-  - **Header menu** replaces the decorative avatar: "Connect with a representative" (opens the lead form immediately) and "Close session" in red (ends the conversation — clears state so the next open is a clean idle panel; distinct from minimize).
-  - **`connect` qualification tier.** Connect-requested leads are labelled `connect` and **skip AI scoring** so nothing relabels them hot/warm/cold, with a distinct push notification (they were arriving as "New Lead (Cold)", which would have misled triage). No migration was needed — `lead_options` had already replaced the CHECK constraints — but `schema.sql` still hardcoded the old constraint for fresh DBs, which was corrected.
-  - **Settings rows** wrap on mobile (the clipped "active" checkbox and Add button).
-  - **Admin login inputs** are 16px on mobile so iOS stops auto-zooming. Pinch-zoom deliberately left enabled.
-- **Known gap:** the 16px fix covers the login screen only. Other admin inputs (settings, listings, leads) are still `text-sm` and will re-trigger iOS zoom when tapped — the sweep was cut short by an API spend limit. Mechanical follow-up.
-- **Backlog logged:** no `AbortController` on in-flight chat requests, so closing a session mid-request could let a stale reply land on a new conversation (pre-existing).
-- Suite: 282 → 324 tests across 50 files. tsc baseline unchanged (3 pre-existing); build clean at 85 routes.
-
-### v8.9 changelog
-- **Omar chat widget reskinned to the AWS pattern** (6 commits `6e165eb`..`b5755f5`, not deployed). Opening Omar now lands on an idle panel — navy header with an embedded "Ask a question" input, three starter chips mapped to the qualification segments (business/investment, relocating/working, retirement), and a `/terms` disclaimer — instead of a seeded greeting bubble. Restyled navy teaser bar, unread badge on the floating button, minimize. The floating button keeps its existing gold-gradient design per JA.
-- **The hook A/B experiment is now SUSPENDED.** One fixed teaser line replaces the 5-variant rotation, recorded as `hook_variant_id = <surface>-aws-1` so the conversion SQL in §Hook A/B and prior variant data stay comparable. Resuming the experiment means restoring the rotation in `pickTeaserVariant` — `TEASER_VARIANTS` was deliberately left in place.
-- **Conversation machinery untouched** — capture opt-in, keep-chat, HOT-lead CTAs, lead scoring, and every GA event are byte-identical; the review verified the conversation children moved verbatim. Removing the seeded greeting has no downstream effect (it was client-only state that never reached the DB, so prompts, scoring, signal parsing and the admin transcript viewer are unaffected).
-- **Review caught a plan defect that would have broken the site:** the plan told the implementer to add `relative` to the `fixed` floating button; Tailwind emits `.relative` after `.fixed`, so the Omar button would have lost fixed positioning and effectively vanished sitewide. jsdom applies no CSS, so tests passed — only review caught it.
-- Suite: 259 → 282 tests across 45 files. tsc baseline unchanged (3 pre-existing); build clean at 85 routes.
-
-### v8.8 changelog
-- **GA4 consent banner BUILT** (9 commits `88b1b2f`..`69cea3c`, not yet deployed) — closes item M. Consent Mode v2, opt-out per JA: analytics runs from arrival, the banner offers equal-weight Accept/Decline, Decline switches GA off for the session (`ga-disable-*` + `consent update`) and prevents the tag loading on later page loads, cross-tab aware, choice kept 12 months. `CONSENT_DEFAULT` is a one-line flip to opt-in if the lawyer requires it.
-- **`/privacy` and `/cookies` rewritten** — they were factually wrong the moment GA went live on 2026-07-04: the Cookie Notice had a section titled "Why we don't show a consent banner today" promising opt-in-before-set, no `_ga` rows, and a claim we ran no cross-site analytics; Privacy §9 said only strictly-necessary cookies. Now accurate ("analytics runs from the moment you arrive"), with `_ga` rows and Google Analytics listed as a processor. **Send these updated pages to the lawyer with item I.**
-- **Review caught two things worth remembering:** the banner would have covered the Omar chat's message input on mobile for every undecided visitor (z-index above the chat panel — the site's primary lead flow); and the first legal rewrite introduced a NEW false sentence claiming cookies aren't set before a visitor is asked, which is the opposite of opt-out. Both fixed before shipping.
-- Suite: 229 → 259 tests across 43 files. tsc baseline unchanged (3 pre-existing); build clean at 85 routes.
 
 ### v8.7 changelog
 - **Batch 16 security hardening BUILT** (11 commits `7301704`..`cc36d5c`, not yet deployed). All six 2026-05-30 audit findings closed: both HIGH rate-limit gaps, sign-up enumeration, two owner-gate items, and Google id_token signature verification. Details + deliberate deviations in the Security state section.
