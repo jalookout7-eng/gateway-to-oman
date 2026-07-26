@@ -492,7 +492,19 @@ INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES
 -- 'connect' (2026-07-26): the visitor asked to be put in touch before Omar had
 -- gathered enough to grade them. Deliberately NOT hot/warm/cold — the label
 -- records how the lead arrived, and AI scoring is skipped for these.
-INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('qualification', 'connect', 'Connect', 'violet', 5);
+INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('qualification', 'connect', 'from connect', 'violet', 5);
+
+-- 'intake' (2026-07-27): submitted the structured intake form, either on
+-- /intake or through the timed popup. Same reasoning as 'connect' (never AI
+-- scored, the label records how the lead arrived), kept separate so the two
+-- inbound routes are distinguishable at a glance in the leads table.
+INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('qualification', 'intake', 'from /intake', 'teal', 6);
+
+-- Relabels for rows that already exist in production. The INSERT OR IGNORE
+-- statements above cannot update an existing row, and 'connect' shipped as
+-- 'Connect' before JA renamed both tiers. Idempotent, safe to re-run.
+UPDATE lead_options SET label = 'from connect' WHERE kind = 'qualification' AND slug = 'connect';
+UPDATE lead_options SET label = 'from /intake' WHERE kind = 'qualification' AND slug = 'intake';
 
 INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('segment', 'entrepreneur', 'Entrepreneur', 'amber', 10);
 INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('segment', 'investor', 'Investor', 'emerald', 20);

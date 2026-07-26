@@ -98,3 +98,41 @@ describe("intake constants", () => {
     }
   });
 });
+
+describe("qualification tiers for the two inbound routes", () => {
+  it("seeds 'intake' labelled from /intake", async () => {
+    const r = await db.execute(
+      "SELECT label, color FROM lead_options WHERE kind = 'qualification' AND slug = 'intake'",
+    );
+    expect(r.rows.length).toBe(1);
+    expect(String(r.rows[0].label)).toBe("from /intake");
+  });
+
+  it("relabels 'connect' to from connect", async () => {
+    const r = await db.execute(
+      "SELECT label FROM lead_options WHERE kind = 'qualification' AND slug = 'connect'",
+    );
+    expect(r.rows.length).toBe(1);
+    expect(String(r.rows[0].label)).toBe("from connect");
+  });
+
+  it("keeps the two tiers distinct so each inbound route stays identifiable", async () => {
+    const r = await db.execute(
+      "SELECT slug FROM lead_options WHERE kind = 'qualification' ORDER BY sort_order",
+    );
+    const slugs = r.rows.map((x) => String(x.slug));
+    expect(slugs).toContain("connect");
+    expect(slugs).toContain("intake");
+    expect(slugs.indexOf("connect")).not.toBe(slugs.indexOf("intake"));
+  });
+
+  it("relabelling is idempotent when the migration is re-run", async () => {
+    await db.execute(
+      "UPDATE lead_options SET label = 'from connect' WHERE kind = 'qualification' AND slug = 'connect'",
+    );
+    const r = await db.execute(
+      "SELECT label FROM lead_options WHERE kind = 'qualification' AND slug = 'connect'",
+    );
+    expect(String(r.rows[0].label)).toBe("from connect");
+  });
+});

@@ -207,7 +207,11 @@ export function IntakeForm({ variant, onSubmitted }: IntakeFormProps) {
           maxLength={2000}
           rows={variant === "popup" ? 3 : 4}
           placeholder="Anything else you would like us to know"
-          className={`${FIELD_CLASS} resize-none`}
+          // In the popup, desktop gets a shorter box so the whole form fits a
+          // laptop screen without scrolling past the close button. `rows` is
+          // not responsive, so the desktop height is a CSS override and the
+          // mobile height (rows=3) is left exactly as it was.
+          className={`${FIELD_CLASS} resize-none${variant === "popup" ? " sm:h-16" : ""}`}
         />
       </div>
 

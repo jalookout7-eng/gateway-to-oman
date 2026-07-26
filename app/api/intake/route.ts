@@ -13,7 +13,11 @@ import { PURPOSE_TO_SEGMENT } from "@/lib/intake/constants";
  * parameter there: source must never be browser-controlled, and this
  * payload carries seven extra fields with their own allowlists.
  *
- * Every intake lead is written as qualification 'connect'. The visitor
+ * Every intake lead is written as qualification 'intake' (labelled
+ * "from /intake" in the admin), a sibling of 'connect' rather than the same
+ * tier: both record how the lead arrived and neither is ever AI scored, but
+ * keeping them apart lets Ahmed see at a glance which inbound route produced
+ * a lead. The visitor
  * asked to be contacted before anything graded them, so a hot/warm/cold
  * label would be fiction, and 'Cold' in particular would push a real
  * inbound enquiry down Ahmed's triage list. `source = 'intake'` keeps them
@@ -97,7 +101,7 @@ export async function POST(request: NextRequest) {
               (name, email, phone, country_code, country_of_residence, segment, interests,
                qualification, status, source, investment_timeline, investment_purpose,
                preferred_location, residency_interest, services_needed, additional_comments)
-            SELECT ?, ?, ?, ?, ?, ?, ?, 'connect', 'new', 'intake', ?, ?, ?, ?, ?, ?
+            SELECT ?, ?, ?, ?, ?, ?, ?, 'intake', 'new', 'intake', ?, ?, ?, ?, ?, ?
             WHERE NOT EXISTS (
               SELECT 1 FROM leads WHERE email = ? AND source = 'intake' AND created_at >= ?
             )

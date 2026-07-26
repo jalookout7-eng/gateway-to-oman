@@ -14,7 +14,11 @@ import { useChatModal, type ChatModalConfig } from "@/lib/context/ChatModalConte
 import { useVisualViewportHeight } from "@/lib/chat/use-visual-viewport";
 import { WhatsAppHandoffButton } from "./WhatsAppHandoffButton";
 import { trackEvent } from "@/lib/analytics/track";
-import { markChatEngaged } from "@/lib/intake/popup";
+import {
+  markChatEngaged,
+  INTAKE_DISMISSED_EVENT,
+  OMAR_TEASER_DELAY_AFTER_INTAKE_MS,
+} from "@/lib/intake/popup";
 import { MessageCircle, CalendarDays, MessageSquare, Minus } from "lucide-react";
 
 const CALENDLY_URL = "https://calendly.com/alazizi/30min";
@@ -149,6 +153,25 @@ export function ChatWidget() {
   useEffect(() => {
     if (isOpen) setShowTeaser(false);
   }, [isOpen]);
+
+  // Second teaser trigger: the visitor closed the intake popup without
+  // submitting. Offer them the conversational route a beat later, rather
+  // than stacking a second prompt on top of the one they just dismissed.
+  // A successful submit never fires this event (see IntakePopup).
+  useEffect(() => {
+    let timer: number | undefined;
+    function onIntakeDismissed() {
+      timer = window.setTimeout(() => {
+        hasTriggeredTeaser.current = true;
+        setShowTeaser(true);
+      }, OMAR_TEASER_DELAY_AFTER_INTAKE_MS);
+    }
+    window.addEventListener(INTAKE_DISMISSED_EVENT, onIntakeDismissed);
+    return () => {
+      window.removeEventListener(INTAKE_DISMISSED_EVENT, onIntakeDismissed);
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, []);
 
   // Keep the most recent message in view AFTER every exchange and whenever
   // an inline form panel appears below the messages (Notes 4 chat scroll
@@ -500,8 +523,12 @@ export function ChatWidget() {
   }, [logEvent]);
 
   if (pathname?.startsWith("/admin")) return null;
-  const AUTH_PATHS = ["/businesses/sign-in", "/businesses/access"];
-  if (pathname && AUTH_PATHS.some((p) => pathname.startsWith(p))) return null;
+  // Focused conversion pages: Omar stays out of the way entirely, no button
+  // and no teaser. /intake joined this list 2026-07-27 per JA, for the same
+  // reason as the sign-in and access forms: the visitor is already filling
+  // one form, so a chat prompt competes with the thing we want them to do.
+  const HIDDEN_PATHS = ["/businesses/sign-in", "/businesses/access", "/intake"];
+  if (pathname && HIDDEN_PATHS.some((p) => pathname.startsWith(p))) return null;
 
   return (
     <>

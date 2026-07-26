@@ -63,13 +63,13 @@ beforeEach(async () => {
 });
 
 describe("POST /api/intake", () => {
-  it("creates a lead with source intake and qualification connect", async () => {
+  it("creates a lead with source intake and qualification intake", async () => {
     const res = await POST(makeRequest(base));
     expect(res.status).toBe(201);
     const rows = await db.execute("SELECT * FROM leads WHERE email = 'jane@example.com'");
     expect(rows.rows.length).toBe(1);
     expect(String(rows.rows[0].source)).toBe("intake");
-    expect(String(rows.rows[0].qualification)).toBe("connect");
+    expect(String(rows.rows[0].qualification)).toBe("intake");
     expect(String(rows.rows[0].status)).toBe("new");
   });
 

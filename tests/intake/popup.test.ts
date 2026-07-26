@@ -55,8 +55,8 @@ describe("shouldArmIntakePopup", () => {
 });
 
 describe("storage markers", () => {
-  it("fires after fifteen seconds", () => {
-    expect(INTAKE_POPUP_DELAY_MS).toBe(15000);
+  it("fires after eight seconds", () => {
+    expect(INTAKE_POPUP_DELAY_MS).toBe(8000);
   });
 
   it("keeps dismissal to the session and submission beyond it", () => {

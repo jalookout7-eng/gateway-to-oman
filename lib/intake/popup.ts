@@ -9,7 +9,22 @@
  */
 
 export const INTAKE_POPUP_PATHS = ["/", "/businesses"] as const;
-export const INTAKE_POPUP_DELAY_MS = 15_000;
+export const INTAKE_POPUP_DELAY_MS = 8_000;
+
+/**
+ * Fired when the popup is closed WITHOUT a submission. The Omar widget
+ * listens for this and shows its teaser a few seconds later, so a visitor
+ * who declined the form still gets offered the conversational route.
+ * Never fired after a successful submit: that visitor is already captured
+ * and does not need chasing.
+ */
+export const INTAKE_DISMISSED_EVENT = "gto:intake-dismissed";
+export const OMAR_TEASER_DELAY_AFTER_INTAKE_MS = 3_000;
+
+export function broadcastIntakeDismissed(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(INTAKE_DISMISSED_EVENT));
+}
 
 /** Session-scoped: a dismissal lasts this visit only, per JA. */
 export const INTAKE_DISMISSED_KEY = "gto_intake_dismissed";

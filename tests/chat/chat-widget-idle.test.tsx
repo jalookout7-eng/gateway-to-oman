@@ -1,6 +1,6 @@
 // tests/chat/chat-widget-idle.test.tsx
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor, act } from "@testing-library/react";
 import { STARTER_CHIPS } from "@/components/chat/ChatIdlePanel";
 
 const pathnameMock = vi.fn(() => "/");
@@ -244,5 +244,47 @@ describe("ChatWidget idle panel", () => {
     const { ChatWidget } = await import("@/components/chat/ChatWidget");
     const { container } = render(<ChatWidget />);
     expect(container.innerHTML).toBe("");
+  });
+});
+
+describe("ChatWidget suppression and intake handoff (2026-07-27)", () => {
+  it("renders nothing at all on the intake page", async () => {
+    pathnameMock.mockReturnValue("/intake");
+    const { ChatWidget } = await import("@/components/chat/ChatWidget");
+    const { container } = render(<ChatWidget />);
+    expect(container.innerHTML).toBe("");
+    expect(screen.queryByRole("button", { name: /chat with omar/i })).toBeNull();
+  });
+
+  it("still renders on the pages the popup runs on", async () => {
+    for (const path of ["/", "/businesses"]) {
+      pathnameMock.mockReturnValue(path);
+      const { ChatWidget } = await import("@/components/chat/ChatWidget");
+      render(<ChatWidget />);
+      expect(screen.getByRole("button", { name: /chat with omar/i })).toBeTruthy();
+      cleanup();
+    }
+  });
+
+  it("shows the teaser three seconds after the intake popup is dismissed", async () => {
+    vi.useFakeTimers();
+    try {
+      const { INTAKE_DISMISSED_EVENT } = await import("@/lib/intake/popup");
+      const { ChatWidget } = await import("@/components/chat/ChatWidget");
+      render(<ChatWidget />);
+
+      expect(screen.queryByText(/connect you with a GTO representative/i)).toBeNull();
+
+      window.dispatchEvent(new CustomEvent(INTAKE_DISMISSED_EVENT));
+
+      // Still silent before the delay elapses.
+      await act(async () => { vi.advanceTimersByTime(2_000); });
+      expect(screen.queryByText(/connect you with a GTO representative/i)).toBeNull();
+
+      await act(async () => { vi.advanceTimersByTime(1_000); });
+      expect(screen.getByText(/connect you with a GTO representative/i)).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
