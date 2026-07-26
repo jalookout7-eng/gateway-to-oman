@@ -1,17 +1,11 @@
 # Mobile + Chat Polish Batch — Design
 
 **Date:** 2026-07-26 · **Source:** JA preview click-test feedback (screenshots in `~/Downloads`, 2026-07-26)
-**Scope:** eight fixes across the Omar widget, Omar's voice, and mobile admin. No new features beyond the header menu and the `connect` tier.
+**Scope:** seven fixes across the Omar widget, Omar's voice, and mobile admin. No new features beyond the header menu and the `connect` tier.
 
-## 1. Omar welcomes before responding
+## 1. (removed)
 
-**Problem:** the idle panel removed the seeded greeting, so clicking a chip makes Omar open cold with "Got it — so you're looking at both angles…". Reads abrupt.
-
-**Fix:** when a conversation starts from the idle panel (chip OR typed input), seed Omar's contextual greeting as the FIRST message, then append the visitor's text. Transcript reads: Omar greets → visitor states intent → Omar responds. The greeting is the existing `getContextualGreeting(surface)` — no new copy.
-
-The opportunity-card path already seeds its topic greeting; unchanged.
-
-**Prompt-side:** Omar must not open a reply with acknowledgement filler ("Got it", "Great", "Perfect"). Add to the existing voice rules in `lib/ai/prompts.ts`.
+A "welcome the visitor first" item was drafted here and **dropped on JA's instruction 2026-07-26** — the drafted interpretation (seeding a greeting bubble before the visitor's first message) was not what JA meant. Nothing about the idle-panel → conversation transition changes in this batch. Section numbering below is unchanged so the plan's references stay stable.
 
 ## 2. No em dashes, ever
 
