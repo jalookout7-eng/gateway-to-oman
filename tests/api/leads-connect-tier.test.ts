@@ -23,14 +23,14 @@ async function makeTestDb(): Promise<Client> {
 
 vi.mock("@/lib/db/client", () => ({ getDb: () => db }));
 
-const sendPushMock = vi.fn(async () => undefined);
+const sendPushMock = vi.fn(async (..._args: unknown[]) => undefined);
 vi.mock("@/lib/push/notify", () => ({
   sendPushNotification: (...args: unknown[]) => sendPushMock(...args),
 }));
 
 vi.mock("@/lib/ai/lead-summary", () => ({ summariseLead: vi.fn(async () => "summary") }));
 
-const scoreLeadMock = vi.fn(async () => undefined);
+const scoreLeadMock = vi.fn(async (..._args: unknown[]) => undefined);
 vi.mock("@/lib/ai/scoring", () => ({
   scoreLead: (...args: unknown[]) => scoreLeadMock(...args),
 }));
@@ -106,7 +106,7 @@ describe("connect qualification tier", () => {
     );
     expect(res.status).toBe(201);
     expect(sendPushMock).toHaveBeenCalledTimes(1);
-    const pushArg = sendPushMock.mock.calls[0][0] as { title: string; body: string };
+    const pushArg = sendPushMock.mock.calls[0]![0] as unknown as { title: string; body: string };
     expect(pushArg.title).toBe("🤝 Connect Request");
     expect(pushArg.title).not.toBe("New Lead (Cold)");
     expect(pushArg.body).not.toMatch(/score/i);
