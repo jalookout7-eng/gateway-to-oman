@@ -35,8 +35,27 @@ export function parseSignals(text: string): Signals {
   };
 }
 
-export function stripSignals(text: string): string {
+/**
+ * Omar must never use em or en dashes (JA, 2026-07-26 — the style leaked from
+ * the prompt copy itself). The prompt now says so, but model instructions leak,
+ * so every reply is normalised here: stripSignals is the single chokepoint each
+ * assistant message passes through before it is persisted and displayed
+ * (app/api/chat/route.ts).
+ *
+ * Hyphens are left alone — "follow-up" and "Al-Azizi" are correct.
+ */
+export function normaliseDashes(text: string): string {
   return text
+    // Dash immediately before terminal punctuation: drop the dash.
+    .replace(/\s*[—–]\s*(?=[.!?,;:])/g, "")
+    // Dash at end of string (with or without trailing space): drop it.
+    .replace(/\s*[—–]\s*$/g, "")
+    // Any remaining dash, spaced or not, becomes a comma.
+    .replace(/\s*[—–]\s*/g, ", ");
+}
+
+export function stripSignals(text: string): string {
+  const stripped = text
     .replace(/\[CAPTURE_READY\]/g, "")
     .replace(/\[SEGMENT:[^\]]*\]/g, "")
     .replace(/\[INTEREST:[^\]]*\]/g, "")
@@ -46,6 +65,6 @@ export function stripSignals(text: string): string {
     .replace(/\[BOOKING_TIME:[^\]]*\]/g, "")
     .replace(/\[WHATSAPP_HANDOFF\]/g, "")
     .replace(/\[KB_GAP\]/g, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
+    .replace(/\s{2,}/g, " ");
+  return normaliseDashes(stripped).trim();
 }
