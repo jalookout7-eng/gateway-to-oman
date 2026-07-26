@@ -180,7 +180,30 @@ Agreed execution order. Each gets its implementation plan written just-in-time b
 | 2 | Batch 16 security hardening (2 HIGH + 4 MED) | **BUILT — awaiting deploy with item P** | 11 commits `7301704`..`cc36d5c`. All 6 audit findings closed + fix wave. Plan: `docs/superpowers/plans/2026-07-25-batch16-security-hardening.md`. 229/229 tests. Ships in the SAME prod deploy as the mobile nav. |
 | 3 | GA4 consent banner (Consent Mode v2, opt-out model) | **BUILT — awaiting deploy with item P** (9 commits `88b1b2f`..`69cea3c`) | `2026-07-25-consent-banner-design.md`. JA decision: undecided visitors ARE tracked; Decline kills GA. Default is a one-line flip if lawyer review (item I) demands opt-in. Closes item M. |
 | 4 | Omar chat widget AWS-style redesign | **BUILT — awaiting deploy with item P** (6 commits `6e165eb`..`b5755f5`) | `2026-07-25-chat-widget-aws-redesign-design.md`. Fixed teaser copy SUSPENDS the 5-variant hook A/B experiment (tracked as `<surface>-aws-1`). Button keeps current design; GTO navy/gold. |
-| 5 | Intake form page + timed popup | Brainstorm pending | Reuse the (security-reviewed, clean) intake-form UI from the ex-developer's dashboard package (`~/Downloads/gateway_to_oman_dashboard` — its Supabase backend is NOT used); wire into the existing `leads` table + `/api/leads` flow; standalone `/intake` page + timed popup on the main site. DECIDED 2026-07-25: popup fires at **15 seconds** on-site; price to Ahmed is **AED 400 one-time**, billed separately from the retainer. Remaining for brainstorm: leads-table schema additions (investment_timeline, purpose, location, residency, services), popup dismissal/suppression behavior, GA events for the new surface. |
+| 5 | Intake form page + timed popup | **NEXT — fully specced by JA 2026-07-26, ready to plan** | See the dedicated section below the table. |
+
+### Intake form + popup — full brief (JA decisions, 2026-07-26)
+
+**This is the next piece of work.** Everything below is decided; it needs an implementation plan, not another brainstorm.
+
+**Source material:** `~/Downloads/gateway_to_oman_dashboard` — the standalone CRM the previous developer handed over. It was security-reviewed 2026-07-25 and found clean (no exfiltration, no obfuscation, no credentials, correct RLS). **Its Supabase backend is NOT used.** Reuse the intake form's field set, validation approach (Zod + honeypot + explicit column whitelisting) and admin lead-detail UX; wire everything into the existing Turso `leads` table and `/api/leads`.
+
+**Commercial:** AED 400 one-time to Ahmed, billed separately from the retainer.
+
+**1. Schema — add five nullable columns to `leads`** (additive `ALTER TABLE ADD COLUMN`, the pattern used throughout this schema's history; existing rows get nulls):
+`investment_timeline`, `investment_purpose`, `preferred_location`, `residency_interest`, `services_needed`. First-class and filterable — deliberately NOT a JSON blob.
+
+**2. `/intake` page** — a standalone, shareable link for Ahmed to send directly to prospects.
+
+**3. Timed popup** — fires at **15 seconds** on-site. Scope is narrow and deliberate:
+- ONLY on the main site homepage (`gatewaytooman.com/`) and the marketplace home (`/businesses`).
+- NOT on any other page, and never on `/admin`.
+- Dismissal lasts the **session only** (reappears on a later visit).
+- Anyone who submits should not be re-prompted.
+
+**4. Admin lead detail — merge, don't duplicate.** JA: "the previous developer had thought through the design well in the admin backend as well. just click on a lead and get all the additional information of the lead." Requirement: clicking a lead opens a **separate detail page** showing everything about that lead, the way the ex-developer's dashboard did it. Merge whatever maps onto what already exists (conversations, segment, qualification, status, notes timeline, AI summary); anything that does not map becomes a new field displayed on that page. Study `~/Downloads/gateway_to_oman_dashboard`'s client-detail route before designing this — JA explicitly likes that layout.
+
+**5. Still to decide during planning:** GA events for the new surface; whether intake submissions get their own `source` value (recommend yes, e.g. `source='intake'`, so they are separable from Omar-captured leads in reporting).
 
 ### Infrastructure gaps identified during 2026-06-28 review
 
