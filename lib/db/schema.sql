@@ -27,7 +27,12 @@ CREATE TABLE IF NOT EXISTS leads (
   country_code TEXT,
   segment TEXT CHECK (segment IN ('entrepreneur', 'investor', 'professional', 'retiree')),
   interests TEXT,
-  qualification TEXT NOT NULL DEFAULT 'warm' CHECK (qualification IN ('hot', 'warm', 'cold')),
+  -- No CHECK here: lead_options (section 16 below) is the source of truth
+  -- for valid qualification values (admin-editable), and this must match
+  -- what scripts/migrate-lead-options.ts already rebuilt in production —
+  -- otherwise a fresh database enforces a stale hot/warm/cold-only enum
+  -- that lead_options no longer reflects (e.g. 'connect', Task 5).
+  qualification TEXT NOT NULL DEFAULT 'warm',
   status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'contacted', 'in_progress', 'converted', 'closed')),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -483,6 +488,11 @@ INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES
 INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('qualification', 'hot', 'Hot', 'red', 10);
 INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('qualification', 'warm', 'Warm', 'amber', 20);
 INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('qualification', 'cold', 'Cold', 'blue', 30);
+
+-- 'connect' (2026-07-26): the visitor asked to be put in touch before Omar had
+-- gathered enough to grade them. Deliberately NOT hot/warm/cold — the label
+-- records how the lead arrived, and AI scoring is skipped for these.
+INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('qualification', 'connect', 'Connect', 'violet', 5);
 
 INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('segment', 'entrepreneur', 'Entrepreneur', 'amber', 10);
 INSERT OR IGNORE INTO lead_options (kind, slug, label, color, sort_order) VALUES ('segment', 'investor', 'Investor', 'emerald', 20);

@@ -10,6 +10,10 @@ interface LeadCaptureFormProps {
   conversationId: string | null;
   segment: string | null;
   interest: string | null;
+  // Set when the visitor asked to be connected via the header menu (Task 5)
+  // before Omar gathered enough to grade them. Passed through to /api/leads
+  // so the resulting lead is labelled `connect` instead of hot/warm/cold.
+  qualification?: "connect";
   onSubmit: (data: {
     name: string;
     email: string;
@@ -22,6 +26,7 @@ export function LeadCaptureForm({
   conversationId,
   segment,
   interest,
+  qualification,
   onSubmit,
 }: LeadCaptureFormProps) {
   const [name, setName] = useState("");
@@ -49,6 +54,7 @@ export function LeadCaptureForm({
           conversationId,
           segment,
           interests: interest,
+          ...(qualification ? { qualification } : {}),
         }),
       });
 

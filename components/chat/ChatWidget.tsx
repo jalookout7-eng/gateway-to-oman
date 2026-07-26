@@ -647,6 +647,7 @@ export function ChatWidget() {
                     conversationId={conversationId}
                     segment={detectedSegment}
                     interest={detectedInterest}
+                    qualification={connectRequested ? "connect" : undefined}
                     onSubmit={handleLeadSubmit}
                   />
                 )}

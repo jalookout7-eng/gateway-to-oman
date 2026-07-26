@@ -141,8 +141,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { name, email, phone, countryCode, conversationId, segment, interests } =
+    const { name, email, phone, countryCode, conversationId, segment, interests, qualification } =
       await request.json();
+
+    // `qualification` arrives from the browser — allowlist it to exactly
+    // "connect" (Task 5). Anything else (including an attempt to write
+    // "hot" directly) is ignored; scoring is what sets hot/warm/cold.
+    const isConnectRequest = qualification === "connect";
 
     if (!name || !email) {
       return NextResponse.json(
@@ -178,24 +183,31 @@ export async function POST(request: NextRequest) {
     const dedupeGuardSql = isAdmin
       ? ""
       : `WHERE NOT EXISTS (SELECT 1 FROM leads WHERE email = ? AND source = 'main' AND created_at >= ?)`;
+
+    // Column list is normally fixed; a connect request adds `qualification`
+    // so the INSERT writes 'connect' directly instead of the column default
+    // ('warm') that scoring would otherwise overwrite.
+    const leadColumns = ["name", "email", "phone", "country_code", "conversation_id", "segment", "interests"];
+    const leadValues: (string | null)[] = [
+      name,
+      email,
+      phone ?? null,
+      countryCode ?? null,
+      conversationId ?? null,
+      segment ?? null,
+      interests ?? null,
+    ];
+    if (isConnectRequest) {
+      leadColumns.push("qualification");
+      leadValues.push("connect");
+    }
+
     const result = await db.execute({
-      sql: `INSERT INTO leads (name, email, phone, country_code, conversation_id, segment, interests)
-            SELECT ?, ?, ?, ?, ?, ?, ?
+      sql: `INSERT INTO leads (${leadColumns.join(", ")})
+            SELECT ${leadColumns.map(() => "?").join(", ")}
             ${dedupeGuardSql}
             RETURNING id`,
-      args: isAdmin
-        ? [name, email, phone ?? null, countryCode ?? null, conversationId ?? null, segment ?? null, interests ?? null]
-        : [
-            name,
-            email,
-            phone ?? null,
-            countryCode ?? null,
-            conversationId ?? null,
-            segment ?? null,
-            interests ?? null,
-            email,
-            oneDayAgo,
-          ],
+      args: isAdmin ? leadValues : [...leadValues, email, oneDayAgo],
     });
 
     // Zero rows returned = the NOT EXISTS guard fired (admins never hit this —
@@ -241,8 +253,14 @@ export async function POST(request: NextRequest) {
     ).catch(console.error);
 
     // Programmatic lead scoring (in-process, fast — runs before push so the
-    // notification can include the tier).
-    await scoreLeadFromConversation(leadId, conversationId ?? null, segment ?? null, interests ?? null, db);
+    // notification can include the tier). Skipped entirely for a connect
+    // request: the visitor asked to be put in touch before Omar gathered
+    // enough to grade them, so there's nothing to score, and scoring would
+    // otherwise overwrite the 'connect' qualification we just wrote with a
+    // hot/warm/cold tier.
+    if (!isConnectRequest) {
+      await scoreLeadFromConversation(leadId, conversationId ?? null, segment ?? null, interests ?? null, db);
+    }
 
     // Fetch the freshly-scored tier for the push body
     const scored = await db.execute({
