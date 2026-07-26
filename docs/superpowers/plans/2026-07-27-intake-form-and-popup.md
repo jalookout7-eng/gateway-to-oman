@@ -228,7 +228,8 @@ ALTER TABLE leads ADD COLUMN additional_comments TEXT;
  * lib/intake/validate.ts, so nothing outside these lists can ever be
  * written to the database.
  *
- * No em dashes or en dashes: the original list used "Within 1–3 months".
+ * No em dashes or en dashes: the original timeline list used an en dash
+ * between 1 and 3 months, which is why the first entry reads "1 to 3".
  */
 
 export const INVESTMENT_TIMELINES = [
@@ -1399,7 +1400,7 @@ import Link from "next/link";
 import { IntakeForm } from "@/components/intake/IntakeForm";
 
 export const metadata = {
-  title: "Start Your Oman Journey — Gateway to Oman",
+  title: "Start Your Oman Journey | Gateway to Oman",
   description: "Tell the Gateway to Oman advisory team about your goals and we will be in touch.",
   // Unlisted: this is a link Ahmed shares directly with prospects, not a
   // page we want competing with the landing page in search results.
