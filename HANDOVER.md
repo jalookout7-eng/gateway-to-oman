@@ -23,7 +23,7 @@
 | **Latest commit on `section-b-marketplace`** | `b5755f5` (LOCAL ONLY — origin is at `f2c2786`; 45+ commits unpushed, git credential needs fixing, see item Q) |
 | **Repo** | <https://github.com/jalookout7-eng/gateway-to-oman> (private) |
 | **Active branch** | `section-b-marketplace` (production deploys from here; `master` ~140 commits behind — consider making this the GitHub default branch) |
-| **Tests** | 282/282 passing across 45 files (component tests now supported via @vitejs/plugin-react) |
+| **Tests** | 324/324 passing across 50 files (component tests now supported via @vitejs/plugin-react) |
 | **Build** | clean, 85 routes · `tsc --noEmit` has 3 pre-existing test-file errors (not 2 as previously noted) |
 
 What's running: Next.js 14.2 App Router on Vercel Pro, Anthropic Haiku 4.5 (Groq Llama 3.3 70B failover), Turso libSQL in Tokyo region, Resend transactional email (gatewaytooman.com domain verified), Cloudflare R2 for listing media (presigned direct-to-R2 uploads — browser uploads straight to R2, bypassing Vercel), Web Push notifications (VAPID), Google OAuth for marketplace sign-in, GA4 live in production since 2026-07-04 (measurement ID set in Vercel); `/admin/*` excluded from tracking as of 2026-07-21.
@@ -578,9 +578,22 @@ Don't read it for "what to do next" — that's all here.
 
 ---
 
-**Doc version:** v8.9 (Omar widget redesigned; four features queued for one deploy)
+**Doc version:** v9.0 (mobile + chat polish; five features queued for one deploy)
 **Last updated:** July 25, 2026
 **Maintainer:** JA · JALAI
+
+### v9.0 changelog
+- **Mobile + chat polish batch** (commits `6e78749`..`a3d2f78`, preview only) from JA's click-test of the four-feature preview. Seven fixes:
+  - **Em dashes gone.** Root cause was `lib/ai/prompts.ts` carrying ~78 of them, so Omar mirrored the style. Prompt cleaned (count now 0), an explicit voice rule added, and `normaliseDashes()` applied inside `stripSignals` so any that leak are converted before the reply is persisted or shown.
+  - **Markdown renders.** Omar's `**bold**` was displaying as literal asterisks in production since launch (`ChatMessages` rendered raw text). Now parsed to React elements — deliberately no markdown library and no `dangerouslySetInnerHTML`, so untrusted model output can never inject HTML.
+  - **Mobile keyboard.** The panel is sized in `dvh`, which does not shrink when the iOS keyboard opens, so the input and newest messages were pushed behind it. A `visualViewport` hook now sizes the open panel to the visible area and re-pins the latest message.
+  - **Header menu** replaces the decorative avatar: "Connect with a representative" (opens the lead form immediately) and "Close session" in red (ends the conversation — clears state so the next open is a clean idle panel; distinct from minimize).
+  - **`connect` qualification tier.** Connect-requested leads are labelled `connect` and **skip AI scoring** so nothing relabels them hot/warm/cold, with a distinct push notification (they were arriving as "New Lead (Cold)", which would have misled triage). No migration was needed — `lead_options` had already replaced the CHECK constraints — but `schema.sql` still hardcoded the old constraint for fresh DBs, which was corrected.
+  - **Settings rows** wrap on mobile (the clipped "active" checkbox and Add button).
+  - **Admin login inputs** are 16px on mobile so iOS stops auto-zooming. Pinch-zoom deliberately left enabled.
+- **Known gap:** the 16px fix covers the login screen only. Other admin inputs (settings, listings, leads) are still `text-sm` and will re-trigger iOS zoom when tapped — the sweep was cut short by an API spend limit. Mechanical follow-up.
+- **Backlog logged:** no `AbortController` on in-flight chat requests, so closing a session mid-request could let a stale reply land on a new conversation (pre-existing).
+- Suite: 282 → 324 tests across 50 files. tsc baseline unchanged (3 pre-existing); build clean at 85 routes.
 
 ### v8.9 changelog
 - **Omar chat widget reskinned to the AWS pattern** (6 commits `6e165eb`..`b5755f5`, not deployed). Opening Omar now lands on an idle panel — navy header with an embedded "Ask a question" input, three starter chips mapped to the qualification segments (business/investment, relocating/working, retirement), and a `/terms` disclaimer — instead of a seeded greeting bubble. Restyled navy teaser bar, unread badge on the floating button, minimize. The floating button keeps its existing gold-gradient design per JA.
@@ -598,6 +611,19 @@ Don't read it for "what to do next" — that's all here.
 ### v8.7 changelog
 - **JALAI workspace standards section added** (see 📐 above): security checklist + review playbook + 1000-concurrent scalability roadmap + backup discipline now formalized at workspace level (`delivery/_config/` + `delivery/_playbooks/`), largely derived from this project's own audits. GTO profiles: AI automation + marketplace.
 - **Item Q escalated**: 9 unpushed commits now violate the backup standard (every session ends pushed; live = local/GitHub/prod in sync) — fix the git credential first.
+
+### v9.0 changelog
+- **Mobile + chat polish batch** (commits `6e78749`..`a3d2f78`, preview only) from JA's click-test of the four-feature preview. Seven fixes:
+  - **Em dashes gone.** Root cause was `lib/ai/prompts.ts` carrying ~78 of them, so Omar mirrored the style. Prompt cleaned (count now 0), an explicit voice rule added, and `normaliseDashes()` applied inside `stripSignals` so any that leak are converted before the reply is persisted or shown.
+  - **Markdown renders.** Omar's `**bold**` was displaying as literal asterisks in production since launch (`ChatMessages` rendered raw text). Now parsed to React elements — deliberately no markdown library and no `dangerouslySetInnerHTML`, so untrusted model output can never inject HTML.
+  - **Mobile keyboard.** The panel is sized in `dvh`, which does not shrink when the iOS keyboard opens, so the input and newest messages were pushed behind it. A `visualViewport` hook now sizes the open panel to the visible area and re-pins the latest message.
+  - **Header menu** replaces the decorative avatar: "Connect with a representative" (opens the lead form immediately) and "Close session" in red (ends the conversation — clears state so the next open is a clean idle panel; distinct from minimize).
+  - **`connect` qualification tier.** Connect-requested leads are labelled `connect` and **skip AI scoring** so nothing relabels them hot/warm/cold, with a distinct push notification (they were arriving as "New Lead (Cold)", which would have misled triage). No migration was needed — `lead_options` had already replaced the CHECK constraints — but `schema.sql` still hardcoded the old constraint for fresh DBs, which was corrected.
+  - **Settings rows** wrap on mobile (the clipped "active" checkbox and Add button).
+  - **Admin login inputs** are 16px on mobile so iOS stops auto-zooming. Pinch-zoom deliberately left enabled.
+- **Known gap:** the 16px fix covers the login screen only. Other admin inputs (settings, listings, leads) are still `text-sm` and will re-trigger iOS zoom when tapped — the sweep was cut short by an API spend limit. Mechanical follow-up.
+- **Backlog logged:** no `AbortController` on in-flight chat requests, so closing a session mid-request could let a stale reply land on a new conversation (pre-existing).
+- Suite: 282 → 324 tests across 50 files. tsc baseline unchanged (3 pre-existing); build clean at 85 routes.
 
 ### v8.9 changelog
 - **Omar chat widget reskinned to the AWS pattern** (6 commits `6e165eb`..`b5755f5`, not deployed). Opening Omar now lands on an idle panel — navy header with an embedded "Ask a question" input, three starter chips mapped to the qualification segments (business/investment, relocating/working, retirement), and a `/terms` disclaimer — instead of a seeded greeting bubble. Restyled navy teaser bar, unread badge on the floating button, minimize. The floating button keeps its existing gold-gradient design per JA.
