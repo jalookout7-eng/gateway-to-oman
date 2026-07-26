@@ -4,6 +4,60 @@ import { getDb } from "@/lib/db/client";
 import { deleteLeadCascade } from "@/lib/admin/lead-delete";
 
 /**
+ * Single-lead read for the admin detail page (/admin/leads/[id]).
+ *
+ * Returns the lead, its transcript, and any pending draft email in one
+ * round trip so the page does not waterfall three requests.
+ *
+ * score_breakdown is stripped: it is internal scoring state that the
+ * browser has no use for (closes audit finding C-1 for this route; the
+ * list endpoint still selects it and is tracked separately).
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
+
+  const { id: leadId } = await params;
+  const db = getDb();
+
+  const leadRow = await db.execute({
+    sql: "SELECT * FROM leads WHERE id = ?",
+    args: [leadId],
+  });
+  if (leadRow.rows.length === 0) {
+    return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+  }
+
+  const { score_breakdown: _omit, ...lead } = leadRow.rows[0] as unknown as Record<string, unknown>;
+
+  let messages: { role: string; content: string; created_at: string }[] = [];
+  if (lead.conversation_id) {
+    const msgRows = await db.execute({
+      sql: "SELECT role, content, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at ASC",
+      args: [String(lead.conversation_id)],
+    });
+    messages = msgRows.rows.map((m) => ({
+      role: String(m.role),
+      content: String(m.content),
+      created_at: String(m.created_at),
+    }));
+  }
+
+  const emailRow = await db.execute({
+    sql: "SELECT id, subject FROM emails WHERE lead_id = ? AND status = 'draft' ORDER BY created_at DESC LIMIT 1",
+    args: [leadId],
+  });
+  const pendingEmail = emailRow.rows[0]
+    ? { id: String(emailRow.rows[0].id), subject: String(emailRow.rows[0].subject) }
+    : null;
+
+  return NextResponse.json({ lead, messages, pendingEmail });
+}
+
+/**
  * Validate that a candidate value exists as an active slug in the lead_options
  * lookup for the given kind. Replaces the previous hardcoded enum allowlist.
  */
