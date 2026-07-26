@@ -22,7 +22,12 @@ async function makeTestDb(): Promise<Client> {
 }
 
 vi.mock("@/lib/db/client", () => ({ getDb: () => db }));
-vi.mock("@/lib/push/notify", () => ({ sendPushNotification: vi.fn(async () => undefined) }));
+
+const sendPushMock = vi.fn(async () => undefined);
+vi.mock("@/lib/push/notify", () => ({
+  sendPushNotification: (...args: unknown[]) => sendPushMock(...args),
+}));
+
 vi.mock("@/lib/ai/lead-summary", () => ({ summariseLead: vi.fn(async () => "summary") }));
 
 const scoreLeadMock = vi.fn(async () => undefined);
@@ -48,6 +53,7 @@ beforeEach(async () => {
   await db.execute("DELETE FROM rate_limits");
   await db.execute("DELETE FROM leads");
   scoreLeadMock.mockClear();
+  sendPushMock.mockClear();
 });
 
 describe("connect qualification tier", () => {
@@ -92,5 +98,17 @@ describe("connect qualification tier", () => {
     await POST(makeRequest({ name: "Normal", email: "n@example.com" }));
     const rows = await db.execute("SELECT qualification FROM leads WHERE email = 'n@example.com'");
     expect(String(rows.rows[0].qualification)).toBe("warm");
+  });
+
+  it("pushes a distinct connect-request notification instead of a cold-lead one", async () => {
+    const res = await POST(
+      makeRequest({ name: "Connect Person", email: "c3@example.com", qualification: "connect" }),
+    );
+    expect(res.status).toBe(201);
+    expect(sendPushMock).toHaveBeenCalledTimes(1);
+    const pushArg = sendPushMock.mock.calls[0][0] as { title: string; body: string };
+    expect(pushArg.title).toBe("🤝 Connect Request");
+    expect(pushArg.title).not.toBe("New Lead (Cold)");
+    expect(pushArg.body).not.toMatch(/score/i);
   });
 });

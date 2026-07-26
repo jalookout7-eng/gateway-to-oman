@@ -269,11 +269,25 @@ export async function POST(request: NextRequest) {
     });
     const tier = String(scored.rows[0]?.qualification ?? "warm");
     const score = Number(scored.rows[0]?.lead_score ?? 0);
+    const isConnectLead = tier === "connect";
 
-    // Fire-and-forget: notify admin of new lead with score tier
+    // Fire-and-forget: notify admin of new lead with score tier. Connect
+    // requests get their own title + body — they were never scored (see
+    // above), so "score 0" would misread as a weak lead when the visitor
+    // in fact explicitly asked to be put in touch with a person. Ahmed
+    // triages off this title, so a hot/warm/cold label here would actively
+    // mislead him into deprioritising exactly the lead who asked to talk.
     sendPushNotification({
-      title: tier === "hot" ? "🔥 Hot Lead" : tier === "warm" ? "Warm Lead" : "New Lead (Cold)",
-      body: `${name} — ${segment ?? "unknown"} · score ${score}`,
+      title: isConnectLead
+        ? "🤝 Connect Request"
+        : tier === "hot"
+          ? "🔥 Hot Lead"
+          : tier === "warm"
+            ? "Warm Lead"
+            : "New Lead (Cold)",
+      body: isConnectLead
+        ? `${name} — ${segment ?? "unknown"} · asked to be connected`
+        : `${name} — ${segment ?? "unknown"} · score ${score}`,
       url: "/admin/leads",
     }).catch(console.error);
 
