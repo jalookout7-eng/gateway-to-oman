@@ -223,7 +223,7 @@ function KindBlock({
           <li className="text-xs text-gray-400 italic">No options yet — add one below.</li>
         )}
         {items.map((opt) => (
-          <li key={opt.slug} className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${opt.active ? "bg-white border-gray-200" : "bg-gray-50 border-gray-100 opacity-60"}`}>
+          <li key={opt.slug} className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 ${opt.active ? "bg-white border-gray-200" : "bg-gray-50 border-gray-100 opacity-60"}`}>
             <GripVertical className="w-4 h-4 text-gray-300 flex-shrink-0" />
             <span className={`text-xs px-2 py-0.5 rounded-full ${colorChipClass(opt.color)}`}>
               {opt.label}
@@ -238,57 +238,59 @@ function KindBlock({
               className="text-sm flex-1 min-w-0 px-2 py-1 rounded border border-transparent hover:border-gray-200 focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/20 bg-transparent"
               aria-label="Label"
             />
-            <code className="text-xs text-gray-400 hidden sm:inline">{opt.slug}</code>
-            <select
-              value={opt.color ?? ""}
-              onChange={(e) => onUpdate(opt, { color: e.target.value || null })}
-              className="text-xs rounded border border-gray-200 bg-white px-1.5 py-1"
-              aria-label="Colour"
-            >
-              <option value="">no colour</option>
-              {COLORS.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-            <input
-              type="number"
-              defaultValue={opt.sort_order}
-              onBlur={(e) => {
-                const v = Number(e.target.value);
-                if (!Number.isNaN(v) && v !== opt.sort_order) onUpdate(opt, { sort_order: v });
-              }}
-              className="w-16 text-xs px-2 py-1 rounded border border-gray-200"
-              aria-label="Sort order"
-              title="Sort order"
-            />
-            <label className="text-xs text-gray-500 flex items-center gap-1 cursor-pointer">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <code className="text-xs text-gray-400 hidden sm:inline">{opt.slug}</code>
+              <select
+                value={opt.color ?? ""}
+                onChange={(e) => onUpdate(opt, { color: e.target.value || null })}
+                className="text-xs rounded border border-gray-200 bg-white px-1.5 py-1"
+                aria-label="Colour"
+              >
+                <option value="">no colour</option>
+                {COLORS.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
               <input
-                type="checkbox"
-                checked={opt.active}
-                onChange={(e) => onUpdate(opt, { active: e.target.checked })}
-                className="cursor-pointer"
+                type="number"
+                defaultValue={opt.sort_order}
+                onBlur={(e) => {
+                  const v = Number(e.target.value);
+                  if (!Number.isNaN(v) && v !== opt.sort_order) onUpdate(opt, { sort_order: v });
+                }}
+                className="w-16 text-xs px-2 py-1 rounded border border-gray-200"
+                aria-label="Sort order"
+                title="Sort order"
               />
-              active
-            </label>
-            <button
-              onClick={() => onDelete(opt)}
-              aria-label={`Delete ${opt.label}`}
-              className="text-gray-300 hover:text-red-500 transition-colors p-1"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+              <label className="text-xs text-gray-500 flex items-center gap-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={opt.active}
+                  onChange={(e) => onUpdate(opt, { active: e.target.checked })}
+                  className="cursor-pointer"
+                />
+                active
+              </label>
+              <button
+                onClick={() => onDelete(opt)}
+                aria-label={`Delete ${opt.label}`}
+                className="text-gray-300 hover:text-red-500 transition-colors p-1"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           </li>
         ))}
       </ul>
 
-      <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+      <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
         <input
           type="text"
           value={newLabel}
           onChange={(e) => setNewLabel(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") submitNew(); }}
           placeholder={`Add a new ${kind}…`}
-          className="text-sm flex-1 px-3 py-1.5 rounded border border-gray-200 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/20"
+          className="text-sm flex-1 min-w-0 px-3 py-1.5 rounded border border-gray-200 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/20"
         />
         <select
           value={newColor}

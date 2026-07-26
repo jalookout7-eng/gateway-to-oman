@@ -156,7 +156,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="username"
                 placeholder="you@example.com"
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
+                className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-base sm:text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
               />
             </div>
             <div>
@@ -169,7 +169,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
                   placeholder="••••••••"
-                  className="w-full px-4 py-2.5 pr-11 rounded-lg border border-gray-200 text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
+                  className="w-full px-4 py-2.5 pr-11 rounded-lg border border-gray-200 text-base sm:text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
                 />
                 <button
                   type="button"
