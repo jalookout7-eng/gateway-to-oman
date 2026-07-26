@@ -344,7 +344,7 @@ const TEASER_VARIANTS: Record<string, string[]> = {
  * for when the experiment resumes. Do not delete it.
  */
 export const AWS_TEASER_TEXT =
-  "Hi, I can connect you with a GTO representative or answer questions you have on your move to Oman or business search in Oman.";
+  "Hi I can connect you with a GTO representative or answer any questions you may have";
 
 export function pickTeaserVariant(section?: string): {
   text: string;

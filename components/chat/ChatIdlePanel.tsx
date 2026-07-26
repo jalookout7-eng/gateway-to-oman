@@ -60,7 +60,7 @@ export function ChatIdlePanel({
         <div className="mt-1 flex items-center gap-2.5">
           <h2 className="text-white text-2xl font-bold leading-none">Ask Omar</h2>
           <span className="inline-flex items-center rounded-md border border-white/40 px-2 py-0.5 text-[11px] font-medium text-white/90">
-            AI advisor
+            AI Assistant
           </span>
         </div>
 

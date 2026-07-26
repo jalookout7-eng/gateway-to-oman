@@ -12,7 +12,7 @@ describe("pickTeaserVariant (AWS-style fixed teaser)", () => {
   it("uses JA's approved teaser copy", () => {
     const { text } = pickTeaserVariant("default");
     expect(text).toBe(
-      "Hi, I can connect you with a GTO representative or answer questions you have on your move to Oman or business search in Oman.",
+      "Hi I can connect you with a GTO representative or answer any questions you may have",
     );
   });
 

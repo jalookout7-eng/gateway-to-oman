@@ -8,7 +8,7 @@ describe("ChatIdlePanel", () => {
   it("shows the title, subtitle and the AI-advisor badge", () => {
     render(<ChatIdlePanel onStart={() => {}} onMinimize={() => {}} />);
     expect(screen.getByText("Ask Omar")).toBeTruthy();
-    expect(screen.getByText(/AI advisor/i)).toBeTruthy();
+    expect(screen.getByText(/AI Assistant/i)).toBeTruthy();
     expect(screen.getByText(/guidance on investing, relocating/i)).toBeTruthy();
   });
 
