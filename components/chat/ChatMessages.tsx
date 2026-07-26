@@ -2,10 +2,44 @@
 
 import { motion } from "framer-motion";
 import { forwardRef } from "react";
+import { parseInline } from "@/lib/chat/markdown";
 
 export interface Message {
   role: "user" | "assistant";
   content: string;
+}
+
+/**
+ * Renders parsed markdown nodes as React elements. Never dangerouslySetInnerHTML:
+ * the parser returns typed data, this just maps it to elements, and anything the
+ * parser didn't recognise already arrived here as a plain "text" node.
+ */
+function renderMarkdown(content: string) {
+  return parseInline(content).map((node, i) => {
+    switch (node.type) {
+      case "bold":
+        return <strong key={i}>{node.value}</strong>;
+      case "italic":
+        return <em key={i}>{node.value}</em>;
+      case "link":
+        return (
+          <a
+            key={i}
+            href={node.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline"
+          >
+            {node.value}
+          </a>
+        );
+      case "break":
+        return <br key={i} />;
+      case "text":
+      default:
+        return <span key={i}>{node.value}</span>;
+    }
+  });
 }
 
 interface ChatMessagesProps {
@@ -41,7 +75,7 @@ export const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(
                   : "bg-warm-cream text-gray-800 rounded-bl-sm"
               }`}
             >
-              {msg.content}
+              {renderMarkdown(msg.content)}
             </div>
           </motion.div>
         ))}
