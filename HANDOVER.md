@@ -20,7 +20,7 @@
 | **Live URLs** | <https://gatewaytooman.com> · <https://www.gatewaytooman.com> |
 | **Latest production deploy** | `dpl_AYwncWcPRSz78mgaBLQzG1Ex8dbH` (GA4 `/admin` exclusion, 2026-07-21) |
 | **Awaiting JA click-test → prod** | FOUR features built + reviewed, none live: (1) mobile nav bottom sheet + PWA loading — ON PREVIEW (`12c12fb`..`3142737`); (2) Batch 16 security hardening (`7301704`..`cc36d5c`); (3) GA4 consent banner + rewritten legal pages (`88b1b2f`..`69cea3c`); (4) Omar widget AWS-style redesign (`6e165eb`..`b5755f5`). (2)-(4) are not deployed anywhere, not even preview. **Deploy plan: one `vercel deploy --yes` preview → click-test the widget + banner on mobile AND desktop → one `vercel deploy --prod --yes`.** |
-| **Latest commit on `section-b-marketplace`** | `b5755f5` (LOCAL ONLY — origin is at `f2c2786`; 45+ commits unpushed, git credential needs fixing, see item Q) |
+| **Latest commit on `section-b-marketplace`** | `88290d8` (LOCAL ONLY — origin is at `f2c2786`; ~55 commits unpushed, git credential needs fixing, see item Q) |
 | **Repo** | <https://github.com/jalookout7-eng/gateway-to-oman> (private) |
 | **Active branch** | `section-b-marketplace` (production deploys from here; `master` ~140 commits behind — consider making this the GitHub default branch) |
 | **Tests** | 324/324 passing across 50 files (component tests now supported via @vitejs/plugin-react) |
@@ -601,7 +601,7 @@ Don't read it for "what to do next" — that's all here.
 
 ---
 
-**Doc version:** v9.0 (mobile + chat polish; five features queued for one deploy)
+**Doc version:** v9.1 (intake brief captured; five features queued for one deploy)
 **Last updated:** July 25, 2026
 **Maintainer:** JA · JALAI
 
