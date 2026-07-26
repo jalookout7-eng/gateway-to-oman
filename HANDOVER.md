@@ -19,11 +19,11 @@
 |---|---|
 | **Live URLs** | <https://gatewaytooman.com> · <https://www.gatewaytooman.com> |
 | **Latest production deploy** | `dpl_AYwncWcPRSz78mgaBLQzG1Ex8dbH` (GA4 `/admin` exclusion, 2026-07-21) |
-| **Awaiting JA click-test → prod** | (1) Mobile nav bottom sheet + PWA pulsing-logo loading — ON PREVIEW (`12c12fb`..`3142737`). (2) **Batch 16 security hardening** (`7301704`..`cc36d5c`). (3) **GA4 consent banner + rewritten legal pages** (`88b1b2f`..`69cea3c`). (2) and (3) are built + reviewed but NOT deployed anywhere. All three ship in ONE `vercel deploy --prod --yes` once the nav is approved. |
-| **Latest commit on `section-b-marketplace`** | `69cea3c` (LOCAL ONLY — origin is at `f2c2786`; 35+ commits unpushed, git credential needs fixing, see item Q) |
+| **Awaiting JA click-test → prod** | FOUR features built + reviewed, none live: (1) mobile nav bottom sheet + PWA loading — ON PREVIEW (`12c12fb`..`3142737`); (2) Batch 16 security hardening (`7301704`..`cc36d5c`); (3) GA4 consent banner + rewritten legal pages (`88b1b2f`..`69cea3c`); (4) Omar widget AWS-style redesign (`6e165eb`..`b5755f5`). (2)-(4) are not deployed anywhere, not even preview. **Deploy plan: one `vercel deploy --yes` preview → click-test the widget + banner on mobile AND desktop → one `vercel deploy --prod --yes`.** |
+| **Latest commit on `section-b-marketplace`** | `b5755f5` (LOCAL ONLY — origin is at `f2c2786`; 45+ commits unpushed, git credential needs fixing, see item Q) |
 | **Repo** | <https://github.com/jalookout7-eng/gateway-to-oman> (private) |
 | **Active branch** | `section-b-marketplace` (production deploys from here; `master` ~140 commits behind — consider making this the GitHub default branch) |
-| **Tests** | 259/259 passing across 43 files (component tests now supported via @vitejs/plugin-react) |
+| **Tests** | 282/282 passing across 45 files (component tests now supported via @vitejs/plugin-react) |
 | **Build** | clean, 85 routes · `tsc --noEmit` has 3 pre-existing test-file errors (not 2 as previously noted) |
 
 What's running: Next.js 14.2 App Router on Vercel Pro, Anthropic Haiku 4.5 (Groq Llama 3.3 70B failover), Turso libSQL in Tokyo region, Resend transactional email (gatewaytooman.com domain verified), Cloudflare R2 for listing media (presigned direct-to-R2 uploads — browser uploads straight to R2, bypassing Vercel), Web Push notifications (VAPID), Google OAuth for marketplace sign-in, GA4 live in production since 2026-07-04 (measurement ID set in Vercel); `/admin/*` excluded from tracking as of 2026-07-21.
@@ -179,7 +179,7 @@ Agreed execution order. Each gets its implementation plan written just-in-time b
 | 1 | Mobile nav bottom sheet + PWA loading | **BUILT — on preview** (item P) | Plan: `docs/superpowers/plans/2026-07-25-mobile-admin-nav-and-pwa-loading.md`. 202/202 tests. |
 | 2 | Batch 16 security hardening (2 HIGH + 4 MED) | **BUILT — awaiting deploy with item P** | 11 commits `7301704`..`cc36d5c`. All 6 audit findings closed + fix wave. Plan: `docs/superpowers/plans/2026-07-25-batch16-security-hardening.md`. 229/229 tests. Ships in the SAME prod deploy as the mobile nav. |
 | 3 | GA4 consent banner (Consent Mode v2, opt-out model) | **BUILT — awaiting deploy with item P** (9 commits `88b1b2f`..`69cea3c`) | `2026-07-25-consent-banner-design.md`. JA decision: undecided visitors ARE tracked; Decline kills GA. Default is a one-line flip if lawyer review (item I) demands opt-in. Closes item M. |
-| 4 | Omar chat widget AWS-style redesign | Spec ready | `2026-07-25-chat-widget-aws-redesign-design.md`. Fixed teaser copy SUSPENDS the 5-variant hook A/B experiment (tracked as `<surface>-aws-1`). Button keeps current design; GTO navy/gold. |
+| 4 | Omar chat widget AWS-style redesign | **BUILT — awaiting deploy with item P** (6 commits `6e165eb`..`b5755f5`) | `2026-07-25-chat-widget-aws-redesign-design.md`. Fixed teaser copy SUSPENDS the 5-variant hook A/B experiment (tracked as `<surface>-aws-1`). Button keeps current design; GTO navy/gold. |
 | 5 | Intake form page + timed popup | Brainstorm pending | Reuse the (security-reviewed, clean) intake-form UI from the ex-developer's dashboard package (`~/Downloads/gateway_to_oman_dashboard` — its Supabase backend is NOT used); wire into the existing `leads` table + `/api/leads` flow; standalone `/intake` page + timed popup on the main site. DECIDED 2026-07-25: popup fires at **15 seconds** on-site; price to Ahmed is **AED 400 one-time**, billed separately from the retainer. Remaining for brainstorm: leads-table schema additions (investment_timeline, purpose, location, residency, services), popup dismissal/suppression behavior, GA events for the new surface. |
 
 ### Infrastructure gaps identified during 2026-06-28 review
@@ -578,9 +578,16 @@ Don't read it for "what to do next" — that's all here.
 
 ---
 
-**Doc version:** v8.8 (consent banner built; legal pages corrected)
+**Doc version:** v8.9 (Omar widget redesigned; four features queued for one deploy)
 **Last updated:** July 25, 2026
 **Maintainer:** JA · JALAI
+
+### v8.9 changelog
+- **Omar chat widget reskinned to the AWS pattern** (6 commits `6e165eb`..`b5755f5`, not deployed). Opening Omar now lands on an idle panel — navy header with an embedded "Ask a question" input, three starter chips mapped to the qualification segments (business/investment, relocating/working, retirement), and a `/terms` disclaimer — instead of a seeded greeting bubble. Restyled navy teaser bar, unread badge on the floating button, minimize. The floating button keeps its existing gold-gradient design per JA.
+- **The hook A/B experiment is now SUSPENDED.** One fixed teaser line replaces the 5-variant rotation, recorded as `hook_variant_id = <surface>-aws-1` so the conversion SQL in §Hook A/B and prior variant data stay comparable. Resuming the experiment means restoring the rotation in `pickTeaserVariant` — `TEASER_VARIANTS` was deliberately left in place.
+- **Conversation machinery untouched** — capture opt-in, keep-chat, HOT-lead CTAs, lead scoring, and every GA event are byte-identical; the review verified the conversation children moved verbatim. Removing the seeded greeting has no downstream effect (it was client-only state that never reached the DB, so prompts, scoring, signal parsing and the admin transcript viewer are unaffected).
+- **Review caught a plan defect that would have broken the site:** the plan told the implementer to add `relative` to the `fixed` floating button; Tailwind emits `.relative` after `.fixed`, so the Omar button would have lost fixed positioning and effectively vanished sitewide. jsdom applies no CSS, so tests passed — only review caught it.
+- Suite: 259 → 282 tests across 45 files. tsc baseline unchanged (3 pre-existing); build clean at 85 routes.
 
 ### v8.8 changelog
 - **GA4 consent banner BUILT** (9 commits `88b1b2f`..`69cea3c`, not yet deployed) — closes item M. Consent Mode v2, opt-out per JA: analytics runs from arrival, the banner offers equal-weight Accept/Decline, Decline switches GA off for the session (`ga-disable-*` + `consent update`) and prevents the tag loading on later page loads, cross-tab aware, choice kept 12 months. `CONSENT_DEFAULT` is a one-line flip to opt-in if the lawyer requires it.
@@ -591,6 +598,13 @@ Don't read it for "what to do next" — that's all here.
 ### v8.7 changelog
 - **JALAI workspace standards section added** (see 📐 above): security checklist + review playbook + 1000-concurrent scalability roadmap + backup discipline now formalized at workspace level (`delivery/_config/` + `delivery/_playbooks/`), largely derived from this project's own audits. GTO profiles: AI automation + marketplace.
 - **Item Q escalated**: 9 unpushed commits now violate the backup standard (every session ends pushed; live = local/GitHub/prod in sync) — fix the git credential first.
+
+### v8.9 changelog
+- **Omar chat widget reskinned to the AWS pattern** (6 commits `6e165eb`..`b5755f5`, not deployed). Opening Omar now lands on an idle panel — navy header with an embedded "Ask a question" input, three starter chips mapped to the qualification segments (business/investment, relocating/working, retirement), and a `/terms` disclaimer — instead of a seeded greeting bubble. Restyled navy teaser bar, unread badge on the floating button, minimize. The floating button keeps its existing gold-gradient design per JA.
+- **The hook A/B experiment is now SUSPENDED.** One fixed teaser line replaces the 5-variant rotation, recorded as `hook_variant_id = <surface>-aws-1` so the conversion SQL in §Hook A/B and prior variant data stay comparable. Resuming the experiment means restoring the rotation in `pickTeaserVariant` — `TEASER_VARIANTS` was deliberately left in place.
+- **Conversation machinery untouched** — capture opt-in, keep-chat, HOT-lead CTAs, lead scoring, and every GA event are byte-identical; the review verified the conversation children moved verbatim. Removing the seeded greeting has no downstream effect (it was client-only state that never reached the DB, so prompts, scoring, signal parsing and the admin transcript viewer are unaffected).
+- **Review caught a plan defect that would have broken the site:** the plan told the implementer to add `relative` to the `fixed` floating button; Tailwind emits `.relative` after `.fixed`, so the Omar button would have lost fixed positioning and effectively vanished sitewide. jsdom applies no CSS, so tests passed — only review caught it.
+- Suite: 259 → 282 tests across 45 files. tsc baseline unchanged (3 pre-existing); build clean at 85 routes.
 
 ### v8.8 changelog
 - **GA4 consent banner BUILT** (9 commits `88b1b2f`..`69cea3c`, not yet deployed) — closes item M. Consent Mode v2, opt-out per JA: analytics runs from arrival, the banner offers equal-weight Accept/Decline, Decline switches GA off for the session (`ga-disable-*` + `consent update`) and prevents the tag loading on later page loads, cross-tab aware, choice kept 12 months. `CONSENT_DEFAULT` is a one-line flip to opt-in if the lawyer requires it.
