@@ -211,6 +211,34 @@ describe("ChatWidget idle panel", () => {
     expect(screen.queryByText(/Want help getting started\?/i)).toBeNull();
   });
 
+  it("lets 'Connect with a representative' open the capture form before any conversationId exists", async () => {
+    // Reproduces the reachable gap from Task 4's follow-up: an
+    // opportunity-card open seeds a greeting directly (conversation view
+    // renders, bypassing the idle panel) without ever calling /api/chat, so
+    // conversationId is still null when the header menu is available. The
+    // Connect action must still surface the form (connectRequested lets the
+    // render gate through even with conversationId === null).
+    chatModalMock.current = {
+      isOpen: true,
+      config: { intent: "opportunity", topic: "Businesses for Sale" },
+      openModal: vi.fn(),
+      closeModal: vi.fn(),
+    };
+
+    const { ChatWidget } = await import("@/components/chat/ChatWidget");
+    render(<ChatWidget />);
+
+    // Conversation view rendered directly from the seeded topic greeting —
+    // no message was sent, so no /api/chat round trip has happened yet and
+    // conversationId is still null.
+    await waitFor(() => expect(screen.getByText(/wide range here from OMR/i)).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: /chat options/i }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /connect with a representative/i }));
+
+    await waitFor(() => expect(screen.getByPlaceholderText("Your name")).toBeTruthy());
+  });
+
   it("does not render at all on admin routes", async () => {
     pathnameMock.mockReturnValue("/admin/leads");
     const { ChatWidget } = await import("@/components/chat/ChatWidget");

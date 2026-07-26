@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 
 interface LeadCaptureFormProps {
-  conversationId: string;
+  conversationId: string | null;
   segment: string | null;
   interest: string | null;
   onSubmit: (data: {

@@ -632,8 +632,17 @@ export function ChatWidget() {
                   </div>
                 )}
 
-                {/* Lead capture form — only when explicitly accepted. */}
-                {showCaptureForm && !leadCaptured && conversationId && (
+                {/* Lead capture form — only when explicitly accepted. Normal
+                    (in-chat) captures still require a conversationId, same
+                    as before. The header menu's "Connect with a
+                    representative" can fire before any /api/chat round trip
+                    has happened (e.g. right after an opportunity-card
+                    greeting is seeded), so connectRequested lets the form
+                    render without one — /api/leads already tolerates a
+                    null conversationId (skips the conversation-outcome
+                    update and the conversation-based scoring, defaults
+                    stay sane). */}
+                {showCaptureForm && !leadCaptured && (conversationId || connectRequested) && (
                   <LeadCaptureForm
                     conversationId={conversationId}
                     segment={detectedSegment}
