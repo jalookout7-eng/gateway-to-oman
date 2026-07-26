@@ -108,7 +108,7 @@ export function ChatIdlePanel({
         </div>
       </div>
 
-      <p className="flex-shrink-0 px-5 pb-4 text-center text-xs text-gray-400">
+      <p className="flex-shrink-0 px-5 pb-4 text-center text-xs text-gray-500">
         By chatting, you agree to this{" "}
         <Link href="/terms" className="text-gray-500 underline hover:text-navy transition-colors">
           disclaimer
