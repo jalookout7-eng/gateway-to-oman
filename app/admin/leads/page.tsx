@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
-import { LeadNotesTimeline } from "@/components/admin/LeadNotesTimeline";
 
 interface Lead {
   id: string;
@@ -17,11 +17,11 @@ interface Lead {
   interests: string | null;
   qualification: string | null;
   status: string | null;
+  source: string | null;
   admin_notes: string | null;
   conversation_id: string | null;
   created_at: string;
   ai_summary?: string | null;
-  pendingEmail?: { id: string; subject: string } | null;
 }
 
 function authHeaders() {
@@ -61,6 +61,7 @@ type LeadOptionsByKind = {
 const EMPTY_LEAD_OPTIONS: LeadOptionsByKind = { status: [], qualification: [], segment: [] };
 
 export default function LeadsPage() {
+  const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterSegment, setFilterSegment] = useState("");
@@ -69,10 +70,6 @@ export default function LeadsPage() {
   const [filterSource, setFilterSource] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [conversation, setConversation] = useState<{ messages: { role: string; content: string }[] } | null>(null);
-  const [expandedLead, setExpandedLead] = useState<string | null>(null);
-  const [regenerating, setRegenerating] = useState<string | null>(null);
   // Admin-editable lookups — loaded once, fall back to empty list if endpoint
   // is unreachable (the dropdown still shows the current value + "—").
   const [leadOptions, setLeadOptions] = useState<LeadOptionsByKind>(EMPTY_LEAD_OPTIONS);
@@ -196,76 +193,23 @@ export default function LeadsPage() {
     if (filterStatus) params.set("status", filterStatus);
     if (filterSource) params.set("source", filterSource);
 
-    const [leadsRes, emailsRes] = await Promise.all([
-      fetch(`/api/leads?${params}`, { headers: authHeaders(), credentials: "include" }),
-      fetch(`/api/admin/emails?status=draft`, { headers: authHeaders(), credentials: "include" }),
-    ]);
+    const leadsRes = await fetch(`/api/leads?${params}`, {
+      headers: authHeaders(),
+      credentials: "include",
+    });
 
     if (leadsRes.ok) {
-      const leadsData: Lead[] = await leadsRes.json();
-      const emailsData: { id: string; lead_id: string; subject: string }[] = emailsRes.ok
-        ? await emailsRes.json()
-        : [];
-
-      const emailsByLead = new Map(emailsData.map((e) => [e.lead_id, { id: e.id, subject: e.subject }]));
-      setLeads(leadsData.map((l) => ({ ...l, pendingEmail: emailsByLead.get(l.id) ?? null })));
+      setLeads((await leadsRes.json()) as Lead[]);
     }
     setLoading(false);
   }, [filterSegment, filterQualification, filterStatus, filterSource]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
-  async function handleExpand(lead: Lead) {
-    if (expandedId === lead.id) {
-      setExpandedId(null);
-      setConversation(null);
-      return;
-    }
-    setExpandedId(lead.id);
-    if (lead.conversation_id) {
-      const res = await fetch(`/api/conversations/${lead.conversation_id}`, { headers: authHeaders(), credentials: "include" });
-      if (res.ok) setConversation(await res.json());
-    } else {
-      setConversation(null);
-    }
-  }
-
-  async function sendDraftEmail(emailId: string, leadId: string) {
-    const res = await fetch(`/api/admin/emails/${emailId}/send`, {
-      method: "POST",
-      headers: authHeaders(),
-      credentials: "include",
-    });
-    if (!res.ok) {
-      alert("Failed to send email. Please try again.");
-      return;
-    }
-    setLeads((prev) =>
-      prev.map((l) => (l.id === leadId ? { ...l, pendingEmail: null } : l))
-    );
-  }
-
-  async function regenerateSummary(leadId: string) {
-    setRegenerating(leadId);
-    try {
-      const res = await fetch(`/api/admin/leads/${leadId}/summarize`, {
-        method: "POST",
-        headers: authHeaders(),
-        credentials: "include",
-      });
-      const data = await res.json();
-      setLeads((prev) =>
-        prev.map((l: Lead) => (l.id === leadId ? { ...l, ai_summary: data.summary } : l))
-      );
-    } finally {
-      setRegenerating(null);
-    }
-  }
-
   function handleExportCSV() {
-    const header = "Name,Email,Phone,Segment,Qualification,Status,Date\n";
+    const header = "Name,Email,Phone,Segment,Qualification,Status,Source,Date\n";
     const rows = leads.map(l =>
-      `"${l.name}","${l.email}","${l.country_code ?? ""}${l.phone ?? ""}","${l.segment ?? ""}","${l.qualification ?? ""}","${l.status ?? ""}","${l.created_at}"`
+      `"${l.name}","${l.email}","${l.country_code ?? ""}${l.phone ?? ""}","${l.segment ?? ""}","${l.qualification ?? ""}","${l.status ?? ""}","${l.source ?? "main"}","${l.created_at}"`
     ).join("\n");
     const blob = new Blob([header + rows], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -336,6 +280,7 @@ export default function LeadsPage() {
           <option value="">All Sources</option>
           <option value="main">Main site</option>
           <option value="businesses">Businesses</option>
+          <option value="intake">Intake form</option>
         </select>
       </div>
 
@@ -395,16 +340,19 @@ export default function LeadsPage() {
                 <th className="text-left px-4 py-3 font-medium text-gray-600 hidden md:table-cell">Interest</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Qual.</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 hidden sm:table-cell">Source</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Date</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
               {leads.map((lead) => (
-                <>
+                  /* Row click opens the full lead detail page. The old inline
+                     transcript and AI-summary expanders were removed when that
+                     page landed: same information, one place. */
                   <tr
                     key={lead.id}
-                    onClick={() => handleExpand(lead)}
+                    onClick={() => router.push(`/admin/leads/${lead.id}`)}
                     className={`border-b border-gray-50 hover:bg-warm-white cursor-pointer transition-colors ${
                       selectedIds.has(lead.id) ? "bg-red-50/50" : ""
                     }`}
@@ -469,97 +417,23 @@ export default function LeadsPage() {
                         ))}
                       </select>
                     </td>
+                    <td className="px-4 py-3 text-gray-600 capitalize hidden sm:table-cell">
+                      {lead.source ?? "main"}
+                    </td>
                     <td className="px-4 py-3 text-gray-500">
                       {new Date(lead.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => setExpandedLead(expandedLead === lead.id ? null : lead.id)}
-                          className="p-1 text-gray-400 hover:text-navy transition-colors"
-                          aria-label="Toggle AI summary"
-                        >
-                          <svg className={`w-4 h-4 transition-transform ${expandedLead === lead.id ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleDelete(lead)}
-                          className="p-1 text-gray-300 hover:text-red-600 transition-colors"
-                          aria-label="Delete lead"
-                          title="Delete this lead and all related data"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => handleDelete(lead)}
+                        className="p-1 text-gray-300 hover:text-red-600 transition-colors"
+                        aria-label="Delete lead"
+                        title="Delete this lead and all related data"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
-                  {expandedLead === lead.id && (
-                    <tr key={`${lead.id}-summary`}>
-                      <td colSpan={10} className="px-4 pb-4 bg-gray-50/50">
-                        <div className="bg-white rounded-xl p-4 border-l-4 border-gold mt-1">
-                          <div className="flex items-center justify-between mb-2">
-                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">AI Summary</p>
-                            <button
-                              onClick={() => regenerateSummary(lead.id)}
-                              disabled={regenerating === lead.id}
-                              className="text-xs text-gray-400 hover:text-gold flex items-center gap-1 disabled:opacity-50"
-                            >
-                              <svg className={`w-3 h-3 ${regenerating === lead.id ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0115 0M20 15a9 9 0 01-15 0" />
-                              </svg>
-                              Regenerate
-                            </button>
-                          </div>
-                          {lead.ai_summary ? (
-                            <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{lead.ai_summary}</p>
-                          ) : (
-                            <p className="text-sm text-gray-400 italic">No summary yet.</p>
-                          )}
-                          {/* Notes timeline — admin manual entries + Omar AI
-                              auto-notes (WhatsApp/Calendly clicks + a quality
-                              assessment summary on keep-chat end). The legacy
-                              single 'Admin Notes' field was removed in Batch
-                              7d (the timeline supersedes it). */}
-                          <LeadNotesTimeline leadId={lead.id} />
-                          {lead.pendingEmail && (
-                            <div className="mt-4 border-t border-gray-100 pt-4">
-                              <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">Email Pending Approval</p>
-                              <p className="text-sm text-gray-700 mb-3">{lead.pendingEmail.subject}</p>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); sendDraftEmail(lead.pendingEmail!.id, lead.id); }}
-                                  className="px-4 py-2 gold-gradient text-white text-xs rounded-lg font-semibold hover:shadow-md transition-shadow"
-                                >
-                                  Send to {lead.email}
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                  {expandedId === lead.id && (
-                    <tr key={`${lead.id}-expand`}>
-                      <td colSpan={10} className="px-4 py-4 bg-gray-50">
-                        {conversation?.messages ? (
-                          <div className="space-y-2 max-h-60 overflow-y-auto">
-                            <p className="text-xs font-semibold text-gray-500 mb-2">Conversation Transcript</p>
-                            {conversation.messages.map((msg, i) => (
-                              <div key={i} className={`text-xs p-2 rounded-lg max-w-[80%] ${msg.role === "user" ? "bg-gold/10 ml-auto" : "bg-white"}`}>
-                                <span className="font-semibold text-gray-500">{msg.role === "user" ? "Visitor" : "AI"}:</span>{" "}
-                                {msg.content}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-gray-400">No conversation recorded</p>
-                        )}
-                      </td>
-                    </tr>
-                  )}
-                </>
               ))}
             </tbody>
           </table>

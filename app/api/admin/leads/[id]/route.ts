@@ -31,7 +31,10 @@ export async function GET(
     return NextResponse.json({ error: "Lead not found" }, { status: 404 });
   }
 
-  const { score_breakdown: _omit, ...lead } = leadRow.rows[0] as unknown as Record<string, unknown>;
+  // Copy then drop, rather than destructuring into an unused binding: the
+  // repo's eslint config rejects unused vars even when underscore-prefixed.
+  const lead = { ...(leadRow.rows[0] as unknown as Record<string, unknown>) };
+  delete lead.score_breakdown;
 
   let messages: { role: string; content: string; created_at: string }[] = [];
   if (lead.conversation_id) {
