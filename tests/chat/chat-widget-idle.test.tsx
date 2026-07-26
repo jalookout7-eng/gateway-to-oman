@@ -8,15 +8,37 @@ vi.mock("next/navigation", () => ({
   usePathname: () => pathnameMock(),
 }));
 
-// The widget consumes ChatModalContext; provide an inert version.
+// The widget consumes ChatModalContext. Most tests want it inert, but the
+// opportunity-card bypass test (below) needs to flip it to an "open with
+// context" state — so the mock factory reads a mutable, hoisted object
+// instead of returning a fixed value.
+const chatModalMock = vi.hoisted(() => ({
+  current: {
+    isOpen: false,
+    config: null as { intent: string; topic?: string } | null,
+    openModal: vi.fn(),
+    closeModal: vi.fn(),
+  },
+}));
+
 vi.mock("@/lib/context/ChatModalContext", () => ({
-  useChatModal: () => ({ isOpen: false, config: null, openModal: vi.fn(), closeModal: vi.fn() }),
+  useChatModal: () => chatModalMock.current,
 }));
 
 const trackEventMock = vi.fn();
 vi.mock("@/lib/analytics/track", () => ({
   trackEvent: (...args: unknown[]) => trackEventMock(...args),
 }));
+
+// Snapshot the real jsdom descriptors once, before any test mutates them, so
+// the badge/scroll tests can restore them afterwards and can't leak state
+// into whichever test runs next (ordering-independence).
+const originalInnerHeight = Object.getOwnPropertyDescriptor(window, "innerHeight");
+const originalScrollY = Object.getOwnPropertyDescriptor(window, "scrollY");
+const originalScrollHeight = Object.getOwnPropertyDescriptor(
+  document.documentElement,
+  "scrollHeight",
+);
 
 beforeEach(() => {
   pathnameMock.mockReturnValue("/");
@@ -32,12 +54,40 @@ beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn();
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  chatModalMock.current = {
+    isOpen: false,
+    config: null,
+    openModal: vi.fn(),
+    closeModal: vi.fn(),
+  };
+  if (originalInnerHeight) Object.defineProperty(window, "innerHeight", originalInnerHeight);
+  else delete (window as unknown as Record<string, unknown>).innerHeight;
+  if (originalScrollY) Object.defineProperty(window, "scrollY", originalScrollY);
+  else delete (window as unknown as Record<string, unknown>).scrollY;
+  if (originalScrollHeight) {
+    Object.defineProperty(document.documentElement, "scrollHeight", originalScrollHeight);
+  } else {
+    delete (document.documentElement as unknown as Record<string, unknown>).scrollHeight;
+  }
+});
 
 async function openWidget() {
   const { ChatWidget } = await import("@/components/chat/ChatWidget");
   render(<ChatWidget />);
   fireEvent.click(screen.getByRole("button", { name: /chat with omar/i }));
+}
+
+/** Drives the real 30%-scroll-depth teaser trigger (unchanged ChatWidget logic). */
+function triggerScrollTeaser() {
+  Object.defineProperty(document.documentElement, "scrollHeight", {
+    configurable: true,
+    value: 2000,
+  });
+  Object.defineProperty(window, "innerHeight", { configurable: true, value: 1000 });
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 400 });
+  fireEvent.scroll(window);
 }
 
 describe("ChatWidget idle panel", () => {
@@ -85,17 +135,80 @@ describe("ChatWidget idle panel", () => {
     // Drive the existing 30%-scroll-depth trigger (unchanged logic in
     // ChatWidget) by giving jsdom a scrollable document, then dispatching a
     // scroll event past the 0.3 threshold.
-    Object.defineProperty(document.documentElement, "scrollHeight", {
-      configurable: true,
-      value: 2000,
-    });
-    Object.defineProperty(window, "innerHeight", { configurable: true, value: 1000 });
-    Object.defineProperty(window, "scrollY", { configurable: true, value: 400 });
-    fireEvent.scroll(window);
+    triggerScrollTeaser();
 
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Chat with Omar — 1 new message" })).toBeTruthy(),
     );
+  });
+
+  it("dismissing the teaser clears the badge and suppresses it for the session", async () => {
+    const { ChatWidget } = await import("@/components/chat/ChatWidget");
+    render(<ChatWidget />);
+
+    triggerScrollTeaser();
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Chat with Omar — 1 new message" })).toBeTruthy(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+
+    // Teaser copy is gone from the DOM…
+    await waitFor(() =>
+      expect(screen.queryByText(/connect you with a GTO representative/i)).toBeNull(),
+    );
+    // …and the floating button's accessible name drops the "new message" suffix.
+    expect(screen.getByRole("button", { name: "Chat with Omar" })).toBeTruthy();
+  });
+
+  it("sending a message from the idle panel's header input transitions to the conversation view", async () => {
+    await openWidget();
+    await waitFor(() => screen.getByText("Ask Omar"));
+
+    const input = screen.getByPlaceholderText("Ask a question");
+    fireEvent.change(input, { target: { value: "What visas are available?" } });
+    fireEvent.submit(input.closest("form") as HTMLFormElement);
+
+    await waitFor(() => expect(screen.queryByText(/Want help getting started\?/i)).toBeNull());
+    expect(screen.getByText("What visas are available?")).toBeTruthy();
+  });
+
+  it("preserves the conversation across minimize and reopen", async () => {
+    await openWidget();
+    await waitFor(() => screen.getByText("Ask Omar"));
+
+    fireEvent.click(screen.getByRole("button", { name: STARTER_CHIPS[0] }));
+    await waitFor(() => expect(screen.getByText(STARTER_CHIPS[0])).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: "Minimize chat" }));
+    // Widget fully unmounts while minimized (isOpen: false).
+    await waitFor(() => expect(screen.queryByText(STARTER_CHIPS[0])).toBeNull());
+
+    fireEvent.click(screen.getByRole("button", { name: "Chat with Omar" }));
+
+    // Back to the conversation view, not idle — and the earlier message survived.
+    await waitFor(() => expect(screen.queryByText(/Want help getting started\?/i)).toBeNull());
+    expect(screen.getByText(STARTER_CHIPS[0])).toBeTruthy();
+  });
+
+  it("bypasses the idle panel when opened via an opportunity card (ChatModalContext bridge)", async () => {
+    chatModalMock.current = {
+      isOpen: true,
+      config: { intent: "opportunity", topic: "Businesses for Sale" },
+      openModal: vi.fn(),
+      closeModal: vi.fn(),
+    };
+
+    const { ChatWidget } = await import("@/components/chat/ChatWidget");
+    render(<ChatWidget />);
+
+    // Seeded topic greeting for "Businesses for Sale" (TOPIC_GREETINGS in
+    // ChatWidget), proving the conversation view rendered directly.
+    await waitFor(() =>
+      expect(screen.getByText(/wide range here from OMR/i)).toBeTruthy(),
+    );
+    expect(screen.queryByText(/Want help getting started\?/i)).toBeNull();
   });
 
   it("does not render at all on admin routes", async () => {
