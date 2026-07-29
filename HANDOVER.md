@@ -18,12 +18,13 @@
 | | |
 |---|---|
 | **Live URLs** | <https://gatewaytooman.com> · <https://www.gatewaytooman.com> (apex 307-redirects to www, longstanding and correct) |
-| **Latest production deploy** | `dpl_GMqimqryvFWNEAFhgMFfysefupwa` (2026-07-27) — **the six-feature backlog is now LIVE**. Verified post-deploy: `/`, `/businesses`, `/intake`, `/privacy` all 200, and `/intake` renders the form. |
-| **Backlog cleared** | Everything that had stacked up since 2026-07-21 shipped in this one deploy: mobile nav + PWA loading, Batch 16 security hardening, GA4 consent banner + rewritten legal pages, Omar AWS-style redesign, mobile + chat polish, intake form + timed popup. |
-| **Latest commit on `section-b-marketplace`** | `11e89d4` — **pushed. 0 unpushed commits.** Item Q is closed: 69 commits landed (`f2c2786..11e89d4`) on 2026-07-27 using a one-time PAT. The PAT was never written to `.git/config` (verified) and JA was told to revoke it. |
+| **Latest production deploy** | `dpl_GMqimqryvFWNEAFhgMFfysefupwa` (2026-07-27). ⚠️ **Code committed since then is NOT deployed**: the legacy import tooling, the dashboard reporting fixes, the lead-delete cascade fix, and the leads pagination + CSV dialog all sit in git only. The imported DATA is live (it went straight to Turso), but the admin fixes are not. Verified post-deploy: `/`, `/businesses`, `/intake`, `/privacy` all 200, and `/intake` renders the form. |
+| **Leads in production** | 94, all from the legacy CRM import (2026-07-29). Ahmed's two test leads were deleted. |
+| **Backlog cleared 2026-07-27** | Everything that had stacked up since 2026-07-21 shipped in that deploy: mobile nav + PWA loading, Batch 16 security hardening, GA4 consent banner + rewritten legal pages, Omar AWS-style redesign, mobile + chat polish, intake form + timed popup. |
+| **Latest commit on `section-b-marketplace`** | `c7646e6` — **pushed. 0 unpushed commits.** Item Q is closed: 69 commits landed (`f2c2786..11e89d4`) on 2026-07-27 using a one-time PAT. The PAT was never written to `.git/config` (verified) and JA was told to revoke it. |
 | **Repo** | <https://github.com/jalookout7-eng/gateway-to-oman> (private) |
 | **Active branch** | `section-b-marketplace` (production deploys from here; `master` ~140 commits behind — consider making this the GitHub default branch) |
-| **Tests** | 400/400 passing across 57 files (component tests supported via @vitejs/plugin-react) |
+| **Tests** | 457/457 passing across 62 files (component tests supported via @vitejs/plugin-react) |
 | **Build** | clean, 88 routes · `tsc --noEmit` has 3 pre-existing test-file errors (not 2 as previously noted) |
 
 What's running: Next.js 14.2 App Router on Vercel Pro, Anthropic Haiku 4.5 (Groq Llama 3.3 70B failover), Turso libSQL in Tokyo region, Resend transactional email (gatewaytooman.com domain verified), Cloudflare R2 for listing media (presigned direct-to-R2 uploads — browser uploads straight to R2, bypassing Vercel), Web Push notifications (VAPID), Google OAuth for marketplace sign-in, GA4 live in production since 2026-07-04 (measurement ID set in Vercel); `/admin/*` excluded from tracking as of 2026-07-21.
@@ -170,6 +171,7 @@ This keeps in-progress work isolated until reviewed. Use it for any change touch
 | ~~**P**~~ | ~~Click-test → approve prod~~ | Done | **DONE 2026-07-27.** All six features click-tested on preview and promoted to production (`dpl_GMqimqryvFWNEAFhgMFfysefupwa`). Note: push-notification chip is NOT removed — it hides in browsers without web-push support (e.g. WhatsApp in-app browser); visible in Safari/PWA. |
 | ~~**Q**~~ | ~~Fix git push credential~~ | Done | **DONE 2026-07-27.** 69 commits pushed (`f2c2786..11e89d4`) with a one-time PAT supplied by JA, used inline and never written to `.git/config` (verified after). GitHub is a real backup again. **The underlying keychain credential is still broken** — the next session will need another one-time PAT unless JA fixes it. Worth doing properly: a credential in Keychain, or `gh auth login`. |
 | **R** | Revoke the 2026-07-27 PAT | 1 min | The token was pasted into a chat transcript and has push access to a private repo. Revoke at GitHub → Settings → Developer settings → Fine-grained tokens, if not already done. |
+| **T** | Decide whether `cards.meetingsBooked` should count bookings instead of sent emails | 5 min | The dashboard scorecard "Meetings Booked" runs `SELECT COUNT(*) FROM emails WHERE status='sent'`, which is not meetings. The funnel stage was corrected to use the `bookings` table on 2026-07-29; the CARD was deliberately left alone because Ahmed reads it daily and changing a number he trusts is JA's call. Both read 0 today, so switching it now is free. |
 | **S** | Decide what AI Summary should do for `/intake` leads | 15 min | **JA flagged this 2026-07-27 and deferred it deliberately.** Intake leads have no conversation, so `/api/intake` passes the structured answers into `summariseLead()`'s transcript slot. That prompt was written to summarise an Omar chat, so the output may read oddly for form data (it expects VISITOR/OMAR turns). Options: (a) leave it, (b) a separate intake-specific prompt, (c) skip the AI summary entirely for intake leads, since the detail page already shows every answer verbatim in the Investment Profile card and the summary may add nothing. **Look at a few real intake summaries in `/admin/leads` before choosing.** |
 
 ### Queued build pipeline (specs approved + committed 2026-07-25, in `docs/superpowers/specs/`)
@@ -603,9 +605,38 @@ Don't read it for "what to do next" — that's all here.
 
 ---
 
-**Doc version:** v9.3 (six-feature backlog SHIPPED to production; repo pushed; items P and Q closed)
-**Last updated:** July 27, 2026
+**Doc version:** v9.4 (legacy CRM imported; dashboard reporting and lead deletion fixed)
+**Last updated:** July 29, 2026
 **Maintainer:** JA · JALAI
+
+### v9.4 changelog
+
+**Legacy CRM import (94 records now live in production).**
+- The previous developer's CRM was scraped to nine CSV exports (`~/Downloads/gto-clients-export-2026-07-20-through-page-*.csv`), 442 raw rows. They collapse to **95 unique people**, verified: repeat rows for a given id are byte-identical across files, so there was no "which copy is newer" problem. 94 imported; `Jane Smith <test@testmail.com>` skipped as test data.
+- **The admin CSV uploader was NOT usable for this and would have corrupted the data.** It mapped three columns (name, email, phone) out of 24, parsed with a bare `split(",")` so every row containing a quoted comma (`"Salalah (Coastal, peaceful, retirement-friendly)"`) shredded into the wrong columns, never stripped quotes (names would store as `"Abdul Aliym"`), and had no dedupe. **It has since been fixed** to use the same RFC 4180 parser, and now reports skipped rows so a mostly-failed upload cannot read as a success.
+- New: `lib/import/legacy-clients.ts` (pure: parser, field mapping, dedupe), `scripts/import-legacy-clients.ts` (dry run by default, `--apply` to write), `leads.legacy_id` with a partial unique index. **The import is idempotent** — re-running skips anything already present, so a partial run is simply re-run. If Ahmed produces more pages, drop them in and run it again.
+- JA decisions: `source = 'import'` (keeps historical records out of intake and Omar reporting), `qualification = 'intake'` ("from /intake").
+- Mapping decisions worth keeping: `Purpose`/`Timeline` are read, never `purpose_short`/`timeline_short`, which are UI-truncated with an ellipsis (18 of 95 purposes differ, e.g. "Exploring Investment Opportu…"). `Form Submitted` is the created date, not `Created`, which is the CRM row date (they differ on 92 of 95). Off-allowlist answers ("All", "Still exploring", ~20 free-text services) are stored **verbatim** rather than rewritten to the nearest tick box. Phones stay whole in `phone` with `country_code` null, because splitting E.164 needs a dial-code table and risks mangling numbers.
+- **Timezone bug caught by a test before it shipped:** `Date.parse("Mar 29, 2025")` returns LOCAL midnight, and the code read it back with `getUTC*`, shifting every one of the 94 enquiry dates back a day. Now parsed straight from the string with no `Date` involved; verified identical at UTC+14 and UTC-11.
+
+**Dashboard reporting fixes (the import exposed both).**
+- **Conversion rate read 872%.** It was `all leads / conversations` (96/11). The numerator is now scoped to leads with a non-null `conversation_id`. **It now reads 0%, which is correct and worth understanding: no lead in production has a `conversation_id`, so Omar has never captured a lead. Every lead came from the marketplace or the import.**
+- **The funnel bar overflowed its card**, because `maxValue` was `visitors` alone while `leads` exceeded it. `maxValue` now spans all stages and the width is clamped to 100%.
+- The funnel's fake `visitors` stage was dropped: it was `conversations` duplicated, so the chart drew two identical bars. Four real, monotonic stages remain: conversations, leads captured from chat, meetings, converted.
+- The funnel's `meetings` counted `emails WHERE status='sent'`, which is not meetings; it now counts `bookings`. **`cards.meetingsBooked` deliberately still uses the old query** — it is a scorecard Ahmed reads daily, so changing it is JA's call, not a side effect. Both read 0 today. **Open item T.**
+
+**Lead deletion: two bugs, both in `lib/admin/lead-delete.ts`.**
+- `marketplace_users` and `sellers` hold `lead_id` foreign keys and the cascade never handled them, so any lead who had signed up to the marketplace was undeletable with only a bare "Delete failed" shown. This is what blocked JA's two test leads. Both columns are now detached (`SET NULL`), never deleted: removing someone's marketplace account as a side effect of tidying a lead row would be badly wrong.
+- **Found while fixing the first:** the cascade deleted a lead's conversation BEFORE the lead, but `leads.conversation_id` is itself an FK. Every chat-captured lead would have been undeletable. It stayed hidden only because no chat-captured lead exists yet, so the first one Omar ever captures would have been permanently stuck. The lead row now goes first.
+- Regression tests run with `PRAGMA foreign_keys = ON`; without it the old buggy code passes happily, which is exactly why this was never caught.
+- JA's two test leads (`JA`, `JA Lookout`) were deleted directly against production on 2026-07-29. All three marketplace accounts survived, detached.
+
+**Admin leads page usability.**
+- Pagination: 10/25/50/100 rows per page (default 25), "Showing X to Y of Z", Previous/Next with page count. Client-side, which fully covers ~100 rows and keeps filters, bulk delete and CSV export working. Filter or page-size changes reset to page 1; select-all only selects the visible page; Export CSV still exports every filtered lead. **True server-side pagination remains the scalability item.**
+- CSV upload dialog now lists the accepted columns (name and email required, phone optional), states that other columns are ignored, shows an example including a quoted comma, and reports imported AND skipped counts.
+- New source filter option "Imported (old CRM)".
+
+- Suite: 400 → **457 tests across 62 files**. tsc baseline unchanged (3 pre-existing). Build clean at 88 routes. **Not deployed** — these are all admin-side fixes awaiting a `vercel deploy --prod --yes`.
 
 ### v9.3 changelog
 - **The whole backlog went live** in one deploy, `dpl_GMqimqryvFWNEAFhgMFfysefupwa`. Six features that had been stacking since 2026-07-21: mobile admin nav + PWA loading, Batch 16 security hardening, GA4 consent banner + rewritten legal pages, Omar AWS-style redesign, mobile + chat polish, and the intake form + popup. Post-deploy checks: `/`, `/businesses`, `/intake`, `/privacy` all 200 on www, and `/intake` renders the form. Closes item P.
