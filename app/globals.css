@@ -5,6 +5,11 @@
 @layer base {
   body {
     @apply bg-warm-white text-gray-800 font-body;
+    /* Poppins everywhere (JA, 2026-07-29). next/font defines --font-body on
+       this element, so the alias has to live here too: :root is an ancestor
+       and cannot read a custom property set on body. Point this at a
+       different loader's variable to give headings their own face again. */
+    --font-heading: var(--font-body);
   }
 
   h1, h2, h3, h4, h5, h6 {

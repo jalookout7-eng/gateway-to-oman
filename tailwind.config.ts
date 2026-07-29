@@ -26,10 +26,13 @@ const config: Config = {
           cream: "#F0EBE1",
         },
       },
+      // Poppins throughout (JA, 2026-07-29). `heading` and `body` both resolve
+      // to it now; the two names are kept so a separate display face can be
+      // reintroduced without touching every page.
       fontFamily: {
-        body: ["var(--font-body)", "Jost", "system-ui", "sans-serif"],
-        heading: ["var(--font-heading)", "Bodoni Moda", "Georgia", "serif"],
-        sans: ["var(--font-body)", "Jost", "system-ui", "sans-serif"],
+        body: ["var(--font-body)", "Poppins", "system-ui", "sans-serif"],
+        heading: ["var(--font-heading)", "Poppins", "system-ui", "sans-serif"],
+        sans: ["var(--font-body)", "Poppins", "system-ui", "sans-serif"],
       },
     },
   },
