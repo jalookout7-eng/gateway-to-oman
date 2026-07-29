@@ -28,6 +28,8 @@ vi.mock("@/lib/push/notify", () => ({
   sendPushNotification: (...args: unknown[]) => sendPushMock(...args),
 }));
 
+// Still mocked so a stray import can never reach the real Anthropic client,
+// and so the "never summarises" test below is meaningful rather than vacuous.
 const summariseMock = vi.fn(async (..._args: unknown[]) => "summary text");
 vi.mock("@/lib/ai/lead-summary", () => ({
   summariseLead: (...args: unknown[]) => summariseMock(...args),
@@ -172,5 +174,24 @@ describe("POST /api/intake", () => {
     }
     const rows = await db.execute("SELECT id FROM leads");
     expect(rows.rows.length).toBe(3);
+  });
+});
+
+describe("intake leads get no AI summary (JA decision 2026-07-29)", () => {
+  it("never calls the summariser", async () => {
+    await POST(makeRequest(base));
+    expect(summariseMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves ai_summary null on the stored lead", async () => {
+    await POST(makeRequest(base));
+    const row = (await db.execute("SELECT ai_summary FROM leads WHERE email = 'jane@example.com'")).rows[0];
+    expect(row.ai_summary).toBeNull();
+  });
+
+  it("still creates the lead and still sends the push", async () => {
+    const res = await POST(makeRequest(base));
+    expect(res.status).toBe(201);
+    expect(sendPushMock).toHaveBeenCalledTimes(1);
   });
 });

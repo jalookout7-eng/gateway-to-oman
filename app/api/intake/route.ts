@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db/client";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { sendPushNotification } from "@/lib/push/notify";
-import { summariseLead, type LeadFacts } from "@/lib/ai/lead-summary";
 import { parseIntakePayload } from "@/lib/intake/validate";
 import { PURPOSE_TO_SEGMENT } from "@/lib/intake/constants";
 
@@ -16,35 +15,24 @@ import { PURPOSE_TO_SEGMENT } from "@/lib/intake/constants";
  * Every intake lead is written as qualification 'intake' (labelled
  * "from /intake" in the admin), a sibling of 'connect' rather than the same
  * tier: both record how the lead arrived and neither is ever AI scored, but
- * keeping them apart lets Ahmed see at a glance which inbound route produced
- * a lead. The visitor
- * asked to be contacted before anything graded them, so a hot/warm/cold
- * label would be fiction, and 'Cold' in particular would push a real
- * inbound enquiry down Ahmed's triage list. `source = 'intake'` keeps them
- * separable from Omar-captured connect leads in reporting.
+ * keeping them apart lets Ahmed see which inbound route produced a lead.
+ * These visitors asked to be contacted before anything graded them, so a
+ * hot/warm/cold label would be fiction, and 'Cold' in particular would push
+ * a real inbound enquiry down Ahmed's triage list.
+ *
+ * NO AI SUMMARY is generated here (JA decision, 2026-07-29). The summary
+ * prompt was written to condense an Omar chat transcript, and an intake
+ * lead has no conversation; feeding it the form answers produced a
+ * paraphrase of structured data that the lead detail page already shows
+ * verbatim in its Investment Profile card. Dropping it removes an Anthropic
+ * call per submission and leaves `ai_summary` null for these leads.
  */
-
-async function generateIntakeSummary(leadId: string, facts: LeadFacts, extras: string) {
-  try {
-    // No conversation exists, so the structured answers stand in for the
-    // transcript. summariseLead already accepts a null transcript; passing
-    // the answers instead gives it something real to summarise.
-    const summary = await summariseLead(facts, extras || null);
-    const db = getDb();
-    await db.execute({
-      sql: "UPDATE leads SET ai_summary = ? WHERE id = ?",
-      args: [summary, leadId],
-    });
-  } catch (err) {
-    console.error("[intake] summary generation failed:", err);
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
-    // Public, unauthenticated, and it fans out to an AI call plus a push on
-    // every accepted submission. Two windows, same shape as /api/leads but
-    // tighter: an intake form is a considered action, not a chat reply.
+    // Public and unauthenticated, and every accepted submission fires a push.
+    // Two windows, same shape as /api/leads but tighter: an intake form is a
+    // considered action, not a chat reply.
     const ip = getClientIp(request);
     const burst = await rateLimit("intake_form", ip, 3, 600);
     if (!burst.allowed) {
@@ -127,8 +115,8 @@ export async function POST(request: NextRequest) {
 
     // Zero rows means the guard fired: this email already submitted inside
     // 24h. Return the existing id in the normal success shape and skip the
-    // AI and push fan-out, so a repeat submit looks identical to the
-    // visitor and costs us nothing.
+    // push, so a repeat submit looks identical to the visitor and costs us
+    // nothing.
     if (result.rows.length === 0) {
       const existing = await db.execute({
         sql: `SELECT id FROM leads
@@ -143,29 +131,6 @@ export async function POST(request: NextRequest) {
     }
 
     const leadId = String(result.rows[0].id);
-
-    const answerLines = [
-      data.countryOfResidence ? `Country of residence: ${data.countryOfResidence}` : null,
-      data.investmentTimeline ? `Timeline: ${data.investmentTimeline}` : null,
-      data.investmentPurpose ? `Purpose: ${data.investmentPurpose}` : null,
-      data.preferredLocation ? `Preferred location: ${data.preferredLocation}` : null,
-      data.residencyInterest ? `Residency interest: ${data.residencyInterest}` : null,
-      data.servicesNeeded.length > 0 ? `Services needed: ${data.servicesNeeded.join(", ")}` : null,
-      data.additionalComments ? `Their comments: ${data.additionalComments}` : null,
-    ].filter(Boolean).join("\n");
-
-    generateIntakeSummary(
-      leadId,
-      {
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        country_code: data.countryCode,
-        segment,
-        interests,
-      },
-      answerLines,
-    ).catch(console.error);
 
     sendPushNotification({
       title: "📋 Intake Form",
