@@ -569,3 +569,11 @@ ALTER TABLE leads ADD COLUMN preferred_location TEXT;
 ALTER TABLE leads ADD COLUMN residency_interest TEXT;
 ALTER TABLE leads ADD COLUMN services_needed TEXT;
 ALTER TABLE leads ADD COLUMN additional_comments TEXT;
+
+-- Legacy CRM identifier (2026-07-29). Set only for records imported from the
+-- previous developer's system by scripts/import-legacy-clients.ts. It is what
+-- makes that import idempotent: a re-run skips any legacy_id already present,
+-- so running the script twice cannot duplicate 95 people. NULL for every lead
+-- captured through this site.
+ALTER TABLE leads ADD COLUMN legacy_id TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_legacy_id ON leads(legacy_id) WHERE legacy_id IS NOT NULL;

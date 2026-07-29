@@ -281,6 +281,7 @@ export default function LeadsPage() {
           <option value="main">Main site</option>
           <option value="businesses">Businesses</option>
           <option value="intake">Intake form</option>
+          <option value="import">Imported (old CRM)</option>
         </select>
       </div>
 
@@ -534,7 +535,10 @@ function UploadCSVModal({ isOpen, onClose, onUploaded }: { isOpen: boolean; onCl
     const data = await res.json();
     setUploading(false);
     if (res.ok) {
-      setResult(`Successfully imported ${data.imported} leads`);
+      setResult(
+        `Successfully imported ${data.imported} leads` +
+          (data.skipped ? `, skipped ${data.skipped} rows missing a name or email` : ""),
+      );
       onUploaded();
     } else {
       setResult(`Error: ${data.error}`);
