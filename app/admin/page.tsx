@@ -22,7 +22,6 @@ interface StatsData {
   interactions: { date: string; count: number }[];
   meetingsByDate: { date: string; count: number }[];
   funnel: {
-    visitors: number;
     conversations: number;
     leads: number;
     meetings: number;
