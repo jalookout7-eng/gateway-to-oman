@@ -14,7 +14,6 @@ interface ScorecardProps {
     hotLeads: number;
     warmLeads: number;
     coldLeads: number;
-    meetingsBooked: number;
     conversionRate: string;
   };
 }
@@ -25,12 +24,11 @@ export function Scorecard({ cards }: ScorecardProps) {
     { label: "Hot Leads", value: cards.hotLeads, color: "border-red-500" },
     { label: "Warm Leads", value: cards.warmLeads, color: "border-orange-500" },
     { label: "Cold Leads", value: cards.coldLeads, color: "border-blue-500" },
-    { label: "Meetings Booked", value: cards.meetingsBooked, color: "border-teal" },
     { label: "Conversion Rate", value: cards.conversionRate, color: "border-green-500" },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
       {items.map((item, i) => (
         <motion.div
           key={item.label}

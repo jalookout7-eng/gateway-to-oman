@@ -13,12 +13,10 @@ export async function GET(request: NextRequest) {
     hotLeads,
     warmLeads,
     coldLeads,
-    meetingsBooked,
     conversations,
     segmentBreakdown,
     recentLeads,
     interactions,
-    meetingsByDate,
     leadsFromConversation,
     bookingsCount,
     convertedFromConversation,
@@ -27,7 +25,6 @@ export async function GET(request: NextRequest) {
     db.execute({ sql: "SELECT COUNT(*) as count FROM leads WHERE qualification = 'hot'", args: [] }),
     db.execute({ sql: "SELECT COUNT(*) as count FROM leads WHERE qualification = 'warm'", args: [] }),
     db.execute({ sql: "SELECT COUNT(*) as count FROM leads WHERE qualification = 'cold'", args: [] }),
-    db.execute({ sql: "SELECT COUNT(*) as count FROM emails WHERE status = 'sent'", args: [] }),
     db.execute({ sql: "SELECT COUNT(*) as count FROM conversations", args: [] }),
     db.execute({
       sql: "SELECT segment, COUNT(*) as count FROM leads WHERE segment IS NOT NULL GROUP BY segment",
@@ -41,17 +38,14 @@ export async function GET(request: NextRequest) {
       sql: "SELECT DATE(created_at) as date, COUNT(*) as count FROM messages GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 30",
       args: [],
     }),
-    db.execute({
-      sql: "SELECT DATE(created_at) as date, COUNT(*) as count FROM emails WHERE status = 'sent' GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 30",
-      args: [],
-    }),
     // Leads actually captured from a chat conversation (excludes imported / marketplace leads
     // with a null conversation_id). This is the correct numerator for conversionRate and for
     // the funnel's "leads" stage.
     db.execute({ sql: "SELECT COUNT(*) as count FROM leads WHERE conversation_id IS NOT NULL", args: [] }),
-    // Funnel's "meetings" stage counts real bookings, not sent emails. cards.meetingsBooked
-    // (the scorecard the client reads daily) is left alone on purpose, that is a separate
-    // decision, not this bug fix.
+    // The funnel's "meetings" stage counts real bookings. The old "Meetings Booked"
+    // scorecard and bar chart were removed on 2026-07-29 (JA): both actually counted
+    // `emails WHERE status='sent'`, so every follow-up Ahmed sent would have read as a
+    // meeting. This stays 0 until a Calendly webhook fills the bookings table.
     db.execute({ sql: "SELECT COUNT(*) as count FROM bookings", args: [] }),
     db.execute({
       sql: "SELECT COUNT(*) as count FROM leads WHERE status = 'converted' AND conversation_id IS NOT NULL",
@@ -61,7 +55,6 @@ export async function GET(request: NextRequest) {
 
   const totalConversations = conversations.rows[0]?.count ?? 0;
   const totalLeadsCount = totalLeads.rows[0]?.count ?? 0;
-  const meetingsCount = meetingsBooked.rows[0]?.count ?? 0;
   const leadsFromConversationCount = leadsFromConversation.rows[0]?.count ?? 0;
   const bookingsTotal = bookingsCount.rows[0]?.count ?? 0;
   const convertedFromConversationCount = convertedFromConversation.rows[0]?.count ?? 0;
@@ -76,13 +69,11 @@ export async function GET(request: NextRequest) {
       hotLeads: hotLeads.rows[0]?.count ?? 0,
       warmLeads: warmLeads.rows[0]?.count ?? 0,
       coldLeads: coldLeads.rows[0]?.count ?? 0,
-      meetingsBooked: meetingsCount,
       conversionRate: `${conversionRate}%`,
     },
     segmentBreakdown: segmentBreakdown.rows,
     recentLeads: recentLeads.rows,
     interactions: interactions.rows,
-    meetingsByDate: meetingsByDate.rows,
     funnel: {
       conversations: Number(totalConversations),
       leads: Number(leadsFromConversationCount),

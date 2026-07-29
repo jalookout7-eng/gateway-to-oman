@@ -5,7 +5,6 @@ import { Scorecard } from "@/components/admin/Scorecard";
 import { LeadVolumeChart } from "@/components/admin/LeadVolumeChart";
 import { SegmentDonut } from "@/components/admin/SegmentDonut";
 import { InteractionsLine } from "@/components/admin/InteractionsLine";
-import { MeetingsBar } from "@/components/admin/MeetingsBar";
 import { FunnelChart } from "@/components/admin/FunnelChart";
 
 interface StatsData {
@@ -14,13 +13,11 @@ interface StatsData {
     hotLeads: number;
     warmLeads: number;
     coldLeads: number;
-    meetingsBooked: number;
     conversionRate: string;
   };
   segmentBreakdown: { segment: string; count: number }[];
   recentLeads: { date: string; count: number }[];
   interactions: { date: string; count: number }[];
-  meetingsByDate: { date: string; count: number }[];
   funnel: {
     conversations: number;
     leads: number;
@@ -76,7 +73,6 @@ export default function AdminDashboard() {
         <LeadVolumeChart data={stats.recentLeads} />
         <SegmentDonut data={stats.segmentBreakdown} />
         <InteractionsLine data={stats.interactions} />
-        <MeetingsBar data={stats.meetingsByDate} />
       </div>
 
       <FunnelChart {...stats.funnel} />
